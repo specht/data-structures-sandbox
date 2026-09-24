@@ -24,6 +24,8 @@ late String sourcePath;
 String outputDirectory = 'tool/generated';
 String? selectedSource;
 String? overrideKind;
+// The daemon returns exact diagnostics after a failed request.
+String? lastError;
 
 
 
@@ -234,21 +236,29 @@ void main(List<String> arguments) {
   } else { generate(kinds); }
 }
 
-void generate(String kind) {
+void generate(String kind, {bool announce = true}) {
   exitCode=0;
+  lastError=null;
   final requestedKind = kind;
   config = configs[requestedKind] ?? (throw ArgumentError('Unknown structure: $requestedKind'));
   sourcePath = selectedSource ?? 'structures/example/${config['file']}.dart';
   final original = File(sourcePath);
-  if (!original.existsSync()) { stderr.writeln('Student source not found: $sourcePath'); exitCode = 66; return; }
+  if (!original.existsSync()) {
+    lastError='Student source not found: $sourcePath';
+    stderr.writeln(lastError);exitCode = 66;return;
+  }
   final source = original.readAsStringSync();
   final parsed = parseString(content: source, path: sourcePath, throwIfDiagnostics: false);
   if (parsed.errors.isNotEmpty) {
-    for (final e in parsed.errors) stderr.writeln('Dart source: $e');
+    lastError=parsed.errors.map((e)=>'Dart source: $e').join('\n');
+    stderr.writeln(lastError);
     exitCode = 65; return;
   }
   final classes = parsed.unit.declarations.whereType<ClassDeclaration>().where((c) => c.name.lexeme == config['class']).toList();
-  if (classes.length != 1) { stderr.writeln('Expected one class named ${config['class']}.'); exitCode = 65; return; }
+  if (classes.length != 1) {
+    lastError='Expected one class named ${config['class']}.';
+    stderr.writeln(lastError);exitCode = 65;return;
+  }
   final methods = <MethodInfo>[];
   final edits = <Edit>[];
   final collector = MethodCollector();
@@ -277,7 +287,10 @@ void generate(String kind) {
       block.accept(visitor);
     }
   }
-  if (methods.isEmpty) { stderr.writeln('No public methods with supported parameter types found.'); exitCode = 65; return; }
+  if (methods.isEmpty) {
+    lastError='No public methods with supported parameter types found.';
+    stderr.writeln(lastError);exitCode = 65;return;
+  }
   // Multiple inserts at the same offset are concatenated deterministically.
   final changes = <int, List<Edit>>{};
   for (final edit in edits) changes.putIfAbsent(edit.position, () => []).add(edit);
@@ -300,5 +313,5 @@ void generate(String kind) {
   final generated = Directory(outputDirectory)..createSync(recursive: true);
   File('${generated.path}/${config['file']}.dart').writeAsStringSync(transformed);
   File('${generated.path}/${requestedKind}_methods.dart').writeAsStringSync(generateCalls(methods));
-  stdout.writeln('Discovered ${methods.length} method(s): ${methods.map((m) => m.name).join(', ')}.');
+  if (announce) stdout.writeln('Discovered ${methods.length} method(s): ${methods.map((m) => m.name).join(', ')}.');
 }

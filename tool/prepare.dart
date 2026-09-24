@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 
 import 'registry.dart';
 import 'specialize_worker.dart';
+import 'instrument_client.dart';
 
 // All names are validated before becoming parts of generated paths.
 final _safeName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$');
@@ -14,6 +15,18 @@ final _safeName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$');
 // Multiple browser sessions may select the same implementation at once. They
 // share one preparation, but each still gets its own live worker and state.
 final _building = <String, Future<String>>{};
+final _instrumenter = InstrumentClient();
+
+// Start the analyzer while the browser loads, not on the student's first edit.
+// The normal one-shot command remains the fallback if the daemon cannot start.
+void warmInstrumenter() {
+  final timer = Stopwatch()..start();
+  unawaited(_instrumenter.warm().then((_) {
+    buildProfile('instrumenter', 'warm startup', timer.elapsed);
+  }, onError: (Object error, StackTrace stack) {
+    stderr.writeln('[instrumenter] Prewarm failed: $error; one-shot fallback available.');
+  }));
+}
 
 // Enable with SANDBOX_PROFILE=1 ./run. Wall-clock times include subprocess
 // startup and I/O; no student code or source contents are written to this log.
@@ -208,15 +221,23 @@ Future<String> _build(
   buildProfile(subject, 'staging', setup.elapsed);
 
   final instrumentation = Stopwatch()..start();
-  final instrumented = await Process.run(
-    Platform.resolvedExecutable,
-    ['run', 'tool/instrument.dart', kind,
-      '--source', source.path, '--out', generated.path],
-  );
-  buildProfile(subject, 'instrument (dart run)', instrumentation.elapsed);
-  if (instrumented.exitCode != 0) {
-    throw FormatException('Could not instrument ${source.path}:\n'
-        '${instrumented.stdout}${instrumented.stderr}');
+  try {
+    await _instrumenter.instrument(kind, source.path, generated.path);
+    buildProfile(subject, 'instrument (persistent)', instrumentation.elapsed);
+  } on InstrumenterUnavailable catch (error) {
+    // Keep editing functional if the analyzer daemon cannot be launched or
+    // restarted. A student syntax error is a FormatException, not a fallback.
+    stderr.writeln('[instrumenter] $error; using one-shot fallback.');
+    final instrumented = await Process.run(
+      Platform.resolvedExecutable,
+      ['run', 'tool/instrument.dart', kind,
+        '--source', source.path, '--out', generated.path],
+    );
+    buildProfile(subject, 'instrument (one-shot fallback)', instrumentation.elapsed);
+    if (instrumented.exitCode != 0) {
+      throw FormatException('Could not instrument ${source.path}:\n'
+          '${instrumented.stdout}${instrumented.stderr}');
+    }
   }
   // The browser has one structure selected at a time. Keep the shared trace
   // engine, but import and compile only this student's selected implementation.

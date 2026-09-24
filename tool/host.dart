@@ -138,6 +138,8 @@ class Client {
   bool closed=false;
   bool refreshing=false;
   int selectionEpoch=0;
+  String? _pendingSelectionKey;
+  Future<void>? _pendingSelection;
   Client(this.socket);
 
   void cancelValidation() {
@@ -162,7 +164,28 @@ class Client {
     unawaited(select(student!,kind!, detectedAt:detected)
       .whenComplete(()=>refreshing=false));
   }
-  Future<void> select(String selected,String structure,{Stopwatch? detectedAt}) async {
+  Future<void> select(String selected,String structure,{Stopwatch? detectedAt}) {
+    // A save notification and a concurrent select for the SAME revision
+    // must join one startup, rather than each starting its own worker. Other
+    // browser sessions retain their intentionally independent worker state.
+    final key = '$selected\u0000$structure\u0000${stamp(selected,structure)}';
+    final existing = _pendingSelection;
+    if(existing!=null && _pendingSelectionKey==key) return existing;
+    final pending = _selectOnce(selected,structure,detectedAt:detectedAt);
+    _pendingSelectionKey = key;
+    _pendingSelection = pending;
+    unawaited(pending.then((_) {
+      if(identical(_pendingSelection,pending)) {
+        _pendingSelection=null;_pendingSelectionKey=null;
+      }
+    },onError:(Object error, StackTrace trace) {
+      if(identical(_pendingSelection,pending)) {
+        _pendingSelection=null;_pendingSelectionKey=null;
+      }
+    }));
+    return pending;
+  }
+  Future<void> _selectOnce(String selected,String structure,{Stopwatch? detectedAt}) async {
     final selection = Stopwatch()..start();
     final subject = '$selected/$structure';
     final epoch=++selectionEpoch;
@@ -362,6 +385,7 @@ Future<void> main(List<String> args) async {
       default:throw FormatException('Usage: ./run [--port PORT] [--no-open] [--students PATH]');
     }
   }
+  warmInstrumenter();
   // Missing class repository is an intentional empty first-run state.
   final server=await HttpServer.bind(InternetAddress.loopbackIPv4,port);
   final url='http://127.0.0.1:${server.port}/';
