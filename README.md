@@ -80,7 +80,7 @@ next roadmap stage; see [the roadmap](docs/roadmap.md).
 
 ## Circular array queue (roadmap stage 2)
 
-Run `./new-structure example array_queue` if you already have a local
+Run `./new-structure example queue circular --example` if you already have a local
 `structures/example` folder, or copy `templates/example/my_array_queue.dart`
 into a student's separate repository. This is a new **template**, not a change
 to an existing student's code. A fresh `./run` initialization includes it.
@@ -94,8 +94,8 @@ cells, and intermediate writes during step-by-step playback. Check wraparound
 by filling the queue, dequeuing three elements, then enqueuing three more.
 
 Run `dart test/smoke.dart` and the Node.js geometry/navigation tests before
-introducing the example to students. The original student repository and the
-existing worker cache remain separate and unchanged.
+introducing the example to students. The student repository and the
+worker cache remain separate.
 
 ## Failure handling and limits
 
@@ -137,7 +137,7 @@ The end-to-end Dart worker test must be run in the Workspace. The ZIP was built
 without a Dart SDK in the authoring environment, so **Dart compilation has not
 been verified here**.
 
-Create a fresh student implementation without overwriting existing work:
+Create an unfinished starter without overwriting existing work:
 
 ```bash
 ./new-structure alice list
@@ -188,7 +188,7 @@ capacity. The trace-event and worker-time budgets still prevent runaway code.
 After `./run` initializes `structures/example`, copy
 `templates/example/my_linked_stack.dart` into `structures/example/` if the
 student repository already existed before this milestone. Run
-`./new-structure alice linked_stack` for a new student file.
+`./new-structure alice stack nodes` for a new student file.
 
 ## Roadmap milestone 1b · linked queue
 
@@ -204,7 +204,7 @@ overwriting existing work:
 
 ```bash
 cp templates/example/my_linked_queue.dart structures/example/
-./new-structure alice linked_queue
+./new-structure alice queue nodes
 ```
 
 Run `dart test/smoke.dart` in the Workspace after adding example files.
@@ -234,7 +234,7 @@ BST order, and shared/cyclic pointers **after each public operation** and
 reports the failures separately from the abstract set-value check.
 
 ```
-./new-structure example avl  # only if structures/example/my_avl.dart is absent
+./new-structure example tree avl --example  # only if structures/example/my_avl.dart is absent
 # or: cp -n templates/example/my_avl.dart structures/example/
 ./run
 ```
@@ -250,3 +250,12 @@ Run `dart test/avl_model.dart`, `dart test/smoke.dart`, and
 The worker smoke test needs the `example` AVL file in the separate
 `structures/` repository; it never creates or overwrites a student's work.
 The standalone model test runs directly against the bundled example.
+
+## Creating student starters
+
+Run `./new-structure` to list interface/implementation choices. For example,
+`./new-structure alice stack array` creates an unfinished eight-cell stack;
+`./new-structure alice stack nodes` creates a linked-node stack. The default
+is a starter; `--example` requests a complete reference implementation. Files
+are never overwritten, and `structures/` remains a separate Git repository.
+See `docs/contracts.md`, `docs/start-here.md` and `docs/storage-api.md`.

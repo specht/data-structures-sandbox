@@ -39,6 +39,25 @@ Future<void> main() async {
       }
       final values=(trace['values'] as List).cast<int>();
       if(!values.contains(25)) throw StateError('$kind did not store the inserted value');
+      if(kind=='stack'){
+        final events=(trace['steps'] as List).cast<Map>();
+        if(!events.any((e)=>e['kind']=='indexWrite'&&e['name']=='top'&&
+            e['oldValue']==-1&&e['value']==0)){
+          throw StateError('Array stack must trace student-owned top: ${trace['steps']}');
+        }
+        final snap=events.lastWhere((e)=>e['kind']=='snapshot');
+        if(snap['top']!=0)throw StateError('Student-owned top not in snapshot: $snap');
+        process.stdin.writeln(jsonEncode({'action':'run','method':'pop','arguments':[]}));
+        await process.stdin.flush();
+        final popped=await next();
+        final popSteps=(popped['steps'] as List).cast<Map>();
+        if(popSteps.last['ok']!=true || popSteps.last['value']!=25 ||
+            !popSteps.any((e)=>e['kind']=='indexWrite'&&e['name']=='top'&&
+              e['oldValue']==0&&e['value']==-1)){
+          throw StateError('Array stack pop must trace 0→-1: ${popped['steps']}');
+        }
+        stdout.writeln('PASS: stack · student-owned top traced on push and pop');
+      }
       if(kind=='hash'){
         Future<Map<String,dynamic>> hashCall(String name,[List<Object?> args=const []]) async {
           process.stdin.writeln(jsonEncode({'action':'run','method':name,'arguments':args}));

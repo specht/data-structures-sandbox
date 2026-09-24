@@ -41,6 +41,13 @@ observable storage fields specified in the starter (`memory`, `top`, `head`,
 Do **not** call any recorder or renderer from student code: the framework
 instruments a separate copy while showing students their own source file.
 
+For the fixed-array stack, `int top = -1` is **owned by the student**;
+`FixedMemory` owns only observable cells. Assign to `top` in student code;
+the sandbox instruments and visualizes the assignment automatically.
+See `docs/storage-api.md`. Create a starter with `./new-structure STUDENT stack array`
+or use `stack nodes` for the linked implementation. `--example` explicitly
+copies a complete solution; the default is the unfinished starter.
+
 Returning a placeholder `false` or `null` in a starter is not a solution.
 It is intentionally compilable but should fail the model check when the
 operation is supposed to succeed. The `example/` templates remain **complete

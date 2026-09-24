@@ -14,7 +14,7 @@ Each bucket stores a nullable `ListNode` reference; collisions form chains.
 Create an implementation in the **separate** student repository:
 
 ```sh
-./new-structure example hash
+./new-structure example hash chains --example
 ```
 
 Try `insert(7)`, `insert(15)`, `insert(23)`, `contains(15)`,

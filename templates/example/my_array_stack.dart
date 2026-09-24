@@ -4,10 +4,9 @@ import '../../lib/stack_sandbox.dart';
 // The fixed array indices stay stable; only values and top change.
 class MyArrayStack {
   final FixedMemory memory = FixedMemory(8);
-  // The observable fixed-memory object owns the top index too. No tracing
-  // or visualization calls belong in student implementations.
-  int get top => memory.top;
-  set top(int value) => memory.top = value;
+  // The stack owns its logical top; FixedMemory contains only its cells.
+  // The sandbox instruments top assignments in a separate copy of this file.
+  int top = -1;
 
   bool push(int value) {
     if (top + 1 == memory.length) return false;

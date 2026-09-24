@@ -1,37 +1,64 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$(realpath "$0")")"
-if [[ $# -ne 2 && $# -ne 3 ]]; then
-  printf 'Usage: ./new-structure STUDENT list|tree|avl|stack|linked_stack|linked_queue|array_queue|array_heap|node_heap|hash [--starter]\n' >&2
-  exit 64
-fi
-student="$1"
-kind="$2"
-variant="${3:-}"
-if [[ -n "$variant" && "$variant" != "--starter" ]]; then
-  echo "Optional third argument must be --starter." >&2; exit 64
-fi
+
+usage() {
+  cat <<'EOF'
+Create a student data structure (unfinished starter by default).
+
+  ./new-structure STUDENT TYPE [IMPLEMENTATION] [--example]
+
+TYPE        IMPLEMENTATION          Result
+list        linked                  Sorted singly linked list
+stack       array | nodes           Fixed array (default) | linked nodes
+queue       circular | nodes        Circular array (default) | linked nodes
+tree        bst | avl               Binary search tree (default) | AVL tree
+heap        array | nodes           Array (default) | node-based min-heap
+hash        chains                  Separate chaining (student hash function)
+
+Examples:
+  ./new-structure alice stack
+  ./new-structure alice stack nodes
+  ./new-structure alice tree avl
+  ./new-structure alice stack array --example
+
+--example copies a complete reference implementation, not a starter.
+An existing file is never overwritten. The structures/ directory is a separate Git repository.
+EOF
+}
+if [[ $# -eq 0 || ( $# -eq 1 && ( "$1" == --help || "$1" == -h ) ) ]]; then usage; exit 0; fi
+if (( $# < 2 || $# > 4 )); then usage >&2; exit 64; fi
+student="$1"; kind="$2"; shift 2
 if [[ ! "$student" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$ ]]; then
   echo 'Invalid student folder name.' >&2; exit 64
 fi
-case "$kind" in
-  list) filename=my_linked_list.dart;;
-  tree) filename=my_bst.dart;;
-  avl) filename=my_avl.dart;;
-  stack) filename=my_array_stack.dart;;
-  linked_stack) filename=my_linked_stack.dart;;
-  linked_queue) filename=my_linked_queue.dart;;
-  array_queue) filename=my_array_queue.dart;;
-  array_heap) filename=my_array_heap.dart;;
-  node_heap) filename=my_node_heap.dart;;
-  hash) filename=my_hash_table.dart;;
-  *) echo 'Currently supported types: list, tree, avl, stack, linked_stack, linked_queue, array_queue, array_heap, node_heap, hash.' >&2; exit 64;;
+example=false
+implementation=''
+for arg in "$@"; do
+  case "$arg" in
+    --example) if "$example"; then echo 'Duplicate --example.' >&2; exit 64; fi; example=true;;
+    --*) echo "Unknown option: $arg" >&2; usage >&2; exit 64;;
+    *) if [[ -n "$implementation" ]]; then echo 'Specify only one implementation.' >&2; exit 64; fi; implementation="$arg";;
+  esac
+done
+case "$kind:$implementation" in
+  list:|list:linked) filename=my_linked_list.dart;;
+  stack:|stack:array) filename=my_array_stack.dart;;
+  stack:nodes) filename=my_linked_stack.dart;;
+  queue:|queue:circular) filename=my_array_queue.dart;;
+  queue:nodes) filename=my_linked_queue.dart;;
+  tree:|tree:bst) filename=my_bst.dart;;
+  tree:avl) filename=my_avl.dart;;
+  heap:|heap:array) filename=my_array_heap.dart;;
+  heap:nodes) filename=my_node_heap.dart;;
+  hash:|hash:chains) filename=my_hash_table.dart;;
+  *) echo "Unknown choice: $kind ${implementation}. Run ./new-structure to see all options." >&2; exit 64;;
 esac
+source="templates/starter/$filename"
+if "$example"; then source="templates/example/$filename"; fi
+if [[ ! -f "$source" ]]; then echo "Missing template: $source" >&2; exit 66; fi
 mkdir -p "structures/$student"
-if [[ -e "structures/$student/$filename" ]]; then
-  echo "File exists; not overwriting: structures/$student/$filename" >&2; exit 73
-fi
-source="templates/example/$filename"
-if [[ "$variant" == "--starter" ]]; then source="templates/starter/$filename"; fi
-cp "$source" "structures/$student/$filename"
-echo "Created structures/$student/$filename from $source in the separate student Git repository."
+target="structures/$student/$filename"
+if [[ -e "$target" ]]; then echo "File exists; not overwriting: $target" >&2; exit 73; fi
+cp "$source" "$target"
+echo "Created $target from $source in the separate student Git repository."

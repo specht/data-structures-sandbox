@@ -14,7 +14,7 @@ position helps locate a parent or the last node.
 To make a new example in the *separate* student repository:
 
 ```sh
-./new-structure example node_heap
+./new-structure example heap nodes --example
 ```
 
 Try `insert(25)`, `insert(7)`, `insert(13)`, `insert(5)`, then `removeMin()`.

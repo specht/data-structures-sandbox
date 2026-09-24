@@ -11,7 +11,7 @@ In another terminal, in the same outer directory, create your own **unfinished**
 stack implementation (replace `alice` with your own folder name):
 
 ```sh
-./new-structure alice stack --starter
+./new-structure alice stack array
 ```
 
 This creates `structures/alice/my_array_stack.dart`. It never overwrites an
@@ -24,7 +24,7 @@ state is expected after code changes; stored values do not survive a rebuild.
 ### Implement and test one behavior at a time
 
 Read `docs/contracts.md` and open your `my_array_stack.dart`. The starter
-already provides `FixedMemory(8)` and the observable `top` getter/setter.
+already provides `FixedMemory(8)` and a student-owned `int top = -1`.
 You write the logic, **not** the drawing code. `top == -1` means empty, and
 `memory[0]` through `memory[7]` are fixed cells. No `List.add()` or
 `List.removeLast()` is needed.
@@ -48,7 +48,9 @@ highlights your Dart file; the instrumented worker lives outside your student
 repository. Commit your file in the **separate** `structures/` repository when
 your implementation passes its checks.
 
-For another structure use `./new-structure alice KIND --starter` with one of:
-`list`, `tree`, `avl`, `stack`, `linked_stack`, `linked_queue`, `array_queue`,
-`array_heap`, `node_heap`, `hash`. The same command **without** `--starter`
-continues to copy a complete example. Do not run either on an existing file.
+Run `./new-structure` without arguments to see every interface and
+implementation. The default creates an unfinished **starter**. For a linked
+stack use `./new-structure alice stack nodes`; for a complete reference
+implementation use `./new-structure alice stack array --example`.
+Existing files are never overwritten. See `docs/storage-api.md` for the
+observable memory and node classes used in the starter files.

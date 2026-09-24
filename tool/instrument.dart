@@ -106,6 +106,24 @@ class BodyInstrumenter extends RecursiveAstVisitor<void> {
     final expr = s.expression;
     var before = '';
     var after = '';
+    // For an array stack, top belongs to the student's class. Capture its
+    // changes, including `top++`, `--top`, `top += 1`, and `top = ...`.
+    // Instrument only top-level expression statements, not loop conditions or
+    // nested expressions, so the original Dart evaluation order is preserved.
+    final topMutation=config['file']=='my_array_stack' &&
+      ((expr is AssignmentExpression &&
+        (expr.leftHandSide.toSource()=='top'||expr.leftHandSide.toSource()=='this.top')) ||
+       (expr is PrefixExpression &&
+        (expr.operand.toSource()=='top'||expr.operand.toSource()=='this.top') &&
+        (expr.operator.lexeme=='++'||expr.operator.lexeme=='--')) ||
+       (expr is PostfixExpression &&
+        (expr.operand.toSource()=='top'||expr.operand.toSource()=='this.top') &&
+        (expr.operator.lexeme=='++'||expr.operator.lexeme=='--')));
+    if(topMutation){
+      final old='__previousTop_${s.offset}';
+      before='final $old = top;';
+      after="trace.indexWrite('top', $old, top);";
+    }
     if (expr is AssignmentExpression) {
       final lhs = expr.leftHandSide.toSource();
       if ((lhs == config['root'] || lhs == config['tail']) &&

@@ -5,8 +5,8 @@ import '../../lib/stack_sandbox.dart';
 // Required contract: push false if full, pop/peek null if empty, duplicates OK.
 class MyArrayStack {
   final FixedMemory memory = FixedMemory(8);
-  int get top => memory.top;
-  set top(int index) => memory.top = index;
+  // Student-owned logical state. -1 means no element is stored.
+  int top = -1;
 
   bool push(int value) {
     // TODO: Check capacity, move top, write value into memory[top].
