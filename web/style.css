@@ -440,3 +440,75 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .scene-zoom button .ui-icon,.controls .icon-button .ui-icon{width:17px;height:17px}
 .command-line button .ui-icon,.source-actions button .ui-icon{width:15px;height:15px}
 @media(max-width:600px){.command-line button .ui-icon,.source-actions button .ui-icon{width:14px;height:14px}}
+
+/* UI refinement: compact headers, coherent controls and consistent ink. */
+.code-panel .section-heading .eyebrow,.operation-banner .eyebrow,
+.operation-banner #description,.operation-banner #phase{display:none!important}
+.code-panel .section-heading{min-height:56px;display:grid;
+  grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.code-panel .section-heading>div:first-child{min-width:0;display:block}
+.code-panel .section-heading strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.code-panel .section-heading>.source-actions{display:inline-flex!important;flex-direction:row!important;
+  flex-wrap:nowrap;align-items:center;justify-content:flex-end;min-width:166px;height:32px;gap:6px}
+.code-panel .source-actions button{height:31px;min-height:31px;white-space:nowrap;flex:none}
+.operation-banner{padding:9px 15px!important;min-height:44px;gap:10px}
+.operation-banner>div{display:flex;flex-direction:row;align-items:center;min-width:0;gap:8px}
+.operation-banner strong{font-size:19px;white-space:nowrap}
+.operation-result{gap:10px;min-width:0;flex-wrap:wrap}
+#return-value{color:#a8c9f7;gap:5px;font-size:16px}
+#return-value .return-arrow{color:#80adf1;width:17px;height:17px}
+.scene-top{align-items:center;justify-content:flex-start;gap:12px;padding:10px 15px 0}
+.scene-title{white-space:nowrap;flex:none}
+.scene-hint{margin:0;display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#9db3d1}
+.scene-hint .legend-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.scene-zoom{margin-left:auto;display:inline-flex;align-items:center;gap:2px;
+  border:1px solid #324761;border-radius:7px;padding:2px;background:#101b2b}
+.scene-zoom button{border:0;border-radius:4px}
+.call-suggestion .argument.present{background:transparent;color:inherit;border-radius:0;
+  padding:0;margin:0;font-weight:inherit}
+.suggestion-rows .call-suggestion.has-present-argument{
+  background:#263c5a;border-color:#6484b2;color:#e4efff}
+.suggestion-rows .call-suggestion.has-present-argument:hover{background:#304b71;border-color:#90b4ec}
+.timeline .controls{gap:7px;align-items:center}
+.step-controls{display:inline-flex;align-items:center;flex:none;gap:0;padding:2px;
+  background:#111e31;border:1px solid #354c69;border-radius:7px}
+.step-controls button{height:30px!important;min-height:30px!important;margin:0!important;
+  padding:0 9px!important;border:0;border-radius:4px;min-width:0!important}
+.step-controls #first,.step-controls #last{width:32px;padding:0!important}
+.step-controls #back,.step-controls #next{min-width:78px!important}
+.step-controls button+button{border-left:1px solid #334965}
+.step-controls #next{background:#356bb1}
+.controls .control-spacer{flex:1 1 8px;min-width:0}
+.controls input[type="range"]#speed{width:clamp(116px,9vw,164px);min-width:116px;flex:0 1 164px}
+.controls #speed-output{min-width:27px;white-space:nowrap}
+/* CodeMirror uses separate horizontal/vertical scrollers and a filler corner. */
+.source-editor .CodeMirror-scroll,.source-editor .CodeMirror-hscrollbar,
+.source-editor .CodeMirror-vscrollbar{scrollbar-color:#4a627f #101a29;scrollbar-width:thin}
+.source-editor .CodeMirror-scrollbar-filler,.source-editor .CodeMirror-gutter-filler{
+  background:#101a29!important}
+.source-editor .CodeMirror-scroll::-webkit-scrollbar,
+.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar,
+.source-editor .CodeMirror-vscrollbar::-webkit-scrollbar{width:10px;height:10px;background:#101a29}
+.source-editor .CodeMirror-scroll::-webkit-scrollbar-track,
+.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar-track,
+.source-editor .CodeMirror-vscrollbar::-webkit-scrollbar-track{background:#101a29}
+.source-editor .CodeMirror-scroll::-webkit-scrollbar-thumb,
+.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar-thumb,
+.source-editor .CodeMirror-vscrollbar::-webkit-scrollbar-thumb{
+  background:#4a627f;border:2px solid #101a29;border-radius:8px}
+.source-editor .CodeMirror-scroll::-webkit-scrollbar-corner,
+.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar-corner{
+  background:#101a29}
+@media(max-width:1100px){
+  .timeline .controls{flex-wrap:wrap}
+  .controls .control-spacer{display:none}
+  .controls input[type="range"]#speed{flex:1 1 116px;min-width:116px}
+}
+@media(max-width:600px){
+  .code-panel .section-heading>.source-actions{min-width:150px}
+  .code-panel .source-actions button{padding:0 7px}
+  .scene-top{flex-wrap:wrap;gap:6px 10px}
+  .scene-zoom{margin-left:auto}
+  .step-controls #back,.step-controls #next{min-width:0!important}
+  .step-controls button{padding:0 6px!important}
+}

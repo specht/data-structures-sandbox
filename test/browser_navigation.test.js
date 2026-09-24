@@ -159,7 +159,7 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
     {kind:'operationEnd',value:true,returnedVoid:false,result:'removed',line:0}],values:[7]};
   run(`acceptTrace(${JSON.stringify(collectionTrace)});jumpTo(frames.length);`);
   assert.ok(!run('nodes.has(2)'), 'removed node must disappear once no longer reachable');
-  assert.equal(run('ui.returnValue.textContent'),'⟶ true');
+  assert.equal(run('ui.returnValue.children[1].textContent'),'true');
   const following={...collectionTrace,steps:[without13,{kind:'operationStart',operation:'insert(20)',line:2},
     {kind:'createNode',node:{id:3,value:20,next:null},line:3},
     {kind:'pointerWrite',from:'node:1.next',oldTo:null,to:3,line:6},

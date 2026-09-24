@@ -59,6 +59,31 @@ function fitScene(){
   viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
   paintViewport();
 }
+let cameraAnimationId=0;
+function animateCamera(action){
+  const before={...viewport};
+  const token=++cameraAnimationId;
+  action();
+  const after={...viewport};
+  if(typeof requestAnimationFrame!=='function'||
+     (typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches))return;
+  viewport=before;paintViewport();
+  const start=performance.now();
+  function frame(now){
+    if(token!==cameraAnimationId)return;
+    const t=Math.max(0,Math.min(1,(now-start)/220));
+    const eased=1-Math.pow(1-t,3);
+    viewport={
+      x:before.x+(after.x-before.x)*eased,
+      y:before.y+(after.y-before.y)*eased,
+      w:before.w+(after.w-before.w)*eased,
+      h:before.h+(after.h-before.h)*eased,
+    };
+    paintViewport();
+    if(t<1)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
 
 // Compute the eventual reachable tree's world-space bounds BEFORE playback.
 // A single camera update here avoids per-step jumps and keeps pointer-first
@@ -265,7 +290,13 @@ const svg = (name, attrs={}) => {
   return element;
 };
 function showReturnValue(frame){
-  if(!frame.returnedVoid){ui.returnValue.textContent=`⟶ ${String(frame.value)}`;return;}
+  if(!frame.returnedVoid){
+    const arrow=svg('svg',{viewBox:'0 0 24 24',width:16,height:16,
+      class:'ui-icon return-arrow','aria-hidden':'true'});
+    arrow.append(svg('use',{href:'/vendor/tabler-icons.svg#ti-arrow-right'}));
+    ui.returnValue.replaceChildren(arrow,document.createTextNode(String(frame.value)));
+    return;
+  }
   if(frame.ok===false){ui.returnValue.textContent='Check failed';return;}
   const check=svg('svg',{viewBox:'0 0 24 24',width:16,height:16,
     class:'ui-icon completion-icon','aria-hidden':'true'});
@@ -1127,6 +1158,7 @@ function autoFrameLinked(steps){
 }
 function acceptTrace(data){
   if(!data.source?.lines||!Array.isArray(data.steps)||data.steps[0]?.kind!=='snapshot')throw Error('Invalid Dart trace.');
+  cameraAnimationId++; // A new trace owns the viewport, not an old Fit animation.
   animationGeneration++;animating=false;
   if(data.structure&&data.structure!==structure){structure=data.structure;ui.structure.value=structure;}
   if(data.methods)updateMethodCatalog(data.methods);
@@ -1281,6 +1313,8 @@ function renderSuggestions(){
         return `<span class="argument ${existing?'present':''}">${safe}</span>`;
       };
       button.innerHTML=`<span class="call-name">${method.name}</span>(${suggestion.args.map(formatArg).join(', ')})`;
+      if(suggestion.args.some(arg=>typeof arg==='number'&&values.includes(arg)))
+        button.classList.add('has-present-argument');
       button.title=suggestion.hint;
       button.setAttribute('aria-label',`${button.textContent} — ${suggestion.hint}`);
       button.dataset.scenario=suggestion.hint;
@@ -1862,17 +1896,29 @@ async function animateStack(frame){
   if(frame.kind==='operationEnd')ui.phase.textContent='DONE';
 }
 
-// Viewport navigation is independent of Dart execution and trace playback.
-ui.zoomIn.addEventListener('click',()=>zoomScene(1/1.35));
-ui.zoomOut.addEventListener('click',()=>zoomScene(1.35));
-ui.fitScene.addEventListener('click',fitScene);
+// The four trace-navigation buttons form one semantic and visual group.
+// Moving their existing DOM nodes preserves their listeners and shortcuts.
+if(ui.first.parentNode){
+  const navigation=document.createElement('div');
+  navigation.className='step-controls';
+  navigation.setAttribute('role','group');
+  navigation.setAttribute('aria-label','Trace navigation');
+  ui.first.parentNode.insertBefore(navigation,ui.first);
+  navigation.append(ui.first,ui.back,ui.next,ui.last);
+}
+// Animate button-driven camera moves; wheel and pointer dragging stay direct.
+ui.zoomIn.addEventListener('click',()=>animateCamera(()=>zoomScene(1/1.35)));
+ui.zoomOut.addEventListener('click',()=>animateCamera(()=>zoomScene(1.35)));
+ui.fitScene.addEventListener('click',()=>animateCamera(fitScene));
 ui.scene.addEventListener('wheel',event=>{
   event.preventDefault();
+  cameraAnimationId++;
   zoomScene(event.deltaY>0?1.12:1/1.12,event.clientX,event.clientY);
 },{passive:false});
 let dragging=null;
 ui.scene.addEventListener('pointerdown',event=>{
   if(event.button!==0)return;
+  cameraAnimationId++;
   dragging={id:event.pointerId,x:event.clientX,y:event.clientY};
   ui.scene.setPointerCapture?.(event.pointerId);
 });
