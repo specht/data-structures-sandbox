@@ -2,40 +2,93 @@
 // Browser renders a trace sent by a persistent Dart server. No browser-side
 // simulation of list operations: node IDs and reference writes come from Dart.
 const NS = 'http://www.w3.org/2000/svg';
-// Keep one fixed logical viewport throughout an operation: resizing it causes
-// every node and arrow to jump even when its own position has not changed.
+// Keep a single camera for each trace: frame new tree growth at the command
+// boundary, never halfway through a pointer or rotation animation.
 const SCENE_WIDTH = 1100, WIDTH = 112, HEIGHT = 68, ROW = 276, START_X = 112, GAP = 184;
-// The logical scene stays fixed through a trace; only explicit user navigation
-// changes the viewport. This avoids the jumping caused by auto-fitting each step.
-let viewport={x:0,y:0,w:1100,h:510},viewportKind=null;
+// Manual zoom/pan takes precedence until Fit is pressed. Auto framing uses
+// the final reachable tree, not transient unlinked nodes or the whole registry.
+let viewport={x:0,y:0,w:1100,h:510},viewportKind=null,cameraMode='auto';
 function paintViewport(){
   ui.scene.setAttribute('viewBox',`${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`);
 }
 function ensureViewport(kind){
   if(viewportKind!==kind){
     viewportKind=kind;
+    cameraMode='auto';
     viewport={x:0,y:0,w:1100,h:(kind==='tree'||kind==='avl')?620:510};
   }
   paintViewport();
 }
 function zoomScene(factor){
+  cameraMode='manual';
   const w=Math.max(230,Math.min(200000,viewport.w*factor));
   const h=viewport.h*w/viewport.w;
   viewport={x:viewport.x+(viewport.w-w)/2,y:viewport.y+(viewport.h-h)/2,w,h};
   paintViewport();
 }
+function treeSceneRatio(){
+  const bounds=ui.scene.getBoundingClientRect?.();
+  return bounds?.width>0 && bounds?.height>0
+    ?bounds.width/bounds.height:SCENE_WIDTH/620;
+}
 function fitScene(){
-  const visible=[...nodes.values()].filter(n=>n.opacity>.01);
+  cameraMode='auto';
+  const visible=[...nodes.values()].filter(n=>n.opacity>.01 && (!isTree()||!n.detached));
   if(!visible.length){viewportKind=null;ensureViewport(structure);return;}
   const right=isTree()?72:WIDTH;
   const x0=Math.min(...visible.map(n=>n.x))-115;
   const x1=Math.max(...visible.map(n=>n.x+right))+115;
   const y0=Math.min(...visible.map(n=>n.y))-160;
   const y1=Math.max(...visible.map(n=>n.y+HEIGHT))+115;
-  const ratio=(isTree()?1100/620:1100/510);
-  const w=Math.max(460,x1-x0,(y1-y0)*ratio);
+  const ratio=isTree()?treeSceneRatio():1100/510;
+  const w=Math.max(isTree()?880:460,x1-x0,(y1-y0)*ratio);
   const h=w/ratio;
   viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
+  paintViewport();
+}
+
+// Compute the eventual reachable tree's world-space bounds BEFORE playback.
+// A single camera update here avoids per-step jumps and keeps pointer-first
+// rotations smooth. Preserve the previous scale when the tree gets smaller;
+// Reset (empty tree) and Fit can zoom in again.
+function autoFrameTree(steps){
+  if(!isTree()||cameraMode!=='auto')return;
+  const snapshots=steps.filter(step=>step.kind==='snapshot'&&Array.isArray(step.nodes));
+  const final=snapshots.at(-1);
+  if(!final)return;
+  const targets=treeLayout(final).targets;
+  const byId=new Map(final.nodes.map(node=>[node.id,node]));
+  const pending=[final.root],reachable=new Set(),positions=[];
+  while(pending.length){
+    const id=pending.pop();
+    if(id==null||reachable.has(id)||!byId.has(id))continue;
+    reachable.add(id);
+    positions.push(targets.get(id));
+    const node=byId.get(id);
+    pending.push(node.left,node.right);
+  }
+  if(!positions.length){
+    viewport={x:0,y:0,w:SCENE_WIDTH,h:620};
+    paintViewport();
+    return;
+  }
+  // Include the node outline, root label/arrow and breathing room at every
+  // side. Extents are independent of SVG's clipping and of the browser width.
+  const x0=Math.min(...positions.map(p=>p.x))-74;
+  const x1=Math.max(...positions.map(p=>p.x+TREE_RADIUS*2))+74;
+  const y0=Math.min(...positions.map(p=>p.y))-110;
+  const y1=Math.max(...positions.map(p=>p.y+TREE_RADIUS*2))+78;
+  const ratio=treeSceneRatio();
+  const requiredW=Math.max(SCENE_WIDTH,x1-x0,(y1-y0)*ratio);
+  const w=Math.max(viewport.w,requiredW),h=w/ratio;
+  // Do not shift the view for small trees that already fit the default scene.
+  // Once zoomed out, frame the actual tree bounds instead of keeping the root
+  // artificially in the middle of a huge empty left/right margin.
+  if(w===SCENE_WIDTH && x0>=0 && x1<=SCENE_WIDTH && y0>=0 && y1<=620){
+    viewport={x:0,y:0,w:SCENE_WIDTH,h:620};
+  }else{
+    viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
+  }
   paintViewport();
 }
 
@@ -758,9 +811,10 @@ function acceptTrace(data){
   if(data.methods)updateMethodCatalog(data.methods);
   source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
   frames=makeFrames(rawSteps,ui.traceMode.value);
-  // Never resize the scene as the trace grows. Objects animate within a fixed
-  // coordinate system, so adding a node cannot zoom all existing nodes out.
+  // Reframe once at the command boundary, using the final reachable state.
+  // The SVG viewBox then stays unchanged throughout the entire recorded trace.
   ensureViewport(structure);
+  autoFrameTree(rawSteps);
   playbackToken++;
   renderSource(source);restore(0);
   if(playbackMode==='result')jumpTo(frames.length);
@@ -991,7 +1045,7 @@ function treeLayout(snapshot){
   // tree layout: circles at the same depth never collide, even beyond the
   // fixed scene width. Keep the root centred and retain stable node IDs.
   const MIN_SIBLING_GAP=94; // 72px circle + 22px breathing room.
-  const BASE_CHILD_OFFSET=120;
+  const BASE_CHILD_OFFSET=72;
   const profiles=new Map();
   const pending=[{id:snapshot.root,finished:false}];
   const discovered=new Set();
@@ -1039,7 +1093,7 @@ function treeLayout(snapshot){
     const {id,depth,cx}=positions.pop();
     if(id==null||seen.has(id)||!byId.has(id))continue;
     seen.add(id);
-    targets.set(id,{x:cx-TREE_RADIUS,y:155+depth*80,opacity:1,detached:false});
+    targets.set(id,{x:cx-TREE_RADIUS,y:155+depth*90,opacity:1,detached:false});
     const node=byId.get(id),profile=profiles.get(id);
     if(profile){
       positions.push({id:node.right,depth:depth+1,cx:cx+profile.dxRight});
@@ -1274,6 +1328,7 @@ ui.scene.addEventListener('pointermove',event=>{
   if(!dragging||event.pointerId!==dragging.id)return;
   const rect=ui.scene.getBoundingClientRect();
   if(rect.width>0&&rect.height>0){
+    cameraMode='manual';
     viewport.x-=(event.clientX-dragging.x)*viewport.w/rect.width;
     viewport.y-=(event.clientY-dragging.y)*viewport.h/rect.height;
     paintViewport();

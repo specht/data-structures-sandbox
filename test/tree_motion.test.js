@@ -159,4 +159,60 @@ run(`selectedStudent='example';renderSource({file:'/home/teacher/project/structu
 assert.equal(document.getElementById('filename').textContent,'example/my_avl.dart');
 run(`selectedStudent='alice';renderSource({file:'/custom/repo/alice/my_bst.dart',lines:[]});`);
 assert.equal(document.getElementById('filename').textContent,'alice/my_bst.dart');
+// Compact spacing should not waste half the viewport on each parent-child
+// edge: 31 nodes remain readable at ordinary desktop sizes.
+const compact=assertSeparated(balanced(31),93.99);
+const compactNodes=[...compact.targets.values()];
+assert.ok(Math.max(...compactNodes.map(n=>n.x))-Math.min(...compactNodes.map(n=>n.x))+72<2100,
+  'The compact contour layout should not have giant first-level gaps');
+// Automatic camera uses the final reachable structure, once per incoming trace.
+// Dense trees must be entirely visible; replaying steps must not modify viewBox.
+function showTree(snapshot){
+  run(`structure='avl';viewportKind=null;ensureViewport('avl');acceptTrace({
+    structure:'avl',source:{file:'structures/example/my_avl.dart',lines:[]},
+    methods:[],values:[],steps:[{kind:'snapshot',...${JSON.stringify(snapshot)}}]
+  });`);
+  const view=run('({...viewport})');
+  const targets=run(`treeLayout(${JSON.stringify(snapshot)}).targets`);
+  for(const node of targets.values()){
+    if(node.detached)continue;
+    assert.ok(node.x>=view.x+10 && node.x+72<=view.x+view.w-10,
+      `Node clipped horizontally at x=${node.x}, view=${JSON.stringify(view)}`);
+    assert.ok(node.y-75>=view.y && node.y+72<=view.y+view.h-10,
+      `Node or its root reference clipped vertically at y=${node.y}`);
+  }
+  return view;
+}
+const framed=showTree(wide);
+assert.ok(framed.w>1100,'A broad tree must automatically zoom out');
+assert.ok(Math.abs((framed.x+framed.w/2)-550)<120,
+  'Balanced trees should be centered around the root');
+const viewAtStart=document.getElementById('scene').getAttribute('viewBox');
+run('jumpTo(frames.length);jumpTo(0)');
+assert.equal(document.getElementById('scene').getAttribute('viewBox'),viewAtStart,
+  'Playback must not alter the camera');
+// Use the real SVG aspect ratio on a wide screen rather than wasting space
+// in horizontal gutters from a fixed 1100:620 viewBox.
+run('ui.scene.getBoundingClientRect=()=>({width:1200,height:480})');
+const wideAspect=showTree(wide);
+assert.ok(Math.abs(wideAspect.w/wideAspect.h-2.5)<.001,
+  'Automatic framing should use the real canvas aspect ratio');
+showTree({root:1,nodes:chain});
+const deepView=run('({...viewport})');
+assert.ok(deepView.h>620,'A deep tree must fit vertically, not just horizontally');
+// A student-chosen zoom/pan remains authoritative across future calls.
+run('zoomScene(1/1.35)');
+const manual=JSON.stringify(run('({...viewport})'));
+run(`acceptTrace({structure:'avl',source:{file:'structures/example/my_avl.dart',lines:[]},
+  methods:[],values:[],steps:[{kind:'snapshot',...${JSON.stringify(wide)}}]})`);
+assert.equal(JSON.stringify(run('({...viewport})')),manual,
+  'Do not override manually chosen zoom on the next trace');
+run('fitScene()');
+assert.equal(run('cameraMode'),'auto','Fit resumes auto framing');
+// A subsequent reset should return to a useful default rather than preserving
+// a tiny empty diagram at the old zoom level.
+run(`acceptTrace({structure:'avl',source:{file:'structures/example/my_avl.dart',lines:[]},
+  methods:[],values:[],steps:[{kind:'snapshot',root:null,nodes:[]}]})`);
+assert.equal(run('viewport.w'),1100);
+assert.equal(run('viewport.x'),0);
 console.log('PASS: Tree edges are centre-clipped, straight at rest, curved while moving.');
