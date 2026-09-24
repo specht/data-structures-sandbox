@@ -15,7 +15,7 @@ function ensureViewport(kind){
   if(viewportKind!==kind){
     viewportKind=kind;
     cameraMode='auto';
-    viewport={x:0,y:0,w:1100,h:kind==='array_heap'?810:(kind==='tree'||kind==='avl'||kind==='node_heap')?620:510};
+    viewport={x:0,y:0,w:1100,h:kind==='array_heap'?810:kind==='hash'?720:(kind==='tree'||kind==='avl'||kind==='node_heap')?620:510};
   }
   paintViewport();
 }
@@ -34,6 +34,7 @@ function treeSceneRatio(){
 function fitScene(){
   cameraMode='auto';
   if(structure==='array_heap'){autoFrameHeap([{kind:'snapshot',cells:heapState.cells}],true);return;}
+  if(structure==='hash'){autoFrameHash([{kind:'snapshot',...hashState}],true);return;}
   const visible=[...nodes.values()].filter(n=>n.opacity>.01 && (!isTree()||!n.detached));
   if(!visible.length){viewportKind=null;ensureViewport(structure);return;}
   const right=isTree()?72:WIDTH;
@@ -117,7 +118,7 @@ let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
-const STRUCTURE_LABELS={node_heap:'Node min-heap',array_heap:'Array min-heap',list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
+const STRUCTURE_LABELS={hash:'Hash table · separate chaining',node_heap:'Node min-heap',array_heap:'Array min-heap',list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -164,7 +165,7 @@ let playbackMode='step', playbackToken=0;
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
-let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, heapState={cells:[],heapOrder:true},heapHot=[], savedCapacity=8, references = {}, override = null, viewWidth = 1100;
+let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, heapState={cells:[],heapOrder:true},heapHot=[],hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8},hashHotBucket=null,hashHotNode=null, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
 const nodes = new Map(), nodeViews = new Map(), links = new Map();
 
 function syntaxColor(line, destination) {
@@ -370,7 +371,7 @@ function renderReferences(){
     ui.references.append(arrow);
   }
 }
-function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
+function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}if(structure==='hash'){renderHash();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
 function layoutFor(snapshot){
   if(isTree())return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
@@ -402,6 +403,7 @@ function applySnapshot(snapshot,animate=false){
   if(structure==='stack'){stackState={cells:[...snapshot.cells],top:snapshot.top};renderStack();return {targets:new Map(),count:snapshot.top+1,cycle:false};}
   if(structure==='array_queue'){queueState=queueSnapshot(snapshot);renderQueue();return {targets:new Map(),count:queueState.size,cycle:false};}
   if(structure==='array_heap'){heapState=heapSnapshot(snapshot);renderHeap();return {targets:new Map(),count:heapState.cells.length,cycle:false};}
+  if(structure==='hash'){hashState=hashSnapshot(snapshot);renderHash();return {targets:new Map(),count:hashState.size,cycle:false};}
   if(isTree())rootId=snapshot.root;else head=snapshot.head;
   if(structure==='linked_queue')tailId=snapshot.tail??null;
   for(const data of snapshot.nodes){
@@ -491,7 +493,7 @@ async function animateSettle(snapshot){
   ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
 }
 function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};heapState={cells:[],heapOrder:true};heapHot=[];ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded Dart execution.';
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
@@ -513,7 +515,7 @@ function makeFrames(raw, mode='conceptual'){
       continue;
     }
     if(s.kind==='localsClear')continue;
-    if((s.kind==='pointerWrite'||s.kind==='cellWrite'||s.kind==='indexWrite'||s.kind==='heightWrite'||['heapWrite','heapAppend','heapRemove','heapSwap'].includes(s.kind))&&raw[i+1]?.kind==='snapshot'){
+    if((s.kind==='pointerWrite'||s.kind==='bucketWrite'||s.kind==='cellWrite'||s.kind==='indexWrite'||s.kind==='heightWrite'||['heapWrite','heapAppend','heapRemove','heapSwap'].includes(s.kind))&&raw[i+1]?.kind==='snapshot'){
       result.push({...s,kind:s.kind==='pointerWrite'?'writeAndSettle':s.kind==='heightWrite'?'heightAndSettle':'memoryWriteAndSettle',snapshot:raw[++i],line:s.line??pendingLine});
     } else result.push({...s,line:s.line??pendingLine});
     pendingLine=null;
@@ -525,6 +527,7 @@ function instant(frame){
   if(structure==='stack'){instantStack(frame);return;}
   if(structure==='array_queue'){instantQueue(frame);return;}
   if(structure==='array_heap'){instantHeap(frame);return;}
+  if(structure==='hash'){instantHash(frame);return;}
   switch(frame.kind){
     case 'line':break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.textContent=frame.description;break;
@@ -558,6 +561,7 @@ async function animate(frame){
   if(structure==='stack'){await animateStack(frame);return;}
   if(structure==='array_queue'){await animateQueue(frame);return;}
   if(structure==='array_heap'){await animateHeap(frame);return;}
+  if(structure==='hash'){await animateHash(frame);return;}
   switch(frame.kind){
     case 'line':ui.phase.textContent='SOURCE LINE';break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;ui.returnValue.textContent='';
@@ -825,6 +829,7 @@ function acceptTrace(data){
   ensureViewport(structure);
   autoFrameTree(rawSteps);
   autoFrameHeap(rawSteps);
+  autoFrameHash(rawSteps);
   playbackToken++;
   renderSource(source);restore(0);
   if(playbackMode==='result')jumpTo(frames.length);
@@ -1198,6 +1203,115 @@ async function animateRetire(ids,snapshot){
 }
 // The array row and tree use exactly the same indexed Dart storage snapshot.
 // No independent browser heap model, no synthetic pointer/reference edges.
+// Fixed bucket row, observed ListNode chains and actual pointer relationships.
+// This view has no browser-side hash table: only the Dart snapshot is rendered.
+function hashSnapshot(snapshot){
+  return {buckets:[...(snapshot.buckets??[])],nodes:[...(snapshot.nodes??[])],
+    size:snapshot.size??0,capacity:snapshot.capacity??snapshot.buckets?.length??8};
+}
+function hashChains(snapshot){
+  const byId=new Map(snapshot.nodes.map(n=>[n.id,n]));
+  const chains=[],seen=new Set();
+  for(let index=0;index<snapshot.buckets.length;index++){
+    const chain=[];let id=snapshot.buckets[index];
+    while(id!=null&&byId.has(id)&&!seen.has(id)){
+      seen.add(id);const node=byId.get(id);chain.push(node);id=node.next;
+    }
+    chains.push(chain);
+  }
+  return {chains,orphans:snapshot.nodes.filter(n=>!seen.has(n.id))};
+}
+function autoFrameHash(steps,force=false){
+  if(structure!=='hash'||(!force&&cameraMode!=='auto'))return;
+  const snapshots=steps.filter(s=>s.kind==='snapshot'&&Array.isArray(s.buckets));
+  const depth=Math.max(0,...snapshots.map(s=>Math.max(0,...hashChains(hashSnapshot(s)).chains.map(c=>c.length))));
+  const bottom=220+Math.max(0,depth-1)*112+150;
+  const ratio=treeSceneRatio(),required=Math.max(1100,(bottom+100)*ratio);
+  const w=force?required:Math.max(viewport.w,required);
+  viewport={x:(1100-w)/2,y:(bottom+20-w/ratio)/2,w,h:w/ratio};
+  paintViewport();
+}
+function renderHash(){
+  ui.stackView.replaceChildren();
+  const state=hashState,capacity=state.buckets.length;
+  const {chains,orphans}=hashChains(state);
+  const occupied=chains.filter(c=>c.length>0).length;
+  const center=SCENE_WIDTH/2,spacing=Math.min(126,930/Math.max(1,capacity-1));
+  const first=center-(capacity-1)*spacing/2;
+  const heading=svg('text',{x:center,y:51,class:'heap-title','text-anchor':'middle'});
+  heading.textContent=`HASH TABLE · ${state.size} key${state.size===1?'':'s'} · ${occupied}/${capacity} buckets · α = ${(state.size/Math.max(1,capacity)).toFixed(2)}`;
+  ui.stackView.append(heading);
+  const note=svg('text',{x:center,y:80,class:'heap-section','text-anchor':'middle'});
+  note.textContent='index = key mod '+capacity+' · collision chains';ui.stackView.append(note);
+  for(let i=0;i<capacity;i++){
+    const x=first+i*spacing,head=chains[i][0];
+    ui.stackView.append(svg('rect',{x:x-49,y:106,width:98,height:61,rx:11,
+      class:`hash-bucket${hashHotBucket===i?' selected':''}`}));
+    const index=svg('text',{x,y:131,class:'hash-index','text-anchor':'middle'});
+    index.textContent=`[${i}]`;ui.stackView.append(index);
+    const key=svg('text',{x,y:153,class:'hash-key','text-anchor':'middle'});
+    key.textContent=head?`#${head.id}`:'null';ui.stackView.append(key);
+    if(head)ui.stackView.append(svg('line',{x1:x,y1:167,x2:x,y2:190,class:'hash-edge'}));
+    for(let j=0;j<chains[i].length;j++){
+      const node=chains[i][j],y=220+j*112;
+      const cls=`hash-node${hashHotNode===node.id?' selected':''}`;
+      ui.stackView.append(svg('rect',{x:x-43,y:y-27,width:86,height:57,rx:12,class:cls}));
+      const value=svg('text',{x,y:y-1,class:'hash-value','text-anchor':'middle'});
+      value.textContent=String(node.value);ui.stackView.append(value);
+      const id=svg('text',{x,y:y+19,class:'hash-id','text-anchor':'middle'});
+      id.textContent=`#${node.id}`;ui.stackView.append(id);
+      if(j+1<chains[i].length)ui.stackView.append(svg('line',{x1:x,y1:y+30,x2:x,y2:y+85,class:'hash-edge'}));
+    }
+  }
+  if(orphans.length){
+    const y=300+Math.max(0,...chains.map(c=>c.length))*112;
+    const caption=svg('text',{x:center,y:y-20,class:'heap-section','text-anchor':'middle'});
+    caption.textContent='DETACHED / NEW NODES';ui.stackView.append(caption);
+    orphans.forEach((node,i)=>{
+      const x=center+(i-(orphans.length-1)/2)*105;
+      ui.stackView.append(svg('rect',{x:x-40,y,width:80,height:45,rx:9,class:'hash-node detached'}));
+      const label=svg('text',{x,y:y+27,class:'hash-value','text-anchor':'middle'});
+      label.textContent=String(node.value);ui.stackView.append(label);
+    });
+  }
+  ui.status.textContent=`${state.size} keys in ${capacity} buckets; load factor ${(state.size/Math.max(1,capacity)).toFixed(2)}.`;
+}
+function instantHash(frame){
+  if(frame.line!=null)showLine(frame.line);
+  switch(frame.kind){
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;
+      ui.description.textContent=frame.description??'Executing the student Dart method.';
+      ui.returnValue.textContent='';hashHotBucket=null;hashHotNode=null;break;
+    case 'bucketRead':hashHotBucket=frame.index;hashHotNode=frame.to;break;
+    case 'visit':case 'compare':hashHotNode=frame.id;break;
+    case 'createNode':hashState.nodes.push({...frame.node});hashHotNode=frame.node.id;break;
+    case 'writeAndSettle':case 'memoryWriteAndSettle':
+      hashState=hashSnapshot(frame.snapshot);
+      hashHotBucket=frame.index??null;
+      hashHotNode=frame.to??(Number(/^node:(\d+)/.exec(frame.from??'')?.[1])||null);
+      break;
+    case 'snapshot':hashState=hashSnapshot(frame.snapshot);hashHotBucket=null;hashHotNode=null;break;
+    case 'retireAndSettle':hashState=hashSnapshot(frame.snapshot);hashHotBucket=null;hashHotNode=null;break;
+    case 'operationEnd':hashHotBucket=null;hashHotNode=null;
+      ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+      ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';ui.result.textContent=frame.result;showLine(null);break;
+  }
+  renderHash();
+}
+async function animateHash(frame){
+  instantHash(frame);
+  if(frame.kind==='bucketRead'){
+    ui.phase.textContent='BUCKET READ';ui.status.textContent=`Inspect bucket [${frame.index}]`;
+    await tween(180,()=>{});
+  }else if(frame.kind==='visit'||frame.kind==='compare'){
+    ui.phase.textContent='CHAIN TRAVERSAL';await tween(190,()=>{});
+  }else if(frame.kind==='writeAndSettle'||frame.kind==='memoryWriteAndSettle'){
+    ui.phase.textContent='REFERENCE WRITE';await tween(420,()=>{});
+  }else if(frame.kind==='createNode'){
+    ui.phase.textContent='NEW NODE';await tween(220,()=>{});
+  }
+}
+
 function heapSnapshot(snapshot){
   return {cells:[...(snapshot.cells??[])],heapOrder:snapshot.heapOrder!==false};
 }

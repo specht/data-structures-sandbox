@@ -24,8 +24,9 @@ model snapshot/invariants and a renderer that can animate the relevant memory.
    min-heap contracts with the array heap but stores real TreeNode references.
    Observe node creation, pointer writes and value swaps, with checks for a
    complete shape, unique identities and parent <= child. See `docs/node-heap.md`.
-6. **Hash tables:** indexed buckets plus either observable collision chains or
-   probe sequences. Check collision/lookup/removal semantics and load factor.
+6. **Hash tables (separate chaining adapter and example added; Dart validation required):**
+   eight indexed buckets with observable collision chains. Audit bucket placement,
+   unique keys, reachable nodes and stored size; show load factor. See `docs/hash-table.md`.
 7. **Graphs:** an explicit vertex/edge adapter supporting adjacency lists or
    matrices and separate traversal overlays; IDs and positions must remain
    stable across snapshots.

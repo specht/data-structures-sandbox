@@ -12,7 +12,7 @@ Future<void> main() async {
   if(!found.any((s)=>s['id']=='example')) {
     throw StateError('Missing example student; run ./run once first.');
   }
-  for(final kind in ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap']){
+  for(final kind in ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap','hash']){
     final worker=await prepare('example',kind,'structures');
     final cached=await prepare('example',kind,'structures');
     if(worker!=cached)throw StateError('Cache did not reuse $kind worker: $worker vs $cached');
@@ -39,6 +39,34 @@ Future<void> main() async {
       }
       final values=(trace['values'] as List).cast<int>();
       if(!values.contains(25)) throw StateError('$kind did not store the inserted value');
+      if(kind=='hash'){
+        Future<Map<String,dynamic>> hashCall(String name,[List<Object?> args=const []]) async {
+          process.stdin.writeln(jsonEncode({'action':'run','method':name,'arguments':args}));
+          await process.stdin.flush();
+          final reply=await next();
+          if(reply['type']!='trace'||(reply['steps'] as List).last['ok']!=true){
+            throw StateError('Hash worker failed $name($args): $reply');
+          }
+          final snap=(reply['steps'] as List).lastWhere((s)=>s['kind']=='snapshot') as Map;
+          final audit=snap['buckets'] as List;
+          if(audit.length!=8)throw StateError('Expected eight physical hash buckets');
+          return reply;
+        }
+        for(final key in [7,15,23,-1])await hashCall('insert',[key]);
+        var reply=await hashCall('contains',[15]);
+        if((reply['steps'] as List).last['value']!=true)throw StateError('Hash collision lookup failed');
+        reply=await hashCall('insert',[15]);
+        if((reply['steps'] as List).last['value']!=false)throw StateError('Hash duplicate key accepted');
+        reply=await hashCall('remove',[15]);
+        if((reply['steps'] as List).last['value']!=true)throw StateError('Hash interior removal failed');
+        reply=await hashCall('contains',[15]);
+        if((reply['steps'] as List).last['value']!=false)throw StateError('Hash deleted key still present');
+        reply=await hashCall('loadFactor');
+        if(((reply['steps'] as List).last['value'] as num)-0.5 != 0){
+          throw StateError('Hash load factor is not 4/8');
+        }
+        stdout.writeln('PASS: hash · generated worker, collisions, duplicate, remove, load factor');
+      }
       if(kind=='node_heap'){
         Future<Map<String,dynamic>> call(String name, [List<Object?> args=const []]) async {
           process.stdin.writeln(jsonEncode({'action':'run','method':name,'arguments':args}));

@@ -17,6 +17,7 @@ const configs = <String, Map<String,String>>{
   'array_queue': {'file':'my_array_queue','class':'MyArrayQueue','recorder':'QueueRecorder','node':'','root':''},
   'array_heap': {'file':'my_array_heap','class':'MyArrayHeap','recorder':'HeapRecorder','node':'','root':''},
   'node_heap': {'file':'my_node_heap','class':'MyNodeHeap','recorder':'TreeRecorder','node':'TreeNode','root':'root'},
+  'hash': {'file':'my_hash_table','class':'MyHashTable','recorder':'Recorder','node':'ListNode','root':''},
 };
 late Map<String,String> config;
 late String sourcePath;
@@ -266,7 +267,7 @@ void generate(String kind) {
   // ../../lib imports no longer resolve from the private staging directory.
   // Only the supported sandbox API imports are rewritten; other relative
   // imports must be resolved explicitly rather than silently miscompiled.
-  for (final lib in ['sandbox','tree_sandbox','stack_sandbox','queue_sandbox','heap_sandbox']) {
+  for (final lib in ['sandbox','tree_sandbox','stack_sandbox','queue_sandbox','heap_sandbox','hash_sandbox']) {
     for (final quote in ["'", '"']) {
       transformed = transformed.replaceAll(
         'import $quote../../lib/$lib.dart$quote;',

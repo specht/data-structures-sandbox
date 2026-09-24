@@ -7,6 +7,7 @@ import 'package:data_structure_sandbox_browser/stack_sandbox.dart' as stack_api;
 import 'package:data_structure_sandbox_browser/queue_sandbox.dart' as queue_api;
 import 'package:data_structure_sandbox_browser/heap_sandbox.dart' as heap_api;
 import 'package:data_structure_sandbox_browser/node_heap_sandbox.dart' as node_heap_api;
+import 'package:data_structure_sandbox_browser/hash_sandbox.dart' as hash_api;
 import 'generated/@@ID@@/my_linked_list.dart' as list_student;
 import 'generated/@@ID@@/list_methods.dart' as list_methods;
 import 'generated/@@ID@@/my_bst.dart' as tree_student;
@@ -25,12 +26,14 @@ import 'generated/@@ID@@/my_array_heap.dart' as array_heap_student;
 import 'generated/@@ID@@/array_heap_methods.dart' as array_heap_methods;
 import 'generated/@@ID@@/my_node_heap.dart' as node_heap_student;
 import 'generated/@@ID@@/node_heap_methods.dart' as node_heap_methods;
+import 'generated/@@ID@@/my_hash_table.dart' as hash_student;
+import 'generated/@@ID@@/hash_methods.dart' as hash_methods;
 
 // Batching is bounded for trace/readability; a structure is not capped at 12 nodes.
 // A runaway student program is still bounded by the event log, host deadline and
 // WebSocket message-size limit, not by its number of nodes.
 const maxOperations = 12, maxValue = 999;
-const kinds = ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap'];
+const kinds = ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap','hash'];
 const paths = {
   'list': '@@LIST_PATH@@',
   'tree': '@@TREE_PATH@@',
@@ -41,6 +44,7 @@ const paths = {
   'array_queue': '@@ARRAY_QUEUE_PATH@@',
   'array_heap': '@@ARRAY_HEAP_PATH@@',
   'node_heap': '@@NODE_HEAP_PATH@@',
+  'hash': '@@HASH_PATH@@',
 };
 
 class BrowserSession {
@@ -62,6 +66,7 @@ class BrowserSession {
       'array_queue' => array_queue_methods.discoveredMethodsJson,
       'array_heap' => array_heap_methods.discoveredMethodsJson,
       'node_heap' => node_heap_methods.discoveredMethodsJson,
+      'hash' => hash_methods.discoveredMethodsJson,
       _ => list_methods.discoveredMethodsJson,
     }) as List).map((entry)=>Map<String,dynamic>.from(entry as Map)).toList();
     reset();
@@ -73,6 +78,7 @@ class BrowserSession {
       case 'tree': tree_api.TreeRecorder.resetIds(); instance=tree_student.MyBST(); break;
       case 'avl': tree_api.TreeRecorder.resetIds(); instance=avl_student.MyAVL(); break;
       case 'node_heap': tree_api.TreeRecorder.resetIds(); instance=node_heap_student.MyNodeHeap(); break;
+      case 'hash': list_api.Recorder.resetIds(); instance=hash_student.MyHashTable(); break;
       case 'stack': instance=stack_student.MyArrayStack(); break;
       case 'array_queue': instance=array_queue_student.MyArrayQueue(); break;
       case 'array_heap': instance=array_heap_student.MyArrayHeap(); break;
@@ -91,6 +97,9 @@ class BrowserSession {
     'node_heap' => node_heap_api.NodeHeapRecorder(lines)
       ..root = (() => (instance as node_heap_student.MyNodeHeap).root)
       ..count = (() => (instance as node_heap_student.MyNodeHeap).size),
+    'hash' => hash_api.HashRecorder(lines)
+      ..memory = (() => (instance as hash_student.MyHashTable).buckets)
+      ..count = (() => (instance as hash_student.MyHashTable).size),
     'stack' => stack_api.StackRecorder(lines)
       ..memory = (() => (instance as stack_student.MyArrayStack).memory)
       ..top = (() => (instance as stack_student.MyArrayStack).top),
@@ -158,6 +167,7 @@ class BrowserSession {
     'tree' => tree_methods.invokeDiscovered(instance as tree_student.MyBST,name,args),
     'avl' => avl_methods.invokeDiscovered(instance as avl_student.MyAVL,name,args),
     'node_heap' => node_heap_methods.invokeDiscovered(instance as node_heap_student.MyNodeHeap,name,args),
+    'hash' => hash_methods.invokeDiscovered(instance as hash_student.MyHashTable,name,args),
     'stack' => stack_methods.invokeDiscovered(instance as stack_student.MyArrayStack,name,args),
     'array_queue' => array_queue_methods.invokeDiscovered(instance as array_queue_student.MyArrayQueue,name,args),
     'array_heap' => array_heap_methods.invokeDiscovered(instance as array_heap_student.MyArrayHeap,name,args),
@@ -168,6 +178,9 @@ class BrowserSession {
 
   List<int> actualValues() {
     final values=<int>[];
+    if(kind=='hash')return (hash_api.auditHash(
+      (instance as hash_student.MyHashTable).buckets,
+      (instance as hash_student.MyHashTable).size)['values'] as List).cast<int>();
     if(kind=='array_heap')return (instance as array_heap_student.MyArrayHeap).memory.copy();
     if(kind=='node_heap'){
       final h=instance as node_heap_student.MyNodeHeap;
@@ -231,6 +244,22 @@ class BrowserSession {
 
   bool updateReference(String name,List<Object?> args,Object? returned) {
     final value=args.length==1 && args[0] is int?args[0] as int:null;
+    if(kind=='hash'){
+      final h=instance as hash_student.MyHashTable;
+      switch(name){
+        case 'insert' when value!=null:
+          final expected=!reference.contains(value);
+          if(expected)reference.add(value);
+          return returned==expected;
+        case 'remove' when value!=null:
+          final expected=reference.remove(value);return returned==expected;
+        case 'contains' when value!=null:return returned==reference.contains(value);
+        case 'isEmpty':return returned==reference.isEmpty;
+        case 'loadFactor':return returned is num &&
+          (returned-h.size/h.buckets.length).abs()<0.0000001;
+        default:reference..clear()..addAll(actualValues());return true;
+      }
+    }
     if(kind=='node_heap'){
       switch(name){
         case 'insert' when value!=null:
@@ -385,6 +414,7 @@ class BrowserSession {
           case 'stack':stack_api.StackRecorder.active=r as stack_api.StackRecorder;break;
           case 'array_queue':queue_api.QueueRecorder.active=r as queue_api.QueueRecorder;break;
           case 'array_heap':heap_api.HeapRecorder.active=r as heap_api.HeapRecorder;break;
+          case 'hash':list_api.Recorder.active=r as hash_api.HashRecorder;break;
           default:list_api.Recorder.active=r as list_api.Recorder;
         }
         result=invoke(name,args);
@@ -392,7 +422,8 @@ class BrowserSession {
         list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;queue_api.QueueRecorder.active=null;heap_api.HeapRecorder.active=null;
       }
       final actual=actualValues();
-      final standard=(kind=='array_heap'||kind=='node_heap') ? {'insert','removeMin','peek','isEmpty'} :
+      final standard=kind=='hash' ? {'insert','remove','contains','isEmpty','loadFactor'} :
+        (kind=='array_heap'||kind=='node_heap') ? {'insert','removeMin','peek','isEmpty'} :
         (kind=='stack'||kind=='linked_stack') ? {'push','pop','peek','isEmpty'} :
         kind=='array_queue' ? {'enqueue','dequeue','peek','isEmpty','isFull'} :
         kind=='linked_queue' ? {'enqueue','dequeue','peek','isEmpty'} :
@@ -419,15 +450,25 @@ class BrowserSession {
         if(nodeHeapCheck!=null && nodeHeapCheck['complete']!=true) 'complete-tree shape / size',
         if(nodeHeapCheck!=null && nodeHeapCheck['ordered']!=true) 'min-heap order',
       ];
-      final orderedActual=(kind=='array_heap'||kind=='node_heap') ? (List<int>.of(actual)..sort()) : actual;
-      final ok=checked && orderedActual.join(',')==reference.join(',') &&
+      final hashCheck=kind=='hash'? hash_api.auditHash(
+        (instance as hash_student.MyHashTable).buckets,
+        (instance as hash_student.MyHashTable).size) : null;
+      final hashFaults=<String>[
+        if(hashCheck!=null && hashCheck['acyclic']!=true) 'cycle/shared node',
+        if(hashCheck!=null && hashCheck['placement']!=true) 'wrong bucket',
+        if(hashCheck!=null && hashCheck['unique']!=true) 'duplicate keys',
+        if(hashCheck!=null && hashCheck['sizeOk']!=true) 'stored size',
+      ];
+      final orderedActual=(kind=='array_heap'||kind=='node_heap'||kind=='hash') ? (List<int>.of(actual)..sort()) : actual;
+      final ok=checked && orderedActual.join(',')==(kind=='hash'?(List<int>.of(reference)..sort()):reference).join(',') &&
+        hashFaults.isEmpty &&
         nodeHeapFaults.isEmpty &&
         heapStorageValid() &&
         queuePointersValid() && queueStorageValid() && faults.isEmpty;
       r.steps.add(r.snapshot());
       final descriptorReturn=descriptor(name)['returns']=='void';
       final label='$name(${args.join(', ')})';
-      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}${kind=='array_heap' && !heapStorageValid()?' (min-heap order)':''}${nodeHeapFaults.isEmpty?'':' (node heap: ${nodeHeapFaults.join(', ')})'}':canVerify?'checked':'not automatically verified'}';
+      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}${kind=='array_heap' && !heapStorageValid()?' (min-heap order)':''}${nodeHeapFaults.isEmpty?'':' (node heap: ${nodeHeapFaults.join(', ')})'}${hashFaults.isEmpty?'':' (hash: ${hashFaults.join(', ')})'}':canVerify?'checked':'not automatically verified'}';
       r.end(result,ok,returnedVoid:descriptorReturn,message:message);
       if(!ok)break;
     }

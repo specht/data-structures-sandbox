@@ -239,3 +239,14 @@ button.subtle { margin-left:auto; background:#262c3d; }
 .heap-node-value{fill:#f2f6ff;font:700 19px ui-monospace,monospace}
 .heap-node-index{fill:#8eaece;font:12px ui-monospace,monospace}
 .heap-index-edge{stroke:#8ab0d7;stroke-width:2.1;stroke-linecap:round}
+/* Hash table: fixed indexed slots, with reference-based collision chains. */
+.hash-bucket{fill:#1e344c;stroke:#7298c2;stroke-width:2}
+.hash-bucket.selected{fill:#4f432c;stroke:#ffd184;stroke-width:3}
+.hash-node{fill:#214249;stroke:#75c5ba;stroke-width:2}
+.hash-node.selected{fill:#57492c;stroke:#ffd184;stroke-width:3}
+.hash-node.detached{fill:#253044;stroke-dasharray:5 4;stroke:#71869b}
+.hash-index{fill:#d3e5fb;font:700 16px ui-monospace,monospace}
+.hash-key{fill:#92b1d2;font:12px ui-monospace,monospace}
+.hash-value{fill:#f4f8ff;font:700 22px ui-monospace,monospace}
+.hash-id{fill:#95b7cb;font:12px ui-monospace,monospace}
+.hash-edge{stroke:#7ab9bd;stroke-width:2.5;stroke-linecap:round}
