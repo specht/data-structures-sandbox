@@ -35,14 +35,14 @@ function fitScene(){
   cameraMode='auto';
   if(structure==='array_heap'){autoFrameHeap([{kind:'snapshot',cells:heapState.cells}],true);return;}
   if(structure==='hash'){autoFrameHash([{kind:'snapshot',...hashState}],true);return;}
-  const visible=[...nodes.values()].filter(n=>n.opacity>.01 && (!isTree()||!n.detached));
+  const visible=[...nodes.values()].filter(n=>n.opacity>.01);
   if(!visible.length){viewportKind=null;ensureViewport(structure);return;}
-  const right=isTree()?72:WIDTH;
-  const x0=Math.min(...visible.map(n=>n.x))-115;
-  const x1=Math.max(...visible.map(n=>n.x+right))+115;
-  const y0=Math.min(...visible.map(n=>n.y))-160;
-  const y1=Math.max(...visible.map(n=>n.y+HEIGHT))+115;
-  const ratio=isTree()?treeSceneRatio():1100/510;
+  const marker=pointerBounds(),right=isTree()?72:WIDTH;
+  const x0=Math.min(Math.min(...visible.map(n=>n.x))-85,marker.minX-28);
+  const x1=Math.max(Math.max(...visible.map(n=>n.x+right))+85,marker.maxX+28);
+  const y0=Math.min(Math.min(...visible.map(n=>n.y))-48,marker.minY-26);
+  const y1=Math.max(Math.max(...visible.map(n=>n.y+HEIGHT))+70,marker.maxY+28);
+  const ratio=treeSceneRatio();
   const w=Math.max(isTree()?880:460,x1-x0,(y1-y0)*ratio);
   const h=w/ratio;
   viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
@@ -76,9 +76,20 @@ function autoFrameTree(steps){
   }
   // Include the node outline, root label/arrow and breathing room at every
   // side. Extents are independent of SVG's clipping and of the browser width.
-  const x0=Math.min(...positions.map(p=>p.x))-74;
-  const x1=Math.max(...positions.map(p=>p.x+TREE_RADIUS*2))+74;
-  const y0=Math.min(...positions.map(p=>p.y))-110;
+  const refNames=new Map();
+  if(final.root!=null)refNames.set(final.root,new Set(['root']));
+  for(const event of steps){
+    if(event.kind!=='variableWrite'||event.to==null)continue;
+    if(!refNames.has(event.to))refNames.set(event.to,new Set());
+    refNames.get(event.to).add(event.name);
+  }
+  // Each additional reference to one node occupies its own labelled slot.
+  const widest=Math.max(0,...[...refNames.values()].flatMap(names=>[...names].map(name=>referenceLabel(name).length*9)));
+  const stacked=Math.max(1,...[...refNames.values()].map(names=>names.size));
+  const side=Math.max(74,widest/2+36);
+  const x0=Math.min(...positions.map(p=>p.x))-side;
+  const x1=Math.max(...positions.map(p=>p.x+TREE_RADIUS*2))+side;
+  const y0=Math.min(...positions.map(p=>p.y))-(110+(stacked-1)*30);
   const y1=Math.max(...positions.map(p=>p.y+TREE_RADIUS*2))+78;
   const ratio=treeSceneRatio();
   const requiredW=Math.max(SCENE_WIDTH,x1-x0,(y1-y0)*ratio);
@@ -118,7 +129,7 @@ let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
-const STRUCTURE_LABELS={hash:'Hash table · separate chaining',node_heap:'Node min-heap',array_heap:'Array min-heap',list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
+const STRUCTURE_LABELS={hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',list:'List (singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -321,24 +332,73 @@ function dockFor(name){
   return DOCKS[name];
 }
 const NULL_RAIL_TOP=123;
+// References to real objects live beside those objects. Only a null reference
+// uses a fixed dock and the shared null rail. This is also used by Fit.
+function referenceValues(){
+  const actual={ [isTree()?'root':'head']:isTree()?rootId:head,
+    ...(structure==='linked_queue'?{tail:tailId}:{}),...references};
+  if(override?.from.startsWith('var:')){
+    const pending=override.from.slice(4);
+    if(!(pending in actual))actual[pending]=null;
+  }
+  return actual;
+}
+function referenceLabel(name){
+  return name==='head'&&structure==='linked_stack'?'head (top)':
+    name==='root'&&structure==='node_heap'?'root (min)':name;
+}
+function referenceAnchors(actual){
+  const groups=new Map(),anchors=new Map();
+  for(const [name,id] of Object.entries(actual)){
+    if(id==null||!nodes.has(id))continue;
+    if(!groups.has(id))groups.set(id,[]);
+    groups.get(id).push(name);
+  }
+  for(const [id,names] of groups){
+    const n=nodes.get(id),x=n.x+(isTree()?TREE_RADIUS:WIDTH/2);
+    // Stable vertical slots make simultaneous head/current/previous references
+    // readable even when adjacent list nodes are close together.
+    names.forEach((name,i)=>anchors.set(name,{x,y:n.y-70-i*30}));
+  }
+  return anchors;
+}
 function referencePoint(name,id){
   const n=nodes.get(id),dock=dockFor(name);
-  return n?{x:n.x+(isTree()?36:WIDTH*(TARGET_OFFSETS[name]??.5)),y:n.y-1}:{x:dock.x,y:NULL_RAIL_TOP};
+  return n?{x:n.x+(isTree()?TREE_RADIUS:WIDTH/2),y:n.y-1}:{x:dock.x,y:NULL_RAIL_TOP};
+}
+function pointerBounds(actual=referenceValues()){
+  const anchors=referenceAnchors(actual),bounds={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};
+  function include(x0,y0,x1,y1){
+    bounds.minX=Math.min(bounds.minX,x0);bounds.minY=Math.min(bounds.minY,y0);
+    bounds.maxX=Math.max(bounds.maxX,x1);bounds.maxY=Math.max(bounds.maxY,y1);
+  }
+  const nullNames=Object.keys(actual).filter(name=>actual[name]==null);
+  if(override?.nullTarget){
+    const name=override.from.replace(/^(root|var):/,'');
+    if(!nullNames.includes(name)){dockFor(name);nullNames.push(name);}
+  }
+  for(const [name,id] of Object.entries(actual)){
+    const moving=(override?.from===`root:${name}`||override?.from===`var:${name}`) &&
+      Number.isFinite(override.x)&&Number.isFinite(override.y);
+    const anchor=moving?{x:override.x,y:override.y-70}:anchors.get(name)??dockFor(name);
+    const textWidth=Math.max(40,referenceLabel(name).length*9);
+    include(anchor.x-textWidth/2,anchor.y-17,anchor.x+textWidth/2,anchor.y+13);
+    const tip=moving?{x:override.x,y:override.y}:referencePoint(name,id);
+    include(Math.min(anchor.x,tip.x)-12,Math.min(anchor.y,tip.y)-8,
+      Math.max(anchor.x,tip.x)+12,Math.max(anchor.y,tip.y)+12);
+  }
+  if(nullNames.length){
+    const railWidth=Math.max(690,...nullNames.map(name=>dockFor(name).x+35));
+    include(28,NULL_RAIL_TOP,railWidth+55,NULL_RAIL_TOP+27);
+  }
+  return bounds;
 }
 function renderReferences(){
   if(structure==='stack'||structure==='array_queue')return;
   ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  const actual={ [isTree()?'root':'head']:isTree()?rootId:head,
-    ...(structure==='linked_queue'?{tail:tailId}:{}),...references};
+  const actual=referenceValues(),anchors=referenceAnchors(actual);
   Object.keys(actual).forEach(dockFor);
-  // A newly declared local must be visible DURING its first null→node move.
-  if(override?.from.startsWith('var:')) {
-    const pending=override.from.slice(4);
-    if(!(pending in actual))actual[pending]=null;
-  }
-  // Null is the ABSENCE of a target object, not an object shared by variables.
-  // A single labelled rail communicates the concept; distinct landing slots
-  // keep independent null references visually separate.
+  // Null remains an absence of a target; all null references share one rail.
   const nullNames=Object.keys(actual).filter(name=>actual[name]==null);
   if(override?.nullTarget){
     const name=override.from.replace(/^(root|var):/,'');
@@ -354,36 +414,35 @@ function renderReferences(){
       ui.nullRail.append(svg('line',{x1:x,y1:NULL_RAIL_TOP+4,x2:x,y2:NULL_RAIL_TOP+18,class:'null-slot'}));
     }
   }
+  const labels=[];
   for(const [name,id] of Object.entries(actual)){
-    const dock=dockFor(name);
-    // A tree root has a dedicated vertical pointer attached to its moving
-    // node, rather than the fixed upper-left dock used for ordinary locals.
-    const rootNode=isTree() && name==='root' && id!=null ? nodes.get(id) : null;
-    const anchor=rootNode?{x:rootNode.x+TREE_RADIUS,y:rootNode.y-65}:dock;
+    const moving=(override?.from===`root:${name}`||override?.from===`var:${name}`) &&
+      Number.isFinite(override.x)&&Number.isFinite(override.y);
+    const anchor=moving?{x:override.x,y:override.y-70}:anchors.get(name)??dockFor(name);
     const active=hotReference===name, label=svg('text',{x:anchor.x,y:anchor.y,class:`ref-label ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'active':''}`});
-    label.textContent=name==='head'&&structure==='linked_stack'?'head (top)':
-       name==='root'&&structure==='node_heap'?'root (min)':name;ui.references.append(label);
+    label.textContent=referenceLabel(name);labels.push(label);
     const target=override?.from===`root:${name}`||override?.from===`var:${name}`
       ?{x:override.x,y:override.y}:referencePoint(name,id);
     const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'hot':''}`);
-    const rootInMotion=override?.from==='root:root';
-    drawArrow(arrow,{x:anchor.x,y:anchor.y+10},target,rootNode&&!rootInMotion?'straight':'reference');
+    const stationary=id!=null&&nodes.has(id)&&override?.from!==`root:${name}`&&override?.from!==`var:${name}`;
+    drawArrow(arrow,{x:anchor.x,y:anchor.y+10},target,stationary?'straight':'reference');
     ui.references.append(arrow);
   }
+  ui.references.append(...labels); // Text stays above intersecting pointer paths.
 }
 function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}if(structure==='hash'){renderHash();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
 function layoutFor(snapshot){
   if(isTree())return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
   const targets=new Map(),seen=new Set(),ordered=[];let cursor=snapshot.head,index=0;
-  while(cursor!==null&&byId.has(cursor)&&!seen.has(cursor)&&index<100){
+  while(cursor!==null&&byId.has(cursor)&&!seen.has(cursor)){
     seen.add(cursor);ordered.push(cursor);
     cursor=byId.get(cursor).next;index++;
   }
   // Position the whole reachable chain as one centred group. Recompute these
   // slots only when settling, never while an individual pointer is changing.
   const gap=ordered.length>1
-    ?Math.min(GAP,(SCENE_WIDTH-140-WIDTH)/(ordered.length-1)):GAP;
+    ?Math.min(GAP,Math.max(144,(SCENE_WIDTH-140-WIDTH)/(ordered.length-1))):GAP;
   const firstX=(SCENE_WIDTH-WIDTH-(ordered.length-1)*gap)/2;
   ordered.forEach((id,i)=>targets.set(id,{x:firstX+i*gap,y:ROW,opacity:1,detached:false}));
   let detachedIndex=0;
@@ -817,6 +876,44 @@ function parseArgument(value,type){
   throw Error(`Unsupported argument type: ${type}`);
 }
 ui.method.addEventListener('change',renderArguments);
+// Long linked chains need a wider view rather than squeezing node cards and
+// clipping head/tail/local pointers. Like trees, frame once per whole trace.
+function autoFrameLinked(steps){
+  if(!['list','linked_stack','linked_queue'].includes(structure)||cameraMode!=='auto')return;
+  const snapshots=steps.filter(step=>step.kind==='snapshot'&&Array.isArray(step.nodes));
+  if(!snapshots.length)return;
+  let left=0,right=SCENE_WIDTH,maxRefs=1;
+  const targets=new Map();
+  for(const event of steps){
+    if(event.kind!=='variableWrite'||event.to==null)continue;
+    if(!targets.has(event.to))targets.set(event.to,new Set());
+    targets.get(event.to).add(event.name);
+  }
+  maxRefs=Math.max(1,...[...targets.values()].map(names=>names.size+1));
+  for(const snap of snapshots){
+    const byId=new Map(snap.nodes.map(node=>[node.id,node]));
+    let cursor=snap.head,count=0;
+    const seen=new Set();
+    while(cursor!=null&&byId.has(cursor)&&!seen.has(cursor)){
+      seen.add(cursor);cursor=byId.get(cursor).next;count++;
+    }
+    if(!count)continue;
+    const gap=count>1?Math.min(GAP,Math.max(144,(SCENE_WIDTH-140-WIDTH)/(count-1))):GAP;
+    const firstX=(SCENE_WIDTH-WIDTH-(count-1)*gap)/2;
+    left=Math.min(left,firstX-100);
+    right=Math.max(right,firstX+(count-1)*gap+WIDTH+100);
+  }
+  const top=Math.min(0,156-70-(maxRefs-1)*30-42),bottom=510;
+  const ratio=treeSceneRatio();
+  const required=Math.max(SCENE_WIDTH,right-left,(bottom-top)*ratio);
+  const w=Math.max(viewport.w,required),h=w/ratio;
+  if(w===SCENE_WIDTH&&top>=0&&bottom<=510){
+    viewport={x:0,y:0,w:SCENE_WIDTH,h:510};
+  }else{
+    viewport={x:(left+right-w)/2,y:(top+bottom-h)/2,w,h};
+  }
+  paintViewport();
+}
 function acceptTrace(data){
   if(!data.source?.lines||!Array.isArray(data.steps)||data.steps[0]?.kind!=='snapshot')throw Error('Invalid Dart trace.');
   animationGeneration++;animating=false;
@@ -828,6 +925,7 @@ function acceptTrace(data){
   // The SVG viewBox then stays unchanged throughout the entire recorded trace.
   ensureViewport(structure);
   autoFrameTree(rawSteps);
+  autoFrameLinked(rawSteps);
   autoFrameHeap(rawSteps);
   autoFrameHash(rawSteps);
   playbackToken++;

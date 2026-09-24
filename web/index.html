@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Data Structure Sandbox · Interactive Linked List</title>
+<title>Data Structure Sandbox · Interactive data structures</title>
 <link rel="stylesheet" href="/style.css">
 </head><body>
 <div class="shell">
-  <header class="topbar"><div class="brand"><span class="brand-icon">◈</span><div><strong>DATA STRUCTURE SANDBOX</strong><span>Linked list · search tree · fixed-array stack</span></div></div>
-    <div class="topright"><label class="structure-label" for="student">Student</label><select id="student" aria-label="Choose student"></select><label class="structure-label" for="structure">Structure</label><select id="structure" aria-label="Choose data structure"><option value="list">Linked list</option><option value="tree">Binary search tree</option><option value="stack">Array stack · capacity 8</option><option value="array_queue">Circular array queue · capacity 8</option></select><button type="button" id="retry" class="retry-button" title="Restart the selected Dart worker">↻ Retry</button><span class="pill live">DART PROCESS</span><span id="connection" class="connection" role="status">Connecting…</span></div>
+  <header class="topbar"><div class="brand"><span class="brand-icon">◈</span><div><strong>DATA STRUCTURE SANDBOX</strong><span>Lists · stacks · queues · trees · heaps</span></div></div>
+    <div class="topright"><label class="structure-label" for="student">Student</label><select id="student" aria-label="Choose student"></select><label class="structure-label" for="structure">Structure</label><select id="structure" aria-label="Choose data structure"><option value="list">List (singly linked)</option><option value="tree">Tree (binary search)</option><option value="stack">Stack (fixed array)</option><option value="array_queue">Queue (circular array)</option></select><button type="button" id="retry" class="retry-button" title="Restart the selected Dart worker">↻ Retry</button><span class="pill live">DART PROCESS</span><span id="connection" class="connection" role="status">Connecting…</span></div>
   </header>
   <section class="commands" aria-label="Call methods in Dart">
     <div class="command-line"><form id="call-form" class="call-form"><label for="call-input">Dart method call</label><input id="call-input" value="insert(25)" autocomplete="off" spellcheck="false" aria-label="Method call e.g. contains(7)"><button type="submit" class="primary">Run →</button></form><button id="reset" class="subtle" type="button">Reset</button><span id="command-status" role="status" class="command-status">Choose a call to start.</span></div>
