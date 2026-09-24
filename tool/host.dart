@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'prepare.dart';
 import 'registry.dart';
+import 'student_validation.dart';
 
 const startupTimeout = Duration(seconds: 45);
 const executionTimeout = Duration(seconds: 4);
@@ -128,11 +129,22 @@ class StudentWorker {
 class Client {
   final WebSocket socket;
   StudentWorker? worker;
+  StudentWorker? validationWorker;
+  String? preparedPath;
+  bool validationRunning=false;
+  int validationEpoch=0;
   String? student,kind,currentStamp;
   bool closed=false;
   bool refreshing=false;
   int selectionEpoch=0;
   Client(this.socket);
+
+  void cancelValidation() {
+    validationEpoch++;
+    validationWorker?.kill();
+    validationWorker=null;
+    validationRunning=false;
+  }
   void send(Map<String,dynamic> data)=>sendRaw(jsonEncode(data));
   void sendRaw(String data){if(!closed && socket.readyState==WebSocket.open)socket.add(data);}
   void error(Object e){send({'type':'error','message':e.toString().replaceFirst('FormatException: ','').replaceFirst('Bad state: ','')});}
@@ -148,6 +160,8 @@ class Client {
   }
   Future<void> select(String selected,String structure) async {
     final epoch=++selectionEpoch;
+    cancelValidation();
+    preparedPath=null;
     try{
       if(!catalog().any((s)=>s['id']==selected && (s['structures'] as List).contains(structure))){
         throw FormatException('Implementation not found: $selected / $structure');
@@ -168,6 +182,7 @@ class Client {
       if(closed || epoch!=selectionEpoch){newWorker.kill();return;}
       if(hello['type']!='hello')throw StateError('Student runner failed to initialize: $hello');
       worker=newWorker;
+      preparedPath=path;
       saveSelection(selected,structure);
       send({...hello,'student':selected});
     }catch(e){
@@ -178,8 +193,105 @@ class Client {
       }
     }
   }
+  Future<void> validate() async {
+    if(validationRunning) return;
+    final path=preparedPath, selectedKind=kind, selectedStamp=currentStamp;
+    if(path==null || selectedKind==null || worker==null) {
+      send({'type':'validationError','message':'Wait for the selected implementation to compile.'});
+      return;
+    }
+    final scenarios=validationCases(selectedKind);
+    final epoch=++validationEpoch;
+    validationRunning=true;
+    send({'type':'validationStart','tests':[for(final test in scenarios)test.name]});
+
+    bool current() => !closed && validationEpoch==epoch &&
+        currentStamp==selectedStamp && kind==selectedKind &&
+        student!=null && stamp(student!,selectedKind)==selectedStamp;
+    Future<StudentWorker> startIsolated() async {
+      final process=await Process.start(Platform.resolvedExecutable,[path],
+        workingDirectory:Directory.current.path);
+      final fresh=StudentWorker(process);
+      if(!current()) {fresh.kill();throw StateError('Validation cancelled.');}
+      validationWorker=fresh;
+      try {
+        final hello=await fresh.next(startupTimeout);
+        if(hello['type']!='hello') throw StateError('Test worker failed to initialize.');
+        if(!current()) throw StateError('Validation cancelled.');
+        return fresh;
+      } catch (_) {
+        fresh.kill();
+        if(identical(validationWorker,fresh))validationWorker=null;
+        rethrow;
+      }
+    }
+
+    var passed=0;
+    try {
+      for(var index=0;index<scenarios.length;index++) {
+        if(!current()) return;
+        final scenario=scenarios[index];
+        send({'type':'validationRunning','index':index,'name':scenario.name});
+        String? failure;
+        String? failingCall;
+        try {
+          final isolated=validationWorker ?? await startIsolated();
+          if(!current()) return;
+          final cleared=await isolated.request({'action':'reset'});
+          if(cleared['type']!='trace') throw StateError('Could not reset the test instance.');
+          for(final call in scenario.calls) {
+            if(!current()) return;
+            failingCall=call.label;
+            final reply=await isolated.request(call.toRequest());
+            if(reply['type']=='error') {
+              failure='$failingCall: ${reply['message']}';
+              break;
+            }
+            if(reply['type']!='trace' || reply['steps'] is! List) {
+              failure='$failingCall: Invalid test response.';
+              break;
+            }
+            final steps=reply['steps'] as List;
+            final ends=steps.whereType<Map>().where((step)=>step['kind']=='operationEnd');
+            if(ends.isEmpty) {
+              failure='$failingCall: No operation result was returned.';
+              break;
+            }
+            final end=ends.last;
+            if(end['ok']!=true) {
+              failure='$failingCall: ${end['result'] ?? 'Incorrect return value or internal state.'}';
+              break;
+            }
+          }
+        } catch (error) {
+          if(!current()) return;
+          failure='${failingCall ?? scenario.name}: $error';
+        }
+        if(!current()) return;
+        if(failure==null)passed++;
+        else {
+          // A failing or timed-out group cannot contaminate the next group.
+          validationWorker?.kill();validationWorker=null;
+        }
+        send({'type':'validationResult','index':index,'name':scenario.name,
+          'passed':failure==null,'message':failure,
+          'completed':index+1,'total':scenarios.length,'passedCount':passed});
+      }
+      if(current())send({'type':'validationDone','passed':passed,'total':scenarios.length});
+    } catch (error) {
+      if(current())send({'type':'validationError','message':'Test runner failed: $error'});
+    } finally {
+      // Do not terminate a newer validation run after an asynchronous cancellation.
+      if(validationEpoch==epoch) {
+        validationWorker?.kill();validationWorker=null;
+        validationRunning=false;
+      }
+    }
+  }
+
   Future<void> handle(Map<String,dynamic> message) async {
     if(message['action']=='ping'){send({'type':'pong'});return;}
+    if(message['action']=='validate') {unawaited(validate());return;}
     if(message['action']=='select'){
       final requestedStudent=message['student'];
       final requestedStructure=message['structure'];
@@ -201,7 +313,7 @@ class Client {
       error(e);
     }
   }
-  void close(){closed=true;worker?.kill();worker=null;}
+  void close(){closed=true;cancelValidation();worker?.kill();worker=null;}
 }
 
 Future<void> main(List<String> args) async {

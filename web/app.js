@@ -127,6 +127,74 @@ const ui = {
   student:$('student'),structure:$('structure'),retry:$('retry'), callForm:$('call-form'),callInput:$('call-input'),returnValue:$('return-value'),stackView:$('stack-view'),
   playbackModes:[...document.querySelectorAll('[data-playback-mode]')],
 };
+const validationUI={
+  button:$('validation-run'), status:$('validation-status'),
+  progress:$('validation-progress'), results:$('validation-results'),
+};
+let validationItems=[];
+function resetValidation(message='Run tests on the selected implementation.'){
+  validationUI.button.disabled=true;
+  validationUI.status.textContent=message;
+  validationUI.progress.hidden=true;
+  validationUI.results.hidden=true;
+  validationUI.results.replaceChildren();
+  validationItems=[];
+}
+function validationMessage(data){
+  switch(data.type){
+    case 'validationStart': {
+      validationUI.button.disabled=true;
+      validationUI.results.replaceChildren();
+      validationItems=(data.tests??[]).map(name=>{
+        const item=document.createElement('li');
+        item.className='validation-pending';item.textContent=`○ ${name}`;
+        validationUI.results.append(item);
+        return item;
+      });
+      validationUI.results.hidden=false;
+      validationUI.progress.hidden=false;
+      validationUI.progress.max=Math.max(1,validationItems.length);
+      validationUI.progress.value=0;
+      validationUI.status.textContent=`Testing 0 / ${validationItems.length}…`;
+      return;
+    }
+    case 'validationRunning': {
+      const item=validationItems[data.index];
+      if(item){item.className='validation-running';item.textContent=`${data.name} — running…`;}
+      return;
+    }
+    case 'validationResult': {
+      const item=validationItems[data.index];
+      if(item){
+        item.className=data.passed?'validation-pass':'validation-fail';
+        const symbol=document.createElement('span');symbol.className='validation-icon';
+        // Use graphical SVG icons rather than platform-dependent glyphs.
+        symbol.innerHTML=data.passed
+          ?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>'
+          :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+        const detail=document.createElement('span');
+        detail.textContent=`${data.passed?'Passed':'Failed'}: ${data.name}`+(data.message?` — ${data.message}`:'');
+        item.replaceChildren(symbol,detail);
+      }
+      validationUI.progress.value=data.completed;
+      validationUI.status.textContent=`${data.completed} / ${data.total} groups · ${data.passedCount} passed`;
+      return;
+    }
+    case 'validationDone':
+      validationUI.button.disabled=false;
+      validationUI.status.textContent=`${data.passed} / ${data.total} test groups passed`;
+      return;
+    case 'validationError':
+      validationUI.button.disabled=false;
+      validationUI.status.textContent=data.message;
+      return;
+  }
+}
+validationUI.button.addEventListener('click',()=>{
+  if(!socket||socket.readyState!==WebSocket.OPEN)return;
+  validationUI.button.disabled=true;
+  socket.send(JSON.stringify({action:'validate'}));
+});
 const svg = (name, attrs={}) => {
   const element = document.createElementNS(NS,name);
   for(const [key,value] of Object.entries(attrs)) element.setAttribute(key,value);
@@ -157,6 +225,7 @@ function savedPreference(){try{return JSON.parse(localStorage.getItem(preference
 function rememberChoice(){try{localStorage.setItem(preferenceKey,JSON.stringify({student:selectedStudent,structure}));}catch(_){}}
 function selectImplementation(){
   if(!socket||socket.readyState!==WebSocket.OPEN)return;
+  resetValidation('Implementation changed; previous test results are outdated.');
   rememberChoice();
   socket.send(JSON.stringify({action:'select',student:selectedStudent,structure}));
   ui.cmdStatus.textContent=`Loading ${selectedStudent} / ${structure}…`;
@@ -1162,8 +1231,10 @@ function connect(){
     try{
       const data=JSON.parse(msg.data);
       if(data.type==='pong')return;
+      if(data.type.startsWith('validation')){validationMessage(data);return;}
       if(data.type==='catalog'){receiveCatalog(data);return;}
       if(data.type==='building'||data.type==='sourceChanged'){
+        resetValidation('Implementation changed; previous test results are outdated.');
         showCompiling(data.type==='building'&&data.recompiling===true);
         ui.cmdStatus.textContent=data.message+' Previous trace may be out of date.';
         ui.connection.textContent=data.type==='building'&&data.recompiling===true?
@@ -1174,6 +1245,7 @@ function connect(){
         focusAfterCommand=false;ui.cmdStatus.textContent=data.message;ui.cmdStatus.classList.add('error');return;
       }
       if(data.type==='hello'){
+        validationUI.button.disabled=false;
         showCompiling(false);
         const initial=data.trace;
         if(data.student)selectedStudent=data.student;rememberChoice();
@@ -1195,6 +1267,7 @@ function connect(){
     socket=null;
     if(stopped)return;
     showCompiling(false);
+    resetValidation('Connection lost; run the tests again after reconnecting.');
     ui.connection.textContent='Connection lost · reconnecting…';
     console.warn('Dart WebSocket closed',event.code,event.reason||'');
     const delay=Math.min(5000,400*Math.pow(1.8,reconnectAttempt++));

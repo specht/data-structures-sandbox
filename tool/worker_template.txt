@@ -358,6 +358,17 @@ class BrowserSession {
     }
   }
 
+  // Every physical stack cell outside the occupied range must be empty.
+  bool stackStorageValid(){
+    if(kind!='stack')return true;
+    final s=instance as stack_student.MyArrayStack;
+    if(s.top < -1 || s.top >= s.memory.length)return false;
+    for(var i=0;i<s.memory.length;i++){
+      if((i<=s.top)!=(s.memory[i]!=null))return false;
+    }
+    return true;
+  }
+
   // A heap must be a contiguous array (no gaps) and obey the min-heap
   // parent/child ordering after EACH completed public method.
   bool heapStorageValid(){
@@ -463,12 +474,12 @@ class BrowserSession {
       final ok=checked && orderedActual.join(',')==(kind=='hash'?(List<int>.of(reference)..sort()):reference).join(',') &&
         hashFaults.isEmpty &&
         nodeHeapFaults.isEmpty &&
-        heapStorageValid() &&
+        stackStorageValid() && heapStorageValid() &&
         queuePointersValid() && queueStorageValid() && faults.isEmpty;
       r.steps.add(r.snapshot());
       final descriptorReturn=descriptor(name)['returns']=='void';
       final label='$name(${args.join(', ')})';
-      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}${kind=='array_heap' && !heapStorageValid()?' (min-heap order)':''}${nodeHeapFaults.isEmpty?'':' (node heap: ${nodeHeapFaults.join(', ')})'}${hashFaults.isEmpty?'':' (hash: ${hashFaults.join(', ')})'}':canVerify?'checked':'not automatically verified'}';
+      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}${kind=='stack' && !stackStorageValid()?' (stack cells or top index)':''}${kind=='array_heap' && !heapStorageValid()?' (min-heap order)':''}${nodeHeapFaults.isEmpty?'':' (node heap: ${nodeHeapFaults.join(', ')})'}${hashFaults.isEmpty?'':' (hash: ${hashFaults.join(', ')})'}':canVerify?'checked':'not automatically verified'}';
       r.end(result,ok,returnedVoid:descriptorReturn,message:message);
       if(!ok)break;
     }

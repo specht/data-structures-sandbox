@@ -1,261 +1,239 @@
-# Data Structure Sandbox · v1.2 foundation
+# Data Structure Sandbox
 
-Dart executes student implementations. A persistent Dart HTTP/WebSocket host serves the
-JavaScript/SVG visualization and supervises **separate Dart worker processes**.
-The browser application is never rebuilt when students edit code.
+Mit der Data Structure Sandbox könnt ihr Datenstrukturen in Dart selbst
+implementieren, im Browser beobachten und mit automatischen Tests überprüfen.
 
-**Teaching materials:** Start with [the fixed-array stack exercise](docs/start-here.md)
-and the [canonical interfaces and invariants](docs/contracts.md). The new
-`templates/starter/` files are unfinished student tasks; `templates/example/`
-remains a collection of complete reference implementations. The class files
-live in their own `structures/` Git repository.
+## Was liegt wo?
 
-## Try it
+Ihr arbeitet mit **zwei getrennten Git-Repositories**:
+
+- `~/data-structures-sandbox/` enthält die App, die Vorlagen und die Tests.
+  Dieses Repository wird von der Lehrkraft gepflegt.
+- `~/data-structures-sandbox/structures/` enthält die Implementierungen der
+  Klasse. **Hier** bearbeitet und veröffentlicht ihr eure Dateien.
+
+Jede Person arbeitet in einem eigenen Unterordner von `structures/`. Ändert
+keine Dateien anderer Personen und keine Dateien der App. Falls die App in
+eurem Workspace unter einem anderen Namen liegt, verwendet ihr diesen Pfad
+anstelle von `~/data-structures-sandbox`.
+
+## 1. Bei GitLab anmelden
+
+Öffne [git.nhcham.org](https://git.nhcham.org/) im Browser und melde dich an.
+
+## 2. SSH-Schlüssel erstellen
+
+Prüfe zunächst, ob dein Workspace bereits einen öffentlichen SSH-Schlüssel hat:
 
 ```bash
-cd ~/data-structure-sandbox-browser-v1.2
+ls ~/.ssh/id_ed25519.pub
+```
+
+Falls die Datei nicht existiert, erzeuge einen Schlüssel:
+
+```bash
+ssh-keygen -t ed25519 -C "Vorname Nachname"
+```
+
+Bestätige den vorgeschlagenen Speicherort mit Enter. Im Schul-Workspace kannst
+du die Passphrase leer lassen und die nächsten Rückfragen mit Enter bestätigen.
+Zeige danach deinen **öffentlichen** Schlüssel an:
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+Kopiere die gesamte Zeile, die mit `ssh-ed25519` beginnt. Öffne in GitLab
+**Edit profile → Access → SSH keys → Add new key**, füge den Schlüssel ein und
+speichere ihn. **Gib niemals deine private Datei** `~/.ssh/id_ed25519` weiter.
+
+Teste die Verbindung:
+
+```bash
+ssh -T git@git.nhcham.org
+```
+
+Bestätige bei der ersten Verbindung den angezeigten Hostschlüssel nur, wenn er
+zu eurem GitLab-Server gehört. Danach sollte GitLab dich begrüßen.
+
+## 3. Git einmalig einrichten
+
+Trage deinen Namen und die E-Mail-Adresse deines GitLab-Kontos ein:
+
+```bash
+git config --global user.name "Vorname Nachname"
+git config --global user.email "deine.mail@example.org"
+```
+
+Das ist in jedem Workspace nur einmal nötig.
+
+## 4. Das Klassen-Repository klonen
+
+Falls die App noch nicht in deinem Workspace vorhanden ist, klone sie zuerst:
+
+```bash
+cd ~
+git clone https://github.com/specht/data-structures-sandbox.git data-structures-sandbox
+```
+
+Wechsle in das **äußere** App-Verzeichnis. Die Lehrkraft gibt euch die
+SSH-Adresse des gemeinsamen Klassen-Repositories. Ersetze im folgenden Befehl
+`GITLAB_SSH_URL_DER_KLASSE` durch diese Adresse:
+
+```bash
+cd ~/data-structures-sandbox
+git clone GITLAB_SSH_URL_DER_KLASSE structures
+```
+
+Der Zielordner muss **genau** `structures` heißen. Klone das Klassen-Repository
+nicht in einen Ordner neben der App und nicht in den Ordner eines Mitschülers.
+Falls `structures/` bereits existiert, klone es **nicht erneut** und lösche
+keine vorhandenen Dateien. Prüfe mit der Lehrkraft, ob es schon das gemeinsame
+Klassen-Repository oder nur ein lokal angelegter Beispielordner ist.
+
+Wenn das Klassen-Repository bereits eingerichtet ist, aktualisiere es so:
+
+```bash
+cd ~/data-structures-sandbox/structures
+git pull
+```
+
+## 5. Die App starten
+
+Starte die App im **äußeren** Verzeichnis:
+
+```bash
+cd ~/data-structures-sandbox
 ./run
 ```
 
-The browser should open on port 8081. If necessary use `./run --no-open` and
-open the Workspace's port-forwarded URL. Use `./run --port 8082` when 8081 is occupied.
-The first launch installs the `analyzer` package; later launches reuse it.
+Der Browser öffnet sich automatisch. Lass dieses Terminal geöffnet, während
+du arbeitest. Öffne für deinen Quelltext und Git ein zweites Terminal.
 
-If `structures/` does not exist, `./run` creates a **separate local Git repository**
-containing a working `example/` implementation for each of the supported
-structure types. The outer app `.gitignore` excludes `structures/` entirely.
-To use your existing class repository instead, remove or move the local sample
-`structures/` directory and clone the class repository **exactly** at that path:
+## 6. Deine Datenstruktur hinzufügen
+
+Hole zunächst im zweiten Terminal den aktuellen Stand des Klassen-Repositories:
 
 ```bash
-cd ~/data-structure-sandbox-browser-v1.2
-git clone <YOUR_CLASS_REPOSITORY_SSH_URL> structures
+cd ~/data-structures-sandbox/structures
+git pull
+```
+
+Wechsle dann zurück in das **äußere App-Verzeichnis** und zeige die verfügbaren
+Datenstrukturen und Varianten an:
+
+```bash
+cd ~/data-structures-sandbox
+./new-structure
+```
+
+Ersetze `DEIN_NAME` durch deinen vereinbarten Ordnernamen. Um beispielsweise
+einen Stack mit festem Array zu erstellen, führe aus:
+
+```bash
+./new-structure DEIN_NAME stack array
+```
+
+Der Befehl legt die Datei
+`structures/DEIN_NAME/my_array_stack.dart` an. Sie enthält eine **unfertige
+Vorlage**: Du implementierst die Methoden selbst. Bereits vorhandene Dateien
+werden nicht überschrieben.
+
+Du kannst auf dieselbe Weise weitere Datenstrukturen anlegen, zum Beispiel:
+
+```bash
+./new-structure DEIN_NAME stack nodes
+./new-structure DEIN_NAME queue circular
+./new-structure DEIN_NAME queue nodes
+./new-structure DEIN_NAME list
+./new-structure DEIN_NAME tree bst
+./new-structure DEIN_NAME tree avl
+./new-structure DEIN_NAME heap array
+./new-structure DEIN_NAME heap nodes
+./new-structure DEIN_NAME hash
+```
+
+Die Varianten sind eigenständige Dateien. Wenn du einen Stack mit Knoten
+implementieren möchtest, verwende `stack nodes` statt `stack array`.
+
+Öffne deine neu erzeugte Dart-Datei im Editor. Die Kommentare erläutern die
+geforderte Wirkung der Methoden und die bereitgestellte Speicher-API. Hinweise
+zu den Schnittstellen und zulässigen Zuständen stehen außerdem in
+[docs/contracts.md](docs/contracts.md) und
+[docs/storage-api.md](docs/storage-api.md). Die Darstellung im Browser musst
+du nicht selbst programmieren.
+
+## 7. Deine Implementierung ausprobieren und testen
+
+Wähle im Browser unter **Student** deinen Ordner und unter **Structure** deine
+Datenstruktur aus. Führe einzelne Methoden aus, etwa `push(5)` oder `pop()`.
+Mit **Step**, **Play** und **Show result** kannst du die Ausführung verfolgen.
+
+Speichere deine Änderungen im Editor. Die laufende App lädt die geänderte
+Implementierung automatisch neu; dabei wird der Zustand der ausgewählten
+Datenstruktur zurückgesetzt. Bei einem Kompilierungsfehler korrigiere die im
+Browser bzw. Terminal angezeigte Fehlermeldung.
+
+Klicke auf **Test my implementation**, um mehrere Testfälle auszuführen. Der
+Fortschrittsbalken und die einzelnen Ergebnisse zeigen, welche Situationen
+funktionieren und bei welcher Operation ein Test fehlschlägt. Die Tests
+verwenden einen **separaten Testprozess** und verändern die Struktur im
+normalen Visualisierungsbereich nicht. Nach Änderungen an der Datei musst du
+die Tests erneut starten. Bestehende Tests decken viele Fälle ab, beweisen
+aber nicht, dass ein Programm in jeder Situation korrekt ist.
+
+## 8. Deine Datenstruktur veröffentlichen
+
+Wechsle in das **Klassen-Repository** und prüfe die Änderungen:
+
+```bash
+cd ~/data-structures-sandbox/structures
+git status
+```
+
+Füge nur deine eigene Datei hinzu (hier das Beispiel mit dem Array-Stack):
+
+```bash
+git add DEIN_NAME/my_array_stack.dart
+git commit -m "Add array stack by DEIN_NAME"
+git push
+```
+
+Verwendest du eine andere Datenstruktur, ersetze den Dateinamen im `git add`-
+Befehl entsprechend. Nach dem Push können andere eure Änderungen mit
+`git pull` erhalten. Überschreibe keine fremden Dateien.
+
+Falls Git den Push wegen neuer Änderungen im Klassen-Repository ablehnt, lösche
+nichts und bitte um Hilfe beim Zusammenführen.
+
+## 9. Beim nächsten Mal weiterarbeiten
+
+Aktualisiere zuerst die App und anschließend das Klassen-Repository:
+
+```bash
+cd ~/data-structures-sandbox
+git pull
+cd structures
+git pull
+cd ..
 ./run
 ```
 
-Alternatively: `./run --students /path/to/your/existing/class/repository`.
-There is also a separate, downloadable student-repository starter ZIP.
+Arbeite immer an deiner Datei im eigenen Ordner unter `structures/`.
 
-## Students and structure discovery
+## Häufige Probleme
 
-The class repository has a directory per student:
+- **`Permission denied (publickey)`**: Prüfe deinen öffentlichen SSH-Schlüssel
+  in GitLab und teste `ssh -T git@git.nhcham.org` erneut.
+- **`structures` existiert bereits**: Klone nicht darüber. Prüfe zuerst, ob
+  dort schon das Klassen-Repository oder vorhandene Arbeit liegt.
+- **`File exists; not overwriting`**: Deine Starter-Datei existiert bereits.
+  Öffne und bearbeite sie; der Befehl löscht oder überschreibt sie nicht.
+- **Deine Datenstruktur erscheint nicht**: Prüfe den Dateinamen, den
+  persönlichen Unterordner und eventuelle Dart-Fehler im Browser oder Terminal.
+- **`git push` wird abgelehnt**: Überschreibe nichts und lass dir beim
+  Zusammenführen helfen.
 
-```text
-structures/                         # its own Git repository
-├── example/
-│   ├── my_linked_list.dart          # list: MyLinkedList
-│   ├── my_bst.dart                  # tree: MyBST
-│   ├── my_array_stack.dart          # stack: MyArrayStack
-│   ├── my_linked_stack.dart         # linked_stack: MyLinkedStack
-│   ├── my_linked_queue.dart         # linked_queue: MyLinkedQueue
-│   └── my_array_queue.dart          # array_queue: MyArrayQueue
-├── alice/
-│   ├── my_linked_list.dart
-│   └── my_array_stack.dart
-└── bob/
-    └── my_bst.dart
-```
-
-Student folders and recognized filenames appear automatically in the browser,
-including directories created while `./run` is open. The selected student and
-structure are remembered in browser local storage and in `.runtime/selection.json`.
-Each browser connection owns a separate runner, so selecting another student's
-implementation does not change another browser session's in-memory structure.
-
-Click example method calls or type `insert(20)`, `contains(13)`, `remove(13)`,
-`push(5)`, `pop()` etc. Method signatures are discovered from the student's
-Dart AST. The browser visualizes the **original source**, not the instrumented copy.
-Use **Step**, **Play**, or **Show result**, and arrow keys to navigate the trace.
-
-### What's implemented now
-
-Visual adapters currently cover the sorted linked list, unbalanced BST, AVL
-tree, fixed-array and linked stacks/queues, array and node min-heaps, and the
-separate-chaining hash set. Method discovery works for synchronous public
-methods with supported scalar parameters. The sorted list's legacy `append()`
-method is still recognized, but is **not part of its canonical sorted-list
-contract**: append can break ordering. See [the contracts](docs/contracts.md)
-before assigning an exercise. Directed graphs and traversal overlays are the
-next roadmap stage; see [the roadmap](docs/roadmap.md).
-
-## Circular array queue (roadmap stage 2)
-
-For a student exercise, run `./new-structure alice queue circular`. To add a
-reference queue to an existing `structures/example` folder, use
-`cp -n templates/example/my_array_queue.dart structures/example/`.
-This does not overwrite existing work. A fresh `./run` initialization
-already includes the sample.
-
-The queue uses eight **stationary** observable cells, with `front` pointing to
-its next dequeue slot, `rear` to the next enqueue position (once space is available), and `size` distinguishing
-full from empty even when both indices coincide. `enqueue(int)` returns false
-when full; `dequeue()` and `peek()` return null when empty. The visualizer
-shows front above, rear below, logical FIFO order numbered over occupied
-cells, and intermediate writes during step-by-step playback. Check wraparound
-by filling the queue, dequeuing three elements, then enqueuing three more.
-
-Run `dart test/smoke.dart` and the Node.js geometry/navigation tests before
-introducing the example to students. The student repository and the
-worker cache remain separate.
-
-## Failure handling and limits
-
-- A student method executes in a separate Dart process, never in the browser
-  server. The HTTP server, method picker and previous trace remain responsive
-  if a worker hangs or crashes.
-- Each method call has a **4-second wall-clock deadline**. On timeout the runner
-  is forcibly terminated; click **Retry** to create a new,
-  initially empty instance. **Its partially mutated state is not reused.**
-- Traces have a **4,000-event cap** and an 8 MB response cap. Exceeding either
-  limit terminates the worker; the previous trace stays visible.
-- When a source file changes, only the selected implementation is prepared and
-  analyzed again. A syntax/compile error appears in the browser while the host
-  continues running. The previous trace is **stale**, not an executable old
-  implementation. Fix the source and save to retry.
-- Because a new worker owns fresh in-memory objects, saving the source resets
-  that implementation's data-structure state. This is intentional in v1.2.
-- A subprocess and timeout are **reliability measures, not security isolation**.
-  Do not execute untrusted arbitrary code on a shared production host without
-  OS-level restrictions on process trees, CPU/memory, filesystem and network.
-
-The current source instrumenter supports a deliberate Dart subset. It does not
-instrument arbitrary closures, async functions, complex user-defined objects,
-or every possible assignment expression. Unsupported code should produce a
-compile or analyzer diagnostic rather than silently invent a visualization.
-
-## Test in your Workspace
-
-```bash
-dart test/smoke.dart
-# Optional: Node.js is not needed for the application, only for JS regression tests.
-node test/browser_navigation.test.js
-node test/browser_geometry.test.js
-node test/tree_motion.test.js
-node test/student_catalog.test.js
-```
-
-The end-to-end Dart worker test must be run in the Workspace. The ZIP was built
-without a Dart SDK in the authoring environment, so **Dart compilation has not
-been verified here**.
-
-Create an unfinished starter without overwriting existing work:
-
-```bash
-./new-structure alice list
-./new-structure alice stack
-```
-
-All currently implemented adapters are supported by this helper.
-
-## Worker cache (patch after v1.2)
-
-`./run` no longer deletes the generated files on each startup. A worker's
-fingerprint includes the selected student's source (and relative imports),
-the Dart SDK version, framework libraries, templates, generator, and dependency
-lockfile. Only the selected implementation needs rebuilding when it changes;
-other students and structures keep their cached workers.
-
-The first preparation of a revision instruments the source and attempts to
-compile a Dart kernel (`.dill`). Later selections and application restarts use
-that same validated artifact; the browser/HTTP server are never recompiled.
-Each browser session still has its **own** persistent worker process and
-independent in-memory data structure. A worker is replaced only when its
-source changes, its selection changes, it crashes, or it times out. On SDKs
-without `dart compile kernel`, the cache reuses the validated generated Dart
-source instead, but launching that source may still incur VM compilation.
-
-`[build]` and `[cache]` messages in the terminal distinguish new preparations
-from cache hits. A genuine code change does require recompilation; caching does
-not make the first compile of a new revision instantaneous. A syntax error does
-not replace the previously cached successful artifact or make the server exit.
-
-To clear old artifacts, **stop** `./run` and execute:
-
-```bash
-rm -rf tool/generated tool/generated_worker_*.dart tool/generated_worker_*.dill
-```
-
-These are ignored scratch files, not student files. They are recreated on demand.
-Run `dart test/smoke.dart` to check worker startup and calls in your Workspace.
-
-## Roadmap milestone 1a · linked stack
-
-The linked stack uses `ListNode` and an owning `head` pointer (the top), with
-`push`, `pop`, `peek`, and `isEmpty` methods. Its contents appear in LIFO order,
-not sorted order. The reference model checks successful push, empty and nonempty
-pop/peek, and empty state against the actual reachable chain. There is no fixed
-capacity. The trace-event and worker-time budgets still prevent runaway code.
-
-After `./run` initializes `structures/example`, copy
-`templates/example/my_linked_stack.dart` into `structures/example/` if the
-student repository already existed before this milestone. Run
-`./new-structure alice stack nodes` for a new student file.
-
-## Roadmap milestone 1b · linked queue
-
-The linked queue uses `ListNode` with separate `head` (front) and `tail`
-(rear) owning references. Its `enqueue`, `dequeue`, `peek`, and `isEmpty`
-methods are FIFO; duplicates are preserved. The reference model checks
-returned results, logical order, and physical head/tail consistency, including
-last.next == null and the empty-to-nonempty transition. The renderer shows the
-head and tail pointers independently alongside the same node-link animations.
-
-If your student repo predates this milestone, add the example without
-overwriting existing work:
-
-```bash
-cp templates/example/my_linked_queue.dart structures/example/
-./new-structure alice queue nodes
-```
-
-Run `dart test/smoke.dart` in the Workspace after adding example files.
-
-## Larger structures and diagram navigation
-
-Trees, linked lists, linked stacks, and linked queues no longer stop at 12
-reachable nodes. The 12-call **batch** limit remains separate; students can
-submit more calls subsequently, with state retained in the same worker. The
-fixed-array stack still has eight physical cells by design.
-
-Use **+**, **−**, the mouse wheel, or **Fit** to inspect large diagrams; drag
-the diagram to pan. The viewport is never automatically resized during trace
-playback. Run Fit again after making a tree much larger. Very large or
-strongly unbalanced trees can still become crowded, and execution remains
-subject to the worker deadline, the 4,000-event trace cap, and the response
-size budget.
-
-## AVL tree (roadmap item 3)
-
-The AVL adapter reuses the existing tree renderer with stable node IDs. It
-shows each node's **stored height** (`h`) and **calculated balance factor**
-(`b = left-subtree height − right-subtree height`). A red outline indicates a
-height mismatch or a subtree with `|b| > 1`. Red outlines in **intermediate
-rotation frames** are expected; the worker checks all subtree heights, balance,
-BST order, and shared/cyclic pointers **after each public operation** and
-reports the failures separately from the abstract set-value check.
-
-```
-cp -n templates/example/my_avl.dart structures/example/
-./run
-```
-
-Try `insert(30)`, `insert(20)`, `insert(10)` (LL rotation), then reset and
-try RR (`10,20,30`), LR (`30,10,20`), RL (`10,30,20`) and removal. Rotation
-helpers in the example are private methods: their observable pointer/height
-writes are recorded, while the current AST source-line stepping concentrates
-on public method bodies (helper source mapping remains future work).
-
-Run `dart test/avl_model.dart`, `dart test/smoke.dart`, and
-`node test/avl_view.test.js` in your Workspace.
-The worker smoke test needs the `example` AVL file in the separate
-`structures/` repository; it never creates or overwrites a student's work.
-The standalone model test runs directly against the bundled example.
-
-## Creating student starters
-
-Run `./new-structure` to list interface/implementation choices. For example,
-`./new-structure alice stack array` creates an unfinished eight-cell stack;
-`./new-structure alice stack nodes` creates a linked-node stack. The default
-is always an unfinished starter. Files are never overwritten, and
-`structures/` remains a separate Git repository.
-See `docs/contracts.md`, `docs/start-here.md` and `docs/storage-api.md`.
+Die bisherige technische Projektdokumentation steht in
+[DEVELOPMENT.md](DEVELOPMENT.md). Für einen ersten Einstieg in den Array-Stack
+gibt es außerdem [docs/start-here.md](docs/start-here.md).
