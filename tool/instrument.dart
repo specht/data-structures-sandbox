@@ -248,7 +248,7 @@ void generate(String kind) {
       final block = body.block;
       final startLine = '\n'.allMatches(source.substring(0, member.offset)).length + 1;
       edits.add(Edit(block.leftBracket.end, ' final trace = ${config['recorder']}.active!; trace.atLine($startLine); '));
-      final visitor = BodyInstrumenter(source, edits, m.name, 0);
+      final visitor = BodyInstrumenter(source, edits, member.name.lexeme, 0);
       // Collect node-typed variables in advance, including declarations after
       // earlier assignments within other branches.
       for (final declaration in block.statements.whereType<VariableDeclarationStatement>()) {
