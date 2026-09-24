@@ -512,3 +512,26 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   .step-controls #back,.step-controls #next{min-width:0!important}
   .step-controls button{padding:0 6px!important}
 }
+
+/* Keep the entire playback bar on one row at desktop widths. Let flexible
+   controls shrink before they can push the speed slider onto another line. */
+@media(min-width:1050px){
+  .timeline .controls{flex-wrap:nowrap!important;gap:5px;min-width:0}
+  .timeline .playback-modes{flex:0 0 auto}
+  .timeline .playback-modes button{padding:0 6px}
+  .timeline .step-controls{flex:0 0 auto}
+  .timeline .step-controls #back,.timeline .step-controls #next{
+    min-width:64px!important;padding:0 6px!important}
+  .timeline .control-spacer{flex:1 1 0;min-width:0}
+  .timeline #trace-mode{min-width:96px;width:125px;max-width:125px;flex:0 1 125px}
+  .timeline .controls input[type="range"]#speed{
+    min-width:76px;width:110px;flex:0 1 110px}
+  .timeline .controls #speed-output{width:26px;min-width:26px;flex:none}
+}
+/* Within the shared navigation group, the Next control must not retain the
+   standalone primary button's border or disabled transparency. */
+.timeline .step-controls #next{border:0!important;box-shadow:none!important}
+.timeline .step-controls #next:disabled{
+  opacity:1;background:#263d59;color:#8ca4bf}
+.timeline .step-controls #next:focus-visible{
+  outline:2px solid #a6c8fb;outline-offset:-2px}

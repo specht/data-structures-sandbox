@@ -307,8 +307,27 @@ let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
 function showCompiling(compiling){ui.compileSpinner.hidden=!compiling;}
+// These preferences are local to this browser, not to the student's repository.
+const playbackPreferencesKey='data-structure-sandbox.v1.playback';
+function loadPlaybackPreferences(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(playbackPreferencesKey)||'null');
+    return saved&&typeof saved==='object'?saved:{};
+  }catch(_){return {};}
+}
+const playbackPreferences=loadPlaybackPreferences();
+const storedSpeed=Number(playbackPreferences.speed);
+if(playbackPreferences.speed!=null&&Number.isFinite(storedSpeed)&&
+   storedSpeed>=Number(ui.speed.min)&&storedSpeed<=Number(ui.speed.max)){
+  ui.speed.value=String(storedSpeed);
+}
+function rememberPlaybackPreferences(){
+  try{localStorage.setItem(playbackPreferencesKey,
+    JSON.stringify({speed:Number(ui.speed.value),mode:playbackMode}));}catch(_){}
+}
 ui.speed.addEventListener('input',()=>{
   ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
+  rememberPlaybackPreferences();
 });
 ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
@@ -367,7 +386,7 @@ function receiveCatalog(data){
 }
 
 let animationGeneration = 0, animating = false;
-let playbackMode='play', playbackToken=0;
+let playbackMode=['step','play','result'].includes(playbackPreferences.mode)?playbackPreferences.mode:'play', playbackToken=0;
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
@@ -910,6 +929,7 @@ function choosePlaybackMode(mode){
   playbackToken++;
   playbackMode=mode;
   updatePlaybackButtons();
+  rememberPlaybackPreferences();
   if(mode==='step'){
     if(animating)jumpTo(stepIndex);
   }else if(mode==='result'){
