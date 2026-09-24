@@ -551,3 +551,38 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   .trace-settings{flex-wrap:wrap;height:auto;gap:6px}
   .speed-choice{margin-left:0;padding-left:0;border-left:0}
 }
+
+/* Final playback polish: equal-height controls and clearly selected values. */
+.timeline .playback-modes,.timeline .step-controls,.timeline .trace-settings{
+  height:36px!important;min-height:36px;box-sizing:border-box!important;
+  padding:2px;align-items:center}
+.timeline .playback-modes button,.timeline .step-controls button{
+  height:30px!important;min-height:30px!important;box-sizing:border-box}
+/* Navigation buttons are all icon-only, with their meanings in aria-label/title. */
+.timeline .step-controls #first,.timeline .step-controls #back,
+.timeline .step-controls #next,.timeline .step-controls #last{
+  width:32px!important;min-width:32px!important;padding:0!important;
+  display:inline-flex;align-items:center;justify-content:center}
+.timeline .step-controls .ui-icon{width:17px;height:17px;flex:none}
+.timeline .trace-choice,.timeline .speed-choice{height:30px;align-items:center}
+/* Make the trace dropdown an ordinary, legible control inside its group. */
+.timeline .trace-settings #trace-mode{
+  height:30px;min-height:30px;box-sizing:border-box;
+  font:600 11px "Open Sans",ui-sans-serif,sans-serif;
+  color:#e9f1ff;background:#1d304b;
+  border:1px solid #3e577a;border-radius:5px;padding:0 5px 0 9px}
+.timeline .trace-settings #trace-mode:hover{border-color:#8fbffb}
+.timeline .trace-settings #trace-mode:focus-visible{
+  outline:2px solid #a6c8fb;outline-offset:1px}
+/* Present arguments select the entire call, not an overlapping number badge. */
+.suggestion-rows .call-suggestion.has-present-argument{
+  background:#3c3157;border-color:#ab91e6;color:#f2ecff;
+  box-shadow:inset 0 0 0 1px #725aa3}
+.suggestion-rows .call-suggestion.has-present-argument:hover{
+  background:#4d3b70;border-color:#c7affb}
+/* Both sides of the return arrow use the same bundled monospace face. */
+.operation-result strong,.operation-result #return-value{
+  font-family:"0xProto Nerd Font",ui-monospace,monospace}
+@media(max-width:600px){
+  .timeline .trace-settings{height:auto!important;min-height:36px}
+}
