@@ -2,40 +2,56 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const path=require('node:path');
-const els=new Map();
+const source=fs.readFileSync(require('node:path').join(__dirname,'../web/editor.js'),'utf8');
+const els=new Map(),handlers=new Map(),requests=[];
 class Element {
-  constructor(){this.disabled=false;this.hidden=false;this.value='';this.textContent='';this.dataset={};this.scrollTop=0;this.selectionStart=0;this.selectionEnd=0;
-    const classes=new Set();this.classList={add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c)};}
-  addEventListener(name,callback){this[`on${name}`]=callback;}
-  focus(){this.focused=true;}
-  dispatchEvent(event){this[`on${event.type}`]?.(event);}
-  setRangeText(text,start,end){this.value=this.value.slice(0,start)+text+this.value.slice(end);this.selectionStart=this.selectionEnd=start+text.length;}
+ constructor(){this.hidden=false;this.disabled=false;this.textContent='';this.attrs={};const styles=new Set();this.classList={add:k=>styles.add(k),remove:k=>styles.delete(k),toggle:(k,on)=>on?styles.add(k):styles.delete(k),contains:k=>styles.has(k)};}
+ addEventListener(n,fn){this[`on${n}`]=fn;}
 }
-const doc={getElementById(id){if(!els.has(id))els.set(id,new Element());return els.get(id);},addEventListener(){}};
-const requests=[];
-const win={addEventListener(){},confirm(){return false;}};
-const ctx=vm.createContext({document:doc,window:win,Event:class {constructor(type){this.type=type;}},
-  selectedStudent:'alice',structure:'stack',ui:{cmdStatus:new Element()},
-  socket:{readyState:1,send:raw=>requests.push(JSON.parse(raw))},WebSocket:{OPEN:1}});
-vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/editor.js'),'utf8'),ctx);
-const el=id=>doc.getElementById(id);
-win.sandboxEditor.ready();
-el('source-edit').onclick();
-assert.deepEqual(requests[0],{action:'readSource'});
-win.sandboxEditor.receive({type:'sourceFile',student:'alice',structure:'stack',revision:'rev-1',content:'class A {\n}\n'});
-assert.equal(el('source-editor').hidden,false);
-assert.equal(el('code-scroll').hidden,true);
-el('source-textarea').value+='// work\n';el('source-textarea').oninput();
-assert.equal(win.sandboxEditor.beforeSelection(),false,'Discard must require consent.');
-el('source-save').onclick();
+const document={getElementById(id){if(!els.has(id))els.set(id,new Element());return els.get(id);}};
+function CodeMirror(container,options){
+ const cm={value:options.value,readOnly:options.readOnly,lines:new Set(),listeners:{},
+ setValue(s){this.value=s;this.listeners.change?.();},getValue(){return this.value;},clearHistory(){},refresh(){},scrollTo(){},focus(){},
+ setOption(k,v){this[k]=v;},on(k,v){this.listeners[k]=v;},
+ lineCount(){return this.value.split('\n').length;},
+ addLineClass(n,_,clazz){this.lines.add(`${n}:${clazz}`);},
+ removeLineClass(n,_,clazz){this.lines.delete(`${n}:${clazz}`);},
+ scrollIntoView(){},
+ };return cm;
+}
+let cm;
+const factory=(container,options)=>(cm=CodeMirror(container,options));
+const window={addEventListener(n,fn){handlers.set(n,fn);},confirm(){return false;}};
+const ctx=vm.createContext({document,window,CodeMirror:factory,selectedStudent:'alice',structure:'stack',
+ ui:{cmdStatus:new Element()},socket:{readyState:1,send:x=>requests.push(JSON.parse(x))},WebSocket:{OPEN:1}});
+vm.runInContext(source,ctx);
+const e=id=>document.getElementById(id);
+assert.equal(cm.readOnly,'nocursor');
+window.sandboxEditor.renderSource({lines:['class A {','  int? pop() => null;','}']});
+assert.equal(cm.getValue().split('\n')[1],'  int? pop() => null;');
+window.sandboxEditor.highlight(2);
+assert(cm.lines.has('1:source-execution-line'));
+window.sandboxEditor.ready();e('source-edit').onclick();
+assert.equal(requests[0].action,'readSource');
+window.sandboxEditor.receive({type:'sourceFile',student:'alice',structure:'stack',revision:'rev1',content:'class A {}'});
+assert.equal(cm.readOnly,false);
+cm.setValue('class A { int x=1; }');
+window.sandboxEditor.renderSource({lines:['STALE TRACE']});
+assert.equal(cm.getValue(),'class A { int x=1; }','Trace must not overwrite a draft.');
+e('source-save').onclick();
 assert.equal(requests[1].action,'saveSource');
-assert.equal(requests[1].revision,'rev-1');
-assert.match(requests[1].content,/work/);
-win.sandboxEditor.receive({type:'sourceError',message:'Revision conflict'});
-assert.match(el('source-textarea').value,/work/,'Conflicting save must preserve the draft.');
-el('source-save').onclick();
-win.sandboxEditor.receive({type:'sourceSaved',content:el('source-textarea').value,revision:'rev-2'});
-assert.equal(el('source-editor').hidden,true);
-assert.equal(el('source-edit').hidden,false);
-console.log('PASS: inline edit, explicit save, conflict preservation and safe return to the visualizer.');
+assert.equal(requests[1].revision,'rev1');
+assert.equal(cm.readOnly,'nocursor','Saving locks draft until server responds.');
+window.sandboxEditor.receive({type:'sourceError',message:'Revision conflict'});
+assert.equal(cm.readOnly,false);
+assert.equal(cm.getValue(),'class A { int x=1; }');
+window.sandboxEditor.receive({type:'sourceSaved',revision:'rev2',content:cm.getValue()});
+// A successful save is accepted only when a request is in flight.
+assert.equal(cm.readOnly,false);
+e('source-save').onclick();
+window.sandboxEditor.receive({type:'sourceSaved',revision:'rev2',content:cm.getValue()});
+assert.equal(cm.readOnly,'nocursor');
+assert.equal(e('source-edit').hidden,false);
+window.sandboxEditor.clear();
+assert.equal(e('source-editor').classList.contains('source-empty'),true);
+console.log('PASS: read-only CodeMirror, highlighted playback, editable draft, conflicts, save and empty hint.');

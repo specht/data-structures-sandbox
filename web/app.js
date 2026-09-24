@@ -324,6 +324,8 @@ function receiveCatalog(data){
     if(selectedStudent && structure)selectImplementation();
     else {
       window.sandboxEditor?.clear();
+      clearView();
+      ui.status.textContent='Create a starter from the app terminal to begin.';
       ui.file.textContent='No student implementation yet';
       ui.code.textContent='Create a starter from the app terminal: ./new-structure YOUR_NAME stack array';
       ui.cmdStatus.textContent='No implementations yet. Clone the class repository, then create your array stack starter.';
@@ -359,6 +361,9 @@ function renderSource(src) {
   // relative filename, never a local /home/... or /workspace/... path.
   const fileName=String(src.file??'').replaceAll('\\','/').split('/').pop();
   ui.file.textContent=selectedStudent?`${selectedStudent}/${fileName}`:fileName;
+  if(window.sandboxEditor?.renderSource){
+    window.sandboxEditor.renderSource(src);activeLine=null;return;
+  }
   ui.code.replaceChildren();
   src.lines.forEach((line,i)=>{
     const row=document.createElement('div');row.className='code-line';row.dataset.line=String(i+1);
@@ -369,6 +374,10 @@ function renderSource(src) {
 }
 function showLine(line) {
   if(line===activeLine)return;
+  if(window.sandboxEditor?.highlight){
+    activeLine=Number.isInteger(line)?line:null;
+    window.sandboxEditor.highlight(activeLine);return;
+  }
   if(activeLine!==null)ui.code.querySelector(`[data-line="${activeLine}"]`)?.classList.remove('active');
   activeLine=Number.isInteger(line)?line:null;
   if(activeLine===null)return;
@@ -1137,7 +1146,7 @@ function acceptTrace(data){
   else if(playbackMode==='play'&&focusAfterCommand)void playTrace(playbackToken);
   savedValues=[...data.values];savedCapacity=data.capacity??8;savedSessionId=data.sessionId??null;renderSuggestions();
   if(focusAfterCommand){focusAfterCommand=false;ui.next.focus({preventScroll:true});}
-  ui.connection.textContent='Dart connected';ui.cmdStatus.classList.remove('error');
+  ui.connection.textContent='Connected';ui.cmdStatus.classList.remove('error');
   showCompiling(false);
   ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready · ${structure} · [${data.values.join(', ')}]. Use ← / →.`:
     'Ready. Choose an operation above.';
@@ -1293,12 +1302,12 @@ ui.reset.addEventListener('click',()=>send({action:'reset'}));
 function connect(){
   if(stopped)return;
   const protocol=location.protocol==='https:'?'wss:':'ws:';
-  ui.connection.textContent=reconnectAttempt?'Reconnecting to Dart…':'Connecting to Dart…';
+  ui.connection.textContent=reconnectAttempt?'Reconnecting…':'Connecting…';
   const ws=new WebSocket(`${protocol}//${location.host}/ws`);
   socket=ws;
   ws.addEventListener('open',()=>{
     reconnectAttempt=0;initializedCatalog=false;
-    ui.connection.textContent='Dart server connected';
+    ui.connection.textContent='Connected';
     clearInterval(heartbeat);
     // Application-level heartbeats survive proxies that drop idle WS traffic.
     heartbeat=setInterval(()=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({action:'ping'}));},15000);
@@ -1318,7 +1327,7 @@ function connect(){
         showCompiling(data.type==='building'&&data.recompiling===true);
         ui.cmdStatus.textContent=data.message+' Previous trace may be out of date.';
         ui.connection.textContent=data.type==='building'&&data.recompiling===true?
-          'Recompiling Dart…':'Starting Dart…';return;
+          'Recompiling…':'Starting…';return;
       }
       if(data.type==='error'){
         showCompiling(false);
@@ -1334,7 +1343,7 @@ function connect(){
         restoreValidation(data.validationRevision);
         if(savedValues===null){acceptTrace(initial);return;}
         if(savedSessionId===(initial.sessionId??null) && JSON.stringify(savedValues)===JSON.stringify(initial.values)){
-          ui.connection.textContent='Dart connected';return;
+          ui.connection.textContent='Connected';return;
         }
         acceptTrace(initial);
         ui.cmdStatus.textContent='Dart session restarted; current list has been reset.';

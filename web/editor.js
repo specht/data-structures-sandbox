@@ -1,118 +1,150 @@
 'use strict';
-// A focused, dependency-free editor for the selected student Dart file.
-// The server, not this client, chooses and validates the writable path.
+// The same bundled CodeMirror editor is used for reading, stepping and editing.
+// The server selects the writable file and rejects stale revisions.
 (() => {
   const $ = id => document.getElementById(id);
   const edit = $('source-edit'), save = $('source-save'), discard = $('source-discard');
-  const editor = $('source-editor'), view = $('code-scroll');
-  const area = $('source-textarea'), gutter = $('source-line-numbers');
+  const container = $('source-editor'), oldView = $('code-scroll');
   const status = $('source-edit-status');
-  let mode = false, loading = false, saving = false, dirty = false, revision = null;
-  let original = '', selection = null;
+  let mode = false, loading = false, saving = false, dirty = false;
+  let revision = null, original = '', selection = null, highlighted = null;
+  let suppressChange = false, available = false;
   const locationKey = () => `${selectedStudent}/${structure}`;
-  function updateLines() {
-    const count = area.value.split('\n').length;
-    if (gutter.dataset.count !== String(count)) {
-      gutter.dataset.count = String(count);
-      gutter.textContent = Array.from({length:count}, (_,i)=>String(i+1)).join('\n');
-    }
+  const editor = CodeMirror(container, {
+    value: 'Create a starter from the app terminal: ./new-structure YOUR_NAME stack array',
+    mode: 'dart', theme: 'sandbox', lineNumbers: true, lineWrapping: false,
+    indentUnit: 2, tabSize: 2, indentWithTabs: false, smartIndent: true,
+    matchBrackets: true, autoCloseBrackets: true, styleActiveLine: false,
+    readOnly: 'nocursor', viewportMargin: 15,
+    extraKeys: {
+      'Ctrl-S': () => saveChanges(), 'Cmd-S': () => saveChanges(),
+      'Tab': cm => cm.somethingSelected() ? cm.indentSelection('add') : cm.execCommand('insertSoftTab'),
+      'Shift-Tab': cm => cm.indentSelection('subtract'),
+    },
+  });
+  container.hidden = false;
+  oldView.hidden = true;
+  container.classList.add('source-empty');
+  // Read-only playback remains selectable and copyable.
+  function write(text) {
+    suppressChange = true;
+    editor.setValue(text);
+    editor.clearHistory();
+    suppressChange = false;
+    editor.refresh();
+  }
+  function readOnly(value) {
+    editor.setOption('readOnly', value ? 'nocursor' : false);
+    container.classList.toggle('is-editing', !value);
+    if (!value) editor.focus();
+  }
+  function setStatus(text, error = false) {
+    status.hidden = !text;
+    status.textContent = text;
+    status.classList.toggle('source-edit-error', error);
   }
   function updateDirty() {
-    dirty = area.value !== original;
+    dirty = editor.getValue() !== original;
     save.disabled = !dirty || loading || saving;
-    status.textContent = dirty ? 'Unsaved changes · Ctrl+S to save' : 'Saved';
-    updateLines();
+    setStatus(dirty ? 'Unsaved changes · Ctrl+S to save' : 'Saved');
+  }
+  editor.on('change', () => { if (!suppressChange && mode && !saving) updateDirty(); });
+  function canLeave() {
+    return !dirty || window.confirm('Discard unsaved changes to this source file?');
   }
   function leave() {
-    mode=false;loading=false;saving=false;
-    view.hidden=false;editor.hidden=true;
-    edit.hidden=false;edit.disabled=!selectedStudent||!structure;
-    save.hidden=true;discard.hidden=true;status.hidden=true;
-    area.value='';original='';revision=null;selection=null;dirty=false;
-  }
-  function canLeave() {
-    return !dirty || window.confirm('Discard the unsaved changes to this Dart file?');
-  }
-  function insert(text, start, end=start) {
-    area.setRangeText(text,start,end,'end');
-    area.dispatchEvent(new Event('input', {bubbles:true}));
+    mode = false; loading = false; saving = false; dirty = false;
+    revision = null; selection = null; original = '';
+    readOnly(true);
+    edit.hidden = false; edit.disabled = !available;
+    save.hidden = true; discard.hidden = true;
+    setStatus('');
   }
   function begin() {
-    if(mode||loading||!selectedStudent||!structure||!socket||socket.readyState!==WebSocket.OPEN)return;
-    loading=true;edit.disabled=true;status.hidden=false;
-    status.textContent='Loading the student file…';
-    socket.send(JSON.stringify({action:'readSource'}));
+    if (mode || loading || !available || !selectedStudent || !structure ||
+        !socket || socket.readyState !== WebSocket.OPEN) return;
+    loading = true; edit.disabled = true;
+    setStatus('Loading source…');
+    socket.send(JSON.stringify({action: 'readSource'}));
   }
   function receive(message) {
-    if(message.type==='sourceFile') {
-      if(!loading||message.student!==selectedStudent||message.structure!==structure)return;
-      loading=false;mode=true;selection=locationKey();
-      revision=message.revision;original=message.content;area.value=original;
-      view.hidden=true;editor.hidden=false;edit.hidden=true;
-      save.hidden=false;discard.hidden=false;status.hidden=false;
-      gutter.scrollTop=0;area.scrollTop=0;area.focus();updateDirty();
-    } else if(message.type==='sourceSaved') {
-      if(!saving||selection!==locationKey())return;
-      saving=false;original=message.content;revision=message.revision;
-      dirty=false;leave();
-      ui.cmdStatus.textContent='Saved to the class repository · preparing Dart…';
-    } else if(message.type==='sourceError') {
-      loading=false;saving=false;edit.disabled=false;
-      if(mode)save.disabled=false;
-      status.hidden=false;status.textContent=message.message;
-      status.classList.add('source-edit-error');
+    if (message.type === 'sourceFile') {
+      if (!loading || message.student !== selectedStudent || message.structure !== structure) return;
+      loading = false; mode = true; selection = locationKey();
+      revision = message.revision; original = message.content;
+      // Re-read the authoritative source before enabling edits. Any concurrent
+      // change after this point is detected again by the server at save time.
+      write(original); readOnly(false);
+      edit.hidden = true; save.hidden = false; discard.hidden = false;
+      updateDirty();
+    } else if (message.type === 'sourceSaved') {
+      if (!saving || selection !== locationKey()) return;
+      original = message.content; revision = message.revision;
+      leave();
+      ui.cmdStatus.textContent = 'Saved · updating the visualizer…';
+    } else if (message.type === 'sourceError') {
+      loading = false; saving = false;
+      if (mode) { readOnly(false); save.disabled = !dirty; }
+      else edit.disabled = !available;
+      setStatus(message.message, true);
     }
   }
   function saveChanges() {
-    if(!mode||!dirty||saving||!revision||selection!==locationKey()||
-       !socket||socket.readyState!==WebSocket.OPEN)return;
-    saving=true;save.disabled=true;status.classList.remove('source-edit-error');
-    status.textContent='Saving…';
-    socket.send(JSON.stringify({action:'saveSource',revision,content:area.value}));
+    if (!mode || !dirty || saving || !revision || selection !== locationKey() ||
+        !socket || socket.readyState !== WebSocket.OPEN) return;
+    saving = true; save.disabled = true; readOnly(true);
+    setStatus('Saving…');
+    socket.send(JSON.stringify({action: 'saveSource', revision, content: editor.getValue()}));
   }
-  edit.addEventListener('click',begin);
-  save.addEventListener('click',saveChanges);
-  discard.addEventListener('click',()=>{if(canLeave())leave();});
-  area.addEventListener('input',()=>{status.classList.remove('source-edit-error');updateDirty();});
-  area.addEventListener('scroll',()=>{gutter.scrollTop=area.scrollTop;});
-  area.addEventListener('keydown',event=>{
-    if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){
-      event.preventDefault();saveChanges();return;
-    }
-    if(event.key==='Tab'){
-      event.preventDefault();
-      const start=area.selectionStart,end=area.selectionEnd;
-      if(event.shiftKey){
-        const lineStart=area.value.lastIndexOf('\n',start-1)+1;
-        const lead=/^ {1,2}/.exec(area.value.slice(lineStart))?.[0].length??0;
-        if(lead){area.setRangeText('',lineStart,lineStart+lead,'preserve');
-          area.selectionStart=Math.max(lineStart,start-lead);
-          area.selectionEnd=Math.max(lineStart,end-lead);area.dispatchEvent(new Event('input'));}
-      }else insert('  ',start,end);
-    }else if(event.key==='Enter'){
-      event.preventDefault();
-      const start=area.selectionStart,end=area.selectionEnd;
-      const before=area.value.slice(area.value.lastIndexOf('\n',start-1)+1,start);
-      const indent=/^\s*/.exec(before)?.[0]??'';
-      insert('\n'+indent+(before.trimEnd().endsWith('{')?'  ':''),start,end);
-    }
+  function highlight(line) {
+    if (highlighted !== null) editor.removeLineClass(highlighted, 'background', 'source-execution-line');
+    highlighted = null;
+    if (!Number.isInteger(line) || line < 1 || line > editor.lineCount()) return;
+    highlighted = line - 1;
+    editor.addLineClass(highlighted, 'background', 'source-execution-line');
+    editor.scrollIntoView({line: highlighted, ch: 0}, 90);
+  }
+  function renderSource(src) {
+    if (mode) return; // A new worker trace must never overwrite an unsaved draft.
+    available = true;
+    container.classList.remove('source-empty');
+    highlight(null);
+    write(src.lines.join('\n'));
+    editor.scrollTo(null, 0);
+    edit.disabled = false;
+  }
+  function clear() {
+    if (mode) {setStatus('The selected file is unavailable. Your unsaved draft is preserved.', true);return;}
+    available = false; leave();
+    highlight(null);
+    container.classList.add('source-empty');
+    write('Create a starter from the app terminal:\n\n./new-structure YOUR_NAME stack array');
+  }
+  edit.addEventListener('click', begin);
+  save.addEventListener('click', saveChanges);
+  discard.addEventListener('click', () => {if (!canLeave()) return;leave();
+    // Restore the latest source shown in playback; never keep a discarded draft.
+    if (window.sandboxEditor.lastSource) renderSource(window.sandboxEditor.lastSource);
   });
-  document.addEventListener('keydown',event=>{
-    if(!mode||!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='s')return;
-    event.preventDefault();saveChanges();
+  window.addEventListener('beforeunload', event => {
+    if (!dirty) return;
+    event.preventDefault();event.returnValue = '';
   });
-  window.addEventListener('beforeunload',event=>{
-    if(!dirty)return;
-    event.preventDefault();event.returnValue='';
-  });
-  window.sandboxEditor={
-    receive,canLeave,
-    beforeSelection(){if(!canLeave())return false;leave();return true;},
-    sourceChanged(){if(mode){status.hidden=false;
-      status.textContent=dirty?'File changed outside this editor. Save will require resolving the conflict.':'File changed outside this editor; reopen Edit to load the new version.';
-    }else if(loading){loading=false;edit.disabled=false;}},
-    ready(){edit.disabled=false;},
-    clear(){if(!mode)leave();else status.textContent='The selected file is no longer available. Your draft is still here.';},
+  window.sandboxEditor = {
+    lastSource: null,
+    receive, canLeave, highlight,
+    renderSource(src) {this.lastSource = src;renderSource(src);},
+    beforeSelection() {if (!canLeave()) return false;leave();return true;},
+    sourceChanged() {
+      if (mode) setStatus(dirty ? 'Source changed elsewhere. Save will check for a conflict.' :
+        'Source changed elsewhere. Cancel and reopen Edit to load it.', true);
+      else if (loading) {loading = false;edit.disabled = !available;}
+    },
+    ready() {available = true; edit.disabled = false;},
+    clear() {this.lastSource = null;clear();},
+    isEditing() {return mode;},
   };
   leave();
+  // A freshly cloned sandbox has no source, so keep the meaningful empty state.
+  clear();
 })();

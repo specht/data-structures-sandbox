@@ -385,6 +385,10 @@ Future<void> _handleRequest(HttpRequest request) async {
       '/style.css'=>'web/style.css',
       '/app.js'=>'web/app.js',
       '/editor.js'=>'web/editor.js',
+      '/vendor/codemirror.js'=>'web/vendor/codemirror.js',
+      '/vendor/codemirror.css'=>'web/vendor/codemirror.css',
+      '/vendor/fonts/OpenSans.ttf'=>'web/vendor/fonts/OpenSans.ttf',
+      '/vendor/fonts/0xProtoNerdFont.ttf'=>'web/vendor/fonts/0xProtoNerdFont.ttf',
       '/background.jpg'=>'web/background.jpg',
       _=>null,
     };
@@ -397,7 +401,8 @@ Future<void> _handleRequest(HttpRequest request) async {
     request.response.headers
       ..contentType=path.endsWith('.html')?ContentType.html:path.endsWith('.css')?
         ContentType('text','css',charset:'utf-8'):path.endsWith('.jpg')?
-        ContentType('image','jpeg'):ContentType('application','javascript',charset:'utf-8')
+        ContentType('image','jpeg'):path.endsWith('.ttf')?
+        ContentType('font','ttf'):ContentType('application','javascript',charset:'utf-8')
       ..set(HttpHeaders.cacheControlHeader,'no-store');
     if(request.method=='GET')await request.response.addStream(file.openRead());
     await request.response.close();
