@@ -783,7 +783,7 @@ function instant(frame){
 function restore(index){clearView();applySnapshot(traceInitial);
   for(let i=0;i<index;i++)instant(frames[i]);stepIndex=index;
   ui.phase.textContent=index?'REVISIT':'READY';ui.phase.classList.remove('hot');
-  ui.status.textContent=index?'Previous recorded state restored.':'The list is ready. Step forward to inspect the execution.';
+  ui.status.textContent=index?'Previous recorded state restored.':frames.length?'At the start of the trace. Step forward to inspect the operation.':'Choose a method above to begin.';
   sync();
 }
 let traceInitial=null;
@@ -990,6 +990,7 @@ ui.traceMode.addEventListener('change',()=>{
   ui.cmdStatus.textContent=`${ui.traceMode.value==='detailed'?'Detailed':'Key-event'} trace selected. Use ← / → or drag the timeline.`;
 });
 document.addEventListener('keydown',event=>{
+  if(validationUI.dialog.open)return; // Let the native test dialog handle its own keys.
   if(event.altKey)return;
   // Ctrl/Cmd+Home/End works even while the method field has focus. Plain
   // Home/End still belongs to a text editor or native select when editing.
@@ -1128,7 +1129,7 @@ function acceptTrace(data){
   ui.connection.textContent='Dart connected';ui.cmdStatus.classList.remove('error');
   showCompiling(false);
   ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready · ${structure} · [${data.values.join(', ')}]. Use ← / →.`:
-    'List reset. Choose an operation above.';
+    'Ready. Choose an operation above.';
 }
 function send(payload){
   if(!socket||socket.readyState!==WebSocket.OPEN){ui.cmdStatus.textContent='Dart server is not connected.';return;}

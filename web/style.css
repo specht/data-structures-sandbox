@@ -320,3 +320,58 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 .validation-dialog-footer span{font-size:11px;color:var(--muted);line-height:1.5}
 .validation-dialog-footer button{flex:none}
 @media(max-width:600px){.validation-dialog{padding:14px}.validation-dialog-footer{flex-wrap:wrap}.validation-button{font-size:12px}}
+
+/* v1.3: coherent control bar, larger readable source and restrained chrome. */
+.topright{gap:10px}
+.topright .live{display:none} /* The connection status already says Dart connected. */
+.connection{white-space:nowrap}
+.command-line{gap:7px 9px}
+.command-line .call-form input,
+.command-line .call-form button,
+.command-line #reset,
+.command-line .validation-button{height:34px;min-height:34px;box-sizing:border-box}
+.command-line .call-form button,
+.command-line #reset,
+.command-line .validation-button{padding:0 12px;border-radius:6px}
+.command-line .validation-button{
+  margin-left:2px; /* Override the generic .subtle button's auto margin. */
+  background:#1b3454;border-color:#486a91;
+}
+.command-line .validation-button:hover:not(:disabled){background:#234368}
+.command-line .validation-button .validation-summary{line-height:1.3}
+.command-status{
+  margin-left:auto;flex:1 1 175px;max-width:min(38vw,480px);
+  text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.suggestion-rows{gap:6px;max-height:80px;overflow-y:auto;scrollbar-color:#405677 transparent}
+.call-suggestion{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px}
+.workspace{grid-template-columns:minmax(420px,38%) minmax(0,1fr);gap:12px}
+.code-scroll{scrollbar-gutter:stable}
+.section-heading strong{overflow-wrap:anywhere}
+.controls{gap:7px}
+.controls .control-spacer{flex:1 1 12px;min-width:0}
+.controls button:focus-visible,.controls select:focus-visible,
+.command-line button:focus-visible,.command-line input:focus-visible,
+.call-suggestion:focus-visible{outline:2px solid #ffd080;outline-offset:2px}
+@media(min-width:1100px) and (min-height:720px){
+  .workspace{grid-template-columns:minmax(420px,38%) minmax(0,1fr);gap:12px}
+  .controls{gap:7px}
+  .controls button,.controls select{height:33px;min-height:33px}
+  .controls .playback-modes{height:33px}
+  .controls .playback-modes button{height:29px;min-height:29px}
+  .controls input[type="range"]#speed{height:33px}
+}
+@media(max-width:940px){
+  .workspace{grid-template-columns:minmax(0,1fr)}
+  .code-scroll{scrollbar-gutter:auto}
+}
+@media(max-width:800px){
+  .command-line .call-form{flex:1 1 100%;flex-wrap:wrap}
+  .command-line .call-form input{flex:1 1 150px;width:auto;max-width:none;min-width:0}
+  .command-line .validation-button{margin-left:0}
+  .command-status{flex:1 1 100%;max-width:none;text-align:left}
+  .suggestion-rows{max-height:125px}
+}
+@media(prefers-reduced-motion:reduce){
+  .validation-running-button::before{animation:none}
+}
