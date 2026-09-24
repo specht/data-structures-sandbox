@@ -5,7 +5,7 @@ class StructureSpec {
   const StructureSpec(this.id,this.label,this.filename,this.className,this.storage,this.renderer);
 }
 const structures = <StructureSpec>[
-  StructureSpec('list','List (singly linked)','my_linked_list.dart','MyLinkedList','linked','linked-list'),
+  StructureSpec('list','List (sorted, singly linked)','my_linked_list.dart','MyLinkedList','linked','linked-list'),
   StructureSpec('tree','Tree (binary search)','my_bst.dart','MyBST','linked','binary-tree'),
   StructureSpec('avl','Tree (AVL)','my_avl.dart','MyAVL','linked','binary-tree'),
   StructureSpec('stack','Stack (fixed array)','my_array_stack.dart','MyArrayStack','array','fixed-memory'),

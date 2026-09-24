@@ -154,7 +154,10 @@ class Client {
       }
       worker?.kill();worker=null;
       student=selected;kind=structure;currentStamp=stamp(selected,structure);
-      send({'type':'building','message':'Preparing $selected / $structure…'});
+      final recompiling=workerNeedsBuild(selected,structure,repoPath);
+      send({'type':'building','recompiling':recompiling,
+        'message':recompiling?'Compiling $selected / $structure…':
+          'Starting cached $selected / $structure…'});
       final path=await prepare(selected,structure,repoPath);
       // If a later selection overtook this compilation, do not start its worker.
       if(closed || epoch!=selectionEpoch || currentStamp!=stamp(selected,structure))return;

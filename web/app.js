@@ -19,11 +19,22 @@ function ensureViewport(kind){
   }
   paintViewport();
 }
-function zoomScene(factor){
+// Zoom around the cursor's world-space point. SVG's default "meet" alignment
+// may add gutters: account for them before converting screen to world units.
+function zoomScene(factor,clientX=null,clientY=null){
   cameraMode='manual';
+  let u=.5,v=.5;
+  const bounds=ui.scene.getBoundingClientRect?.();
+  if(Number.isFinite(clientX)&&Number.isFinite(clientY)&&bounds?.width>0&&bounds?.height>0){
+    const scale=Math.min(bounds.width/viewport.w,bounds.height/viewport.h);
+    const gutterX=(bounds.width-viewport.w*scale)/2;
+    const gutterY=(bounds.height-viewport.h*scale)/2;
+    u=Math.max(0,Math.min(1,(clientX-(bounds.left??0)-gutterX)/(viewport.w*scale)));
+    v=Math.max(0,Math.min(1,(clientY-(bounds.top??0)-gutterY)/(viewport.h*scale)));
+  }
   const w=Math.max(230,Math.min(200000,viewport.w*factor));
   const h=viewport.h*w/viewport.w;
-  viewport={x:viewport.x+(viewport.w-w)/2,y:viewport.y+(viewport.h-h)/2,w,h};
+  viewport={x:viewport.x+u*(viewport.w-w),y:viewport.y+v*(viewport.h-h),w,h};
   paintViewport();
 }
 function treeSceneRatio(){
@@ -94,14 +105,9 @@ function autoFrameTree(steps){
   const ratio=treeSceneRatio();
   const requiredW=Math.max(SCENE_WIDTH,x1-x0,(y1-y0)*ratio);
   const w=Math.max(viewport.w,requiredW),h=w/ratio;
-  // Do not shift the view for small trees that already fit the default scene.
-  // Once zoomed out, frame the actual tree bounds instead of keeping the root
-  // artificially in the middle of a huge empty left/right margin.
-  if(w===SCENE_WIDTH && x0>=0 && x1<=SCENE_WIDTH && y0>=0 && y1<=620){
-    viewport={x:0,y:0,w:SCENE_WIDTH,h:620};
-  }else{
-    viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
-  }
+  // Keep the scale while centering the final reachable structure on EVERY
+  // command; zoom out only when the new bounds genuinely need more room.
+  viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
   paintViewport();
 }
 
@@ -112,7 +118,8 @@ const ui = {
   connection:$('connection'), status:$('scene-status'), result:$('result'),
   stepLabel:$('step-label'), seek:$('seek'), next:$('next'), back:$('back'),
   first:$('first'), last:$('last'), traceMode:$('trace-mode'),
-  speed:$('speed'), scene:$('scene'), edges:$('edges'), references:$('references'),
+  speed:$('speed'),speedOutput:$('speed-output'),compileSpinner:$('compile-spinner'),
+  scene:$('scene'), edges:$('edges'), references:$('references'),
   nullRail:$('null-rail'), nodes:$('nodes'), form:$('invoke'), method:$('method'), values:$('values'),
   reset:$('reset'), suggestions:$('method-suggestions'), cmdStatus:$('command-status'), invoke:$('invoke-button'),
   singleArg:$('single-argument'), argLabel:$('arg-label'), multiArgs:$('multi-arguments'),
@@ -125,11 +132,25 @@ const svg = (name, attrs={}) => {
   for(const [key,value] of Object.entries(attrs)) element.setAttribute(key,value);
   return element;
 };
+function showReturnValue(frame){
+  if(!frame.returnedVoid){ui.returnValue.textContent=`⟶ ${String(frame.value)}`;return;}
+  if(frame.ok===false){ui.returnValue.textContent='Check failed';return;}
+  // A vector check icon, not a font-dependent Unicode glyph.
+  const check=svg('svg',{viewBox:'0 0 24 24',width:16,height:16,
+    class:'completion-icon','aria-hidden':'true',fill:'none',stroke:'currentColor','stroke-width':2.6});
+  check.append(svg('path',{d:'M4 12.5 9.5 18 20 6','stroke-linecap':'round','stroke-linejoin':'round'}));
+  ui.returnValue.replaceChildren(check,document.createTextNode('Completed'));
+}
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
+function showCompiling(compiling){ui.compileSpinner.hidden=!compiling;}
+ui.speed.addEventListener('input',()=>{
+  ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
+});
+ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
-const STRUCTURE_LABELS={hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',list:'List (singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
+const STRUCTURE_LABELS={hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -622,7 +643,7 @@ function instant(frame){
     case 'heightAndSettle':hotNode=frame.id;applySnapshot(frame.snapshot);break;
     case 'snapshot':applySnapshot(frame.snapshot);break;
     case 'retireAndSettle':retireNodes(frame.ids);applySnapshot(frame.snapshot);break;
-    case 'operationEnd':references={};hotNode=null;lastResult=frame.result;ui.result.textContent=lastResult;ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;showLine(null);break;
+    case 'operationEnd':references={};hotNode=null;lastResult=frame.result;ui.result.textContent=lastResult;showReturnValue(frame);showLine(null);break;
   }
   renderAll();
 }
@@ -659,7 +680,7 @@ async function animate(frame){
       applySnapshot(frame.snapshot);renderAll();await tween(230,()=>{});break;
     case 'snapshot':await animateSettle(frame.snapshot);break;
     case 'retireAndSettle':await animateRetire(frame.ids,frame.snapshot);break;
-    case 'operationEnd':references={};hotNode=null;ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
+    case 'operationEnd':references={};hotNode=null;showReturnValue(frame);ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
       lastResult=frame.result;ui.result.textContent=lastResult;ui.status.textContent=frame.result;showLine(null);renderAll();break;
     default:throw Error('Unknown event '+frame.kind);
   }
@@ -836,10 +857,22 @@ ui.traceMode.addEventListener('change',()=>{
   ui.cmdStatus.textContent=`${ui.traceMode.value==='detailed'?'Detailed':'Key-event'} trace selected. Use ← / → or drag the timeline.`;
 });
 document.addEventListener('keydown',event=>{
-  if(event.altKey||event.ctrlKey||event.metaKey)return;
+  if(event.altKey)return;
+  // Ctrl/Cmd+Home/End works even while the method field has focus. Plain
+  // Home/End still belongs to a text editor or native select when editing.
+  if((event.ctrlKey||event.metaKey)&&(event.key==='Home'||event.key==='End')){
+    event.preventDefault();navigate(()=>jumpTo(event.key==='Home'?0:frames.length));return;
+  }
+  if(event.ctrlKey||event.metaKey)return;
   // Buttons (especially Run and suggestion buttons) must not swallow arrows.
-  // Only actual text editing and native selectors retain their own shortcuts.
-  if(event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement||event.target instanceof HTMLSelectElement||event.target?.isContentEditable)return;
+  // Native text inputs/selectors retain their editing keys. The speed slider
+  // is not a text editor: Home/End continue to navigate the trace there too.
+  if((event.target instanceof HTMLInputElement && (event.target.type??'text')!=='range')||
+     event.target instanceof HTMLTextAreaElement||event.target instanceof HTMLSelectElement||event.target?.isContentEditable)return;
+  // Arrow keys on a focused slider adjust that slider. Home/End still jump
+  // to the start/end of the recorded trace as requested.
+  if(event.target instanceof HTMLInputElement && event.target.type==='range' &&
+     ['ArrowLeft','ArrowRight'].includes(event.key))return;
   if(event.key==='ArrowRight'){event.preventDefault();navigate(()=>event.shiftKey?nextOperation():forward());}
   else if(event.key==='ArrowLeft'){event.preventDefault();navigate(()=>event.shiftKey?previousOperation():backward());}
   else if(event.key==='Home'){event.preventDefault();navigate(()=>jumpTo(0));}
@@ -872,6 +905,7 @@ function renderArguments(){
 }
 function updateMethodCatalog(catalog){
   if(!Array.isArray(catalog))return;
+  const typedName=/^\s*([A-Za-z_]\w*)\s*\(/.exec(ui.callInput.value)?.[1]??null;
   const selected=ui.method.value;
   discovered=new Map(catalog.map(m=>[m.name,m]));
   ui.method.replaceChildren();
@@ -881,6 +915,15 @@ function updateMethodCatalog(catalog){
     ui.method.append(option);
   }
   ui.method.value=discovered.has(selected)?selected:(catalog[0]?.name??'');
+  // New structure/student may not have the previously displayed method.
+  // Preserve a custom call only if the chosen implementation exposes it.
+  if(!typedName||!discovered.has(typedName)){
+    const preferred=catalog.find(m=>['push','enqueue','insert','addVertex','contains'].includes(m.name))??catalog[0];
+    const example=preferred?.params?.map(p=>p.type==='String'?'"hello"':
+      p.type==='bool'?'true':p.type==='double'?'1.5':'25')??[];
+    ui.callInput.value=preferred?`${preferred.name}(${example.join(', ')})`:'';
+    ui.callInput.placeholder=preferred?'Enter a Dart method call':'No callable methods available';
+  }
   ui.invoke.disabled=!catalog.length;renderArguments();
   renderSuggestions();
 }
@@ -900,7 +943,7 @@ function autoFrameLinked(steps){
   if(!['list','linked_stack','linked_queue'].includes(structure)||cameraMode!=='auto')return;
   const snapshots=steps.filter(step=>step.kind==='snapshot'&&Array.isArray(step.nodes));
   if(!snapshots.length)return;
-  let left=0,right=SCENE_WIDTH,maxRefs=1;
+  let left=Infinity,right=-Infinity,maxRefs=1;
   const targets=new Map();
   for(const event of steps){
     if(event.kind!=='variableWrite'||event.to==null)continue;
@@ -921,15 +964,12 @@ function autoFrameLinked(steps){
     left=Math.min(left,firstX-100);
     right=Math.max(right,firstX+(count-1)*gap+WIDTH+100);
   }
+  if(!Number.isFinite(left)){left=0;right=SCENE_WIDTH;}
   const top=Math.min(0,156-70-(maxRefs-1)*30-42),bottom=510;
   const ratio=treeSceneRatio();
   const required=Math.max(SCENE_WIDTH,right-left,(bottom-top)*ratio);
   const w=Math.max(viewport.w,required),h=w/ratio;
-  if(w===SCENE_WIDTH&&top>=0&&bottom<=510){
-    viewport={x:0,y:0,w:SCENE_WIDTH,h:510};
-  }else{
-    viewport={x:(left+right-w)/2,y:(top+bottom-h)/2,w,h};
-  }
+  viewport={x:(left+right-w)/2,y:(top+bottom-h)/2,w,h};
   paintViewport();
 }
 function acceptTrace(data){
@@ -953,6 +993,7 @@ function acceptTrace(data){
   savedValues=[...data.values];savedCapacity=data.capacity??8;savedSessionId=data.sessionId??null;renderSuggestions();
   if(focusAfterCommand){focusAfterCommand=false;ui.next.focus({preventScroll:true});}
   ui.connection.textContent='Dart connected';ui.cmdStatus.classList.remove('error');
+  showCompiling(false);
   ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready · ${structure} · [${data.values.join(', ')}]. Use ← / →.`:
     'List reset. Choose an operation above.';
 }
@@ -1123,13 +1164,17 @@ function connect(){
       if(data.type==='pong')return;
       if(data.type==='catalog'){receiveCatalog(data);return;}
       if(data.type==='building'||data.type==='sourceChanged'){
+        showCompiling(data.type==='building'&&data.recompiling===true);
         ui.cmdStatus.textContent=data.message+' Previous trace may be out of date.';
-        ui.connection.textContent='Preparing student runner…';return;
+        ui.connection.textContent=data.type==='building'&&data.recompiling===true?
+          'Recompiling Dart…':'Starting Dart…';return;
       }
       if(data.type==='error'){
+        showCompiling(false);
         focusAfterCommand=false;ui.cmdStatus.textContent=data.message;ui.cmdStatus.classList.add('error');return;
       }
       if(data.type==='hello'){
+        showCompiling(false);
         const initial=data.trace;
         if(data.student)selectedStudent=data.student;rememberChoice();
         if(savedValues===null){acceptTrace(initial);return;}
@@ -1149,12 +1194,14 @@ function connect(){
     clearInterval(heartbeat);heartbeat=null;
     socket=null;
     if(stopped)return;
+    showCompiling(false);
     ui.connection.textContent='Connection lost · reconnecting…';
     console.warn('Dart WebSocket closed',event.code,event.reason||'');
     const delay=Math.min(5000,400*Math.pow(1.8,reconnectAttempt++));
     clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,delay);
   });
   ws.addEventListener('error',()=>{
+    showCompiling(false);
     if(socket===ws)ui.connection.textContent='Connection interrupted…';
     // The `close` handler performs the actual reconnection.
   });
@@ -1413,7 +1460,7 @@ function instantHash(frame){
     case 'snapshot':hashState=hashSnapshot(frame.snapshot);hashHotBucket=null;hashHotNode=null;break;
     case 'retireAndSettle':hashState=hashSnapshot(frame.snapshot);hashHotBucket=null;hashHotNode=null;break;
     case 'operationEnd':hashHotBucket=null;hashHotNode=null;
-      ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+      showReturnValue(frame);
       ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';ui.result.textContent=frame.result;showLine(null);break;
   }
   renderHash();
@@ -1510,7 +1557,7 @@ function instantHeap(frame){
     case 'memoryWriteAndSettle':heapState=heapSnapshot(frame.snapshot);
       heapHot=frame.a!=null?[frame.a,frame.b]:[frame.index];break;
     case 'snapshot':heapState=heapSnapshot(frame.snapshot);heapHot=[];break;
-    case 'operationEnd':heapHot=[];ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+    case 'operationEnd':heapHot=[];showReturnValue(frame);
       ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';ui.result.textContent=frame.result;showLine(null);break;
   }
   renderHeap();
@@ -1609,7 +1656,7 @@ function instantQueue(frame){
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;
       ui.returnValue.textContent='';ui.result.textContent='Running…';break;
     case 'memoryWriteAndSettle':case 'snapshot':queueState=queueSnapshot(frame.snapshot);break;
-    case 'operationEnd':ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+    case 'operationEnd':showReturnValue(frame);
       ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';ui.result.textContent=frame.result;showLine(null);break;
   }
   renderQueue();
@@ -1633,7 +1680,7 @@ function instantStack(frame){
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.result.textContent='Running…';break;
     case 'memoryWriteAndSettle':case 'snapshot':
       stackState={cells:[...frame.snapshot.cells],top:frame.snapshot.top};break;
-    case 'operationEnd':ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+    case 'operationEnd':showReturnValue(frame);
       ui.result.textContent=frame.result;showLine(null);break;
   }
   renderStack();
@@ -1657,7 +1704,7 @@ ui.zoomOut.addEventListener('click',()=>zoomScene(1.35));
 ui.fitScene.addEventListener('click',fitScene);
 ui.scene.addEventListener('wheel',event=>{
   event.preventDefault();
-  zoomScene(event.deltaY>0?1.12:1/1.12);
+  zoomScene(event.deltaY>0?1.12:1/1.12,event.clientX,event.clientY);
 },{passive:false});
 let dragging=null;
 ui.scene.addEventListener('pointerdown',event=>{

@@ -54,6 +54,16 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   assert.equal(run('stepIndex'),1,'ArrowRight should work when a button has focus');
   callbacks.get('keydown')({key:'ArrowRight',target:new FakeInput(),preventDefault(){throw Error('input arrow intercepted')}});
   assert.equal(run('stepIndex'),1,'Text input must retain its own arrow keys');
+  // Home/End navigate with button focus, and Ctrl+Home/End work even while
+  // a text input is active. The native cursor shortcuts remain available.
+  callbacks.get('keydown')({key:'End',target:new FakeButton(),preventDefault(){}});
+  assert.equal(run('stepIndex'),run('frames.length'));
+  callbacks.get('keydown')({key:'Home',target:new FakeButton(),preventDefault(){}});
+  assert.equal(run('stepIndex'),0);
+  callbacks.get('keydown')({key:'End',ctrlKey:true,target:new FakeInput(),preventDefault(){}});
+  assert.equal(run('stepIndex'),run('frames.length'));
+  callbacks.get('keydown')({key:'Home',ctrlKey:true,target:new FakeInput(),preventDefault(){}});
+  assert.equal(run('stepIndex'),0);
   run('jumpTo(frames.length)');
   assert.equal(run('activeLine'),null,'Last method line must be unhighlighted after return');
   assert.equal(run('head'),1);
@@ -71,7 +81,8 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   const viewBox=els.get('scene').getAttribute('viewBox');
   run('jumpTo(frames.length)');run('jumpTo(0)');
   assert.equal(els.get('scene').getAttribute('viewBox'),viewBox);
-  assert.equal(viewBox,'0 0 1100 510','List viewport must remain fixed for the whole trace');
+  assert.ok(Number(viewBox.split(' ')[2])>=1100,
+    'Auto-framing may add space for references but must not shrink the readable scene');
   run(`send({action:'run',method:'insert',values:[25]})`);
   assert.equal(run('focusAfterCommand'),true);
   run(`acceptTrace(${JSON.stringify(trace)})`);
@@ -157,6 +168,8 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   run(`acceptTrace(${JSON.stringify(following)});jumpTo(frames.length);`);
   assert.ok(!run('nodes.has(2)'), 'the next operation must not resurrect retired objects');
   assert.deepEqual(Array.from(run('[...nodes.keys()]')),[1,3]);
+  assert.equal(els.get('return-value').children[0].tagName,'svg',
+    'A void return renders a vector checkmark icon rather than a text glyph');
   run(`ui.callInput.value='remove(13)';ui.callForm.onsubmit({preventDefault(){}});`);
   assert.equal(Socket.current.sent.at(-1).method,'remove');
   assert.deepEqual(Array.from(Socket.current.sent.at(-1).arguments),[13]);
@@ -198,6 +211,16 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   run("ui.retry.onclick();");
   assert.equal(Socket.current.sent.at(-1).student,'alice');
   assert.equal(Socket.current.sent.at(-1).structure,'stack');
+  // A structure switch may invalidate the displayed Dart method call.
+  const pushOnly=[{name:'push',params:[{name:'value',type:'int',named:false}],returns:'bool'}];
+  run(`ui.callInput.value='insert(25)';updateMethodCatalog(${JSON.stringify(pushOnly)});`);
+  assert.equal(els.get('call-input').value,'push(25)');
+  run(`ui.callInput.value='push(7)';updateMethodCatalog(${JSON.stringify(pushOnly)});`);
+  assert.equal(els.get('call-input').value,'push(7)','Keep a valid student-written call');
+  Socket.current.handlers.message({data:JSON.stringify({type:'building',recompiling:true,message:'Compiling test…'})});
+  assert.equal(els.get('compile-spinner').hidden,false,'Show recompilation spinner');
+  Socket.current.handlers.message({data:JSON.stringify({type:'error',message:'Build failed'})});
+  assert.equal(els.get('compile-spinner').hidden,true,'Stop spinner after a build error');
   console.log('PASS: runtime student discovery, selection, remembered choices and Retry controls.');
   console.log('PASS: orphan retirement persists across commands; tree root and stack fixed cells rendered.');
   console.log('PASS: dynamic one-click method rows, present/missing suggestions and real dispatch.');

@@ -40,6 +40,31 @@ Future<String> prepare(String student, String kind, String repoPath) async {
   }
 }
 
+// The host can distinguish a real re-instrumentation/compilation from merely
+// starting a new worker using an unchanged, cached kernel. This must use the
+// same fingerprint/ready marker as prepare(), not file modification times.
+bool workerNeedsBuild(String student, String kind, String repoPath) {
+  if (!_safeName.hasMatch(student)) return false;
+  final spec = specFor(kind);
+  final source = File('${Directory(repoPath).absolute.path}/$student/${spec.filename}');
+  if (!source.existsSync()) return false;
+  final key = _fingerprint(source, student, kind);
+  final id = '${student}_${kind}_${key.substring(0, 24)}';
+  final generated = Directory('tool/generated/$id');
+  final worker = File('tool/generated_worker_$id.dart');
+  final kernel = File('tool/generated_worker_$id.dill');
+  final ready = File('${generated.path}/ready.json');
+  if (!ready.existsSync() || !worker.existsSync()) return true;
+  try {
+    final record = jsonDecode(ready.readAsStringSync());
+    if (record is! Map || record['key'] != key) return true;
+    return !(record['kernel'] == false ||
+      (record['kernel'] == true && kernel.existsSync()));
+  } catch (_) {
+    return true;
+  }
+}
+
 String _fingerprint(File source, String student, String kind) {
   final files = <File>[
     ..._studentDependencies(source),

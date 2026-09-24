@@ -250,3 +250,45 @@ button.subtle { margin-left:auto; background:#262c3d; }
 .hash-value{fill:#f4f8ff;font:700 22px ui-monospace,monospace}
 .hash-id{fill:#95b7cb;font:12px ui-monospace,monospace}
 .hash-edge{stroke:#7ab9bd;stroke-width:2.5;stroke-linecap:round}
+
+/* UI refinement: one compact control language across desktop and mobile. */
+.brand{gap:0}
+button,select,.call-form input,.invoke input{border-radius:5px}
+button:not(:disabled):active{filter:brightness(1.18)}
+button:focus-visible,select:focus-visible,input:focus-visible{
+  outline:2px solid #a6d1ff;outline-offset:2px;
+}
+.ui-icon{display:block;width:16px;height:16px;flex:none}
+.icon-button{display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.scene-zoom button{width:31px;height:31px;min-width:31px;padding:5px;border-radius:5px}
+.scene-zoom .ui-icon{width:16px;height:16px}
+.retry-button{display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.compile-indicator{display:inline-flex;align-items:center;justify-content:center;color:#9dc7ff}
+.compile-indicator[hidden]{display:none}
+.spinner-icon{animation:compile-spin 0.85s linear infinite;transform-origin:center}
+@keyframes compile-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spinner-icon{animation:none}}
+#return-value{display:inline-flex;align-items:center;gap:6px}
+.completion-icon{color:#9bdea8;flex:none}
+.controls{gap:6px}
+.controls button,.controls select{height:32px;min-height:32px;box-sizing:border-box;
+  padding:0 9px;line-height:1;border-radius:5px;white-space:nowrap}
+.controls #first,.controls #last{padding:0 9px}
+.controls #back,.controls #next{min-width:75px}
+.playback-modes{height:32px;align-items:center;padding:2px;border-radius:6px}
+.playback-modes button{height:28px;min-height:28px;padding:0 9px;border-radius:4px}
+.controls input[type="range"]#speed{width:92px;height:32px;min-width:64px;
+  margin:0;accent-color:#89baff;cursor:pointer}
+.controls #speed-output{font:600 11px ui-monospace,monospace;color:#b7cdeb;
+  width:28px;text-align:right;font-variant-numeric:tabular-nums}
+@media(min-width:1100px) and (min-height:720px){
+  .controls{gap:5px;flex-wrap:wrap}
+  .controls button,.controls select{height:31px;min-height:31px;padding:0 7px}
+  .controls .playback-modes{height:31px}
+  .controls .playback-modes button{height:27px;min-height:27px}
+  .controls input[type="range"]#speed{width:80px;height:31px}
+}
+@media(max-width:600px){
+  .controls{flex-wrap:wrap}
+  .controls input[type="range"]#speed{width:85px}
+}

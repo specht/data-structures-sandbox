@@ -4,6 +4,12 @@ Dart executes student implementations. A persistent Dart HTTP/WebSocket host ser
 JavaScript/SVG visualization and supervises **separate Dart worker processes**.
 The browser application is never rebuilt when students edit code.
 
+**Teaching materials:** Start with [the fixed-array stack exercise](docs/start-here.md)
+and the [canonical interfaces and invariants](docs/contracts.md). The new
+`templates/starter/` files are unfinished student tasks; `templates/example/`
+remains a collection of complete reference implementations. The class files
+live in their own `structures/` Git repository.
+
 ## Try it
 
 ```bash
@@ -63,16 +69,14 @@ Use **Step**, **Play**, or **Show result**, and arrow keys to navigate the trace
 
 ### What's implemented now
 
-The current visual adapters work for a sorted singly linked list, a regular
-unbalanced binary search tree, a **fixed-memory stack with eight cells**,
-linked stacks and queues, and a **circular fixed-array queue with eight cells**.
-Dynamic method discovery works for synchronous public methods with supported
-scalar parameters. `append(int value)` is picked up without editing the app.
-
-**This is an infrastructure milestone, not the finished multi-structure course
-platform.** AVL balancing, array/node heaps, hash tables, graphs and custom
-object support need additional adapters and tests. See
-`docs/architecture.md` and `docs/roadmap.md` before extending the registry.
+Visual adapters currently cover the sorted linked list, unbalanced BST, AVL
+tree, fixed-array and linked stacks/queues, array and node min-heaps, and the
+separate-chaining hash set. Method discovery works for synchronous public
+methods with supported scalar parameters. The sorted list's legacy `append()`
+method is still recognized, but is **not part of its canonical sorted-list
+contract**: append can break ordering. See [the contracts](docs/contracts.md)
+before assigning an exercise. Directed graphs and traversal overlays are the
+next roadmap stage; see [the roadmap](docs/roadmap.md).
 
 ## Circular array queue (roadmap stage 2)
 

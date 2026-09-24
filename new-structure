@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$(realpath "$0")")"
-if [[ $# -ne 2 ]]; then
-  printf 'Usage: ./new-structure STUDENT list|tree|avl|stack|linked_stack|linked_queue|array_queue|array_heap|node_heap|hash\n' >&2
+if [[ $# -ne 2 && $# -ne 3 ]]; then
+  printf 'Usage: ./new-structure STUDENT list|tree|avl|stack|linked_stack|linked_queue|array_queue|array_heap|node_heap|hash [--starter]\n' >&2
   exit 64
 fi
 student="$1"
 kind="$2"
+variant="${3:-}"
+if [[ -n "$variant" && "$variant" != "--starter" ]]; then
+  echo "Optional third argument must be --starter." >&2; exit 64
+fi
 if [[ ! "$student" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$ ]]; then
   echo 'Invalid student folder name.' >&2; exit 64
 fi
@@ -27,5 +31,7 @@ mkdir -p "structures/$student"
 if [[ -e "structures/$student/$filename" ]]; then
   echo "File exists; not overwriting: structures/$student/$filename" >&2; exit 73
 fi
-cp "templates/example/$filename" "structures/$student/$filename"
-echo "Created structures/$student/$filename in the separate student Git repository."
+source="templates/example/$filename"
+if [[ "$variant" == "--starter" ]]; then source="templates/starter/$filename"; fi
+cp "$source" "structures/$student/$filename"
+echo "Created structures/$student/$filename from $source in the separate student Git repository."

@@ -215,4 +215,23 @@ run(`acceptTrace({structure:'avl',source:{file:'structures/example/my_avl.dart',
   methods:[],values:[],steps:[{kind:'snapshot',root:null,nodes:[]}]})`);
 assert.equal(run('viewport.w'),1100);
 assert.equal(run('viewport.x'),0);
+// Wheel zoom must leave the world-space point under the mouse in the same
+// screen position, including the actual canvas offset.
+run('ui.scene.getBoundingClientRect=()=>({left:40,top:20,width:1100,height:620})');
+run('viewport={x:100,y:30,w:1100,h:620};paintViewport()');
+const pointerWorld={x:100+275,y:30+124};
+run('zoomScene(.8,315,144)');
+const pointerAfter=run('({...viewport})');
+assert.ok(Math.abs(pointerAfter.x+pointerAfter.w*.25-pointerWorld.x)<.0001);
+assert.ok(Math.abs(pointerAfter.y+pointerAfter.h*.2-pointerWorld.y)<.0001,
+  'Pointer-centred zoom must preserve the world point under the cursor');
+// Each new command centres the resulting geometry without zooming in again.
+run(`structure='avl';viewportKind=null;ensureViewport('avl');
+  acceptTrace({structure:'avl',source:{file:'my_avl.dart',lines:[]},methods:[],values:[],
+    steps:[{kind:'snapshot',...${JSON.stringify({root:1,nodes:chain})}}]})`);
+const chainTargets=run(`treeLayout(${JSON.stringify({root:1,nodes:chain})}).targets`);
+const xs=[...chainTargets.values()].map(p=>p.x);
+const box=run('({...viewport})');
+assert.ok(Math.abs((Math.min(...xs)+Math.max(...xs)+72)/2-(box.x+box.w/2))<.0001,
+  'An asymmetrical tree is centred after the command');
 console.log('PASS: Tree edges are centre-clipped, straight at rest, curved while moving.');
