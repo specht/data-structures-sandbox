@@ -16,6 +16,7 @@ const configs = <String, Map<String,String>>{
   'linked_queue': {'file':'my_linked_queue','class':'MyLinkedQueue','recorder':'Recorder','node':'ListNode','root':'head','tail':'tail'},
   'array_queue': {'file':'my_array_queue','class':'MyArrayQueue','recorder':'QueueRecorder','node':'','root':''},
   'array_heap': {'file':'my_array_heap','class':'MyArrayHeap','recorder':'HeapRecorder','node':'','root':''},
+  'node_heap': {'file':'my_node_heap','class':'MyNodeHeap','recorder':'TreeRecorder','node':'TreeNode','root':'root'},
 };
 late Map<String,String> config;
 late String sourcePath;

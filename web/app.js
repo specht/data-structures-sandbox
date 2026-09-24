@@ -15,7 +15,7 @@ function ensureViewport(kind){
   if(viewportKind!==kind){
     viewportKind=kind;
     cameraMode='auto';
-    viewport={x:0,y:0,w:1100,h:kind==='array_heap'?810:(kind==='tree'||kind==='avl')?620:510};
+    viewport={x:0,y:0,w:1100,h:kind==='array_heap'?810:(kind==='tree'||kind==='avl'||kind==='node_heap')?620:510};
   }
   paintViewport();
 }
@@ -116,8 +116,8 @@ const svg = (name, attrs={}) => {
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
-function isTree(){return structure==='tree'||structure==='avl';}
-const STRUCTURE_LABELS={array_heap:'Array min-heap',list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
+function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
+const STRUCTURE_LABELS={node_heap:'Node min-heap',array_heap:'Array min-heap',list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -206,7 +206,7 @@ function newNode(data, initial=false) {
   const marker=references.current??references.previous;
   const around=nodes.get(marker)??[...nodes.values()].at(-1);
   const node={id:data.id,value:data.value,next:data.next??null,left:data.left??null,right:data.right??null,
-    height:data.height??1,balance:null,avlInvalid:false,
+    height:data.height??1,balance:null,avlInvalid:false,heapIndex:null,heapInvalid:false,
     x:initial?(isTree()?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2):
       (around?.x??(isTree()?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2))+55,
     y:initial?ROW:135,
@@ -221,7 +221,7 @@ function newNode(data, initial=false) {
   const avlInfo=svg('text',{class:'avl-info',x:36,y:61});
   group.append(value,id,pointer,avlInfo);
   if(isTree()){
-    if(structure==='avl'){value.setAttribute('y',27);id.setAttribute('y',44);}
+    if(structure==='avl'||structure==='node_heap'){value.setAttribute('y',27);id.setAttribute('y',44);}
     group.querySelector('.card').setAttribute('width',72);
     group.querySelector('.card').setAttribute('height',72);
     group.querySelector('.card').setAttribute('rx',36);
@@ -238,9 +238,10 @@ function renderNode(node){
   view.setAttribute('transform',`translate(${node.x.toFixed(2)} ${node.y.toFixed(2)})`);
   view.setAttribute('opacity',node.opacity.toFixed(3));
   view.classList.toggle('hot',hotNode===node.id);view.classList.toggle('detached',node.detached);
-  view.classList.toggle('avl-invalid',structure==='avl'&&node.avlInvalid);
+  view.classList.toggle('avl-invalid',(structure==='avl'&&node.avlInvalid)||(structure==='node_heap'&&node.heapInvalid));
   view.querySelector('.avl-info').textContent=structure==='avl'
-    ?`h${node.height} · b${node.balance==null?'?':node.balance>0?'+'+node.balance:node.balance}`:'';
+    ?`h${node.height} · b${node.balance==null?'?':node.balance>0?'+'+node.balance:node.balance}`
+    :structure==='node_heap'&&node.heapIndex!=null?`slot ${node.heapIndex}`:'';
   const nil=!isTree()&&node.next==null && override?.from!==`node:${node.id}.next`;
   const pointer=view.querySelector('.pointer-label');
   pointer.textContent=isTree()?'':(nil?'null':'→');
@@ -359,7 +360,8 @@ function renderReferences(){
     const rootNode=isTree() && name==='root' && id!=null ? nodes.get(id) : null;
     const anchor=rootNode?{x:rootNode.x+TREE_RADIUS,y:rootNode.y-65}:dock;
     const active=hotReference===name, label=svg('text',{x:anchor.x,y:anchor.y,class:`ref-label ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'active':''}`});
-    label.textContent=name==='head'&&structure==='linked_stack'?'head (top)':name;ui.references.append(label);
+    label.textContent=name==='head'&&structure==='linked_stack'?'head (top)':
+       name==='root'&&structure==='node_heap'?'root (min)':name;ui.references.append(label);
     const target=override?.from===`root:${name}`||override?.from===`var:${name}`
       ?{x:override.x,y:override.y}:referencePoint(name,id);
     const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'hot':''}`);
@@ -409,6 +411,9 @@ function applySnapshot(snapshot,animate=false){
     const audit=snapshot.avl?.nodes?.[String(data.id)];
     node.balance=audit?.balance??null;
     node.avlInvalid=!!audit && (audit.heightOk===false||audit.balanceOk===false);
+     const heapAudit=snapshot.nodeHeap?.nodes?.[String(data.id)];
+    node.heapIndex=heapAudit?.index??null;
+    node.heapInvalid=heapAudit?.orderOk===false;
   }
   const {targets,count,cycle}=layoutFor(snapshot);
   // Reachability is historical: a newly created detached node floats above

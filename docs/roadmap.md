@@ -20,8 +20,10 @@ model snapshot/invariants and a renderer that can animate the relevant memory.
 4. **Array heap (adapter and example added; Dart smoke test required):** synchronized array and tree projections of the **same**
    indexed storage; pointer arrows are not appropriate for array indices.
    Record reads/writes/swaps, check heap order and complete-tree property.
-5. **Node heap:** heap semantics shared with array heap, but reference-based
-   storage; share abstract scenarios, not the physical memory renderer.
+5. **Node heap (adapter and example added; Dart smoke test required):** shares
+   min-heap contracts with the array heap but stores real TreeNode references.
+   Observe node creation, pointer writes and value swaps, with checks for a
+   complete shape, unique identities and parent <= child. See `docs/node-heap.md`.
 6. **Hash tables:** indexed buckets plus either observable collision chains or
    probe sequences. Check collision/lookup/removal semantics and load factor.
 7. **Graphs:** an explicit vertex/edge adapter supporting adjacency lists or

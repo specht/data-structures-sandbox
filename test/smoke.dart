@@ -12,7 +12,7 @@ Future<void> main() async {
   if(!found.any((s)=>s['id']=='example')) {
     throw StateError('Missing example student; run ./run once first.');
   }
-  for(final kind in ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap']){
+  for(final kind in ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap']){
     final worker=await prepare('example',kind,'structures');
     final cached=await prepare('example',kind,'structures');
     if(worker!=cached)throw StateError('Cache did not reuse $kind worker: $worker vs $cached');
@@ -39,6 +39,32 @@ Future<void> main() async {
       }
       final values=(trace['values'] as List).cast<int>();
       if(!values.contains(25)) throw StateError('$kind did not store the inserted value');
+      if(kind=='node_heap'){
+        Future<Map<String,dynamic>> call(String name, [List<Object?> args=const []]) async {
+          process.stdin.writeln(jsonEncode({'action':'run','method':name,'arguments':args}));
+          await process.stdin.flush();
+          final reply=await next();
+          if(reply['type']!='trace'||(reply['steps'] as List).last['ok']!=true){
+            throw StateError('Node heap worker failed $name($args): $reply');
+          }
+          final snap=(reply['steps'] as List).lastWhere((s)=>s['kind']=='snapshot') as Map;
+          final audit=snap['nodeHeap'] as Map;
+          if(audit['acyclic']!=true||audit['complete']!=true||audit['ordered']!=true){
+            throw StateError('Invalid node heap: $audit');
+          }
+          return reply;
+        }
+        for(final v in [5,17,5,-3,42,0,99,1,20,8,5])await call('insert',[v]);
+        final peek=await call('peek');
+        if((peek['steps'] as List).last['value']!=-3)throw StateError('Node heap peek wrong');
+        for(final value in [-3,0,1,5,5,5,8,17,20,25,42,99]){
+          final reply=await call('removeMin');
+          if((reply['steps'] as List).last['value']!=value)throw StateError('Node heap removal wrong: $value');
+        }
+        final empty=await call('removeMin');
+        if((empty['steps'] as List).last['value']!=null)throw StateError('Empty node heap should return null');
+        stdout.writeln('PASS: node heap · persistent worker, duplicates, complete shape, sorted removal');
+      }
       if(kind=='array_heap'){
         Future<Map<String,dynamic>> heapCall(String method, [List<Object?> args=const []]) async {
           process.stdin.writeln(jsonEncode({'action':'run','method':method,'arguments':args}));
