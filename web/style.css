@@ -586,3 +586,9 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 @media(max-width:600px){
   .timeline .trace-settings{height:auto!important;min-height:36px}
 }
+
+/* An always-editable source panel does not need an Edit-mode outline. */
+.source-editor.is-editing{box-shadow:none}
+/* Two persistent actions take less space than the former Edit/Save/Cancel row. */
+.code-panel .section-heading>.source-actions{min-width:142px}
+@media(max-width:600px){.code-panel .section-heading>.source-actions{min-width:132px}}

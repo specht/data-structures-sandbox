@@ -1959,7 +1959,7 @@ function finishPan(event){
 ui.scene.addEventListener('pointerup',finishPan);
 ui.scene.addEventListener('pointercancel',finishPan);
 ui.retry.addEventListener('click',()=>{
-  if(window.sandboxEditor && !window.sandboxEditor.beforeSelection())return;
+  // Restarting the same implementation must not discard an unsaved draft.
   savedValues=null;selectImplementation();
 });
 ui.student.addEventListener('change',()=>{
