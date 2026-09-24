@@ -355,16 +355,34 @@ function referenceAnchors(actual){
     groups.get(id).push(name);
   }
   for(const [id,names] of groups){
-    const n=nodes.get(id),x=n.x+(isTree()?TREE_RADIUS:WIDTH/2);
-    // Stable vertical slots make simultaneous head/current/previous references
-    // readable even when adjacent list nodes are close together.
-    names.forEach((name,i)=>anchors.set(name,{x,y:n.y-70-i*30}));
+    const n=nodes.get(id),centre=n.x+(isTree()?TREE_RADIUS:WIDTH/2);
+    // Put two labels on each row, on opposite sides of the target. Stacking
+    // labels directly above one another makes an upper pointer pass through
+    // the lower label (e.g. head/current). Keep the labels close to their node
+    // but leave a small gap for the arrows and neighboring node references.
+    const firstY=n.y-(isTree()?65:50);
+    for(let i=0;i<names.length;i+=2){
+      const first=names[i],second=names[i+1],y=firstY-(i/2)*42;
+      if(second==null){anchors.set(first,{x:centre,y});continue;}
+      const firstWidth=Math.max(40,referenceLabel(first).length*9);
+      const secondWidth=Math.max(40,referenceLabel(second).length*9);
+      const offset=(firstWidth+secondWidth)/4+10;
+      anchors.set(first,{x:centre-offset,y});
+      anchors.set(second,{x:centre+offset,y});
+    }
   }
   return anchors;
 }
 function referencePoint(name,id){
   const n=nodes.get(id),dock=dockFor(name);
-  return n?{x:n.x+(isTree()?TREE_RADIUS:WIDTH/2),y:n.y-1}:{x:dock.x,y:NULL_RAIL_TOP};
+  if(!n)return {x:dock.x,y:NULL_RAIL_TOP};
+  const centre=n.x+(isTree()?TREE_RADIUS:WIDTH/2);
+  const anchor=referenceAnchors(referenceValues()).get(name);
+  // Separate arrowheads when two labels point to the same object. A single
+  // pointer retains its centered target, including the tree root arrow.
+  const limit=(isTree()?TREE_RADIUS:WIDTH/2)-14;
+  const offset=anchor?Math.max(-limit,Math.min(limit,(anchor.x-centre)*.45)):0;
+  return {x:centre+offset,y:n.y-1};
 }
 function pointerBounds(actual=referenceValues()){
   const anchors=referenceAnchors(actual),bounds={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};

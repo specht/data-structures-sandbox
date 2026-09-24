@@ -236,9 +236,13 @@ void generate(String kind) {
   final collector = MethodCollector();
   classes.single.accept(collector);
   for (final member in collector.methods) {
+    // Only supported public methods become buttons. Their private helpers
+    // must still emit source lines: an AVL insert spends most of its execution
+    // in _insert, _rebalance and the rotation helpers. Never expose them as
+    // directly callable methods or instrument static/accessor methods.
     final m = describe(member);
-    if (m == null) continue;
-    methods.add(m);
+    if (m != null) methods.add(m);
+    if (member.isStatic || member.isGetter || member.isSetter) continue;
     final body = member.body;
     if (body is BlockFunctionBody) {
       final block = body.block;

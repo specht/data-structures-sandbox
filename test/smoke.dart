@@ -126,6 +126,19 @@ Future<void> main() async {
           if(reply['type']!='trace' || (reply['steps'] as List).last['ok']!=true){
             throw StateError('AVL worker rejected insert($value): $reply');
           }
+          // The recorder must follow calls into private recursive methods;
+          // otherwise the source highlight remains on public insert().
+          final original=(reply['source'] as Map)['lines'] as List;
+          for(final helper in [
+            'TreeNode _insert(',
+            if(value==5) 'TreeNode _rotateRight(',
+          ]){
+            final helperLine=original.indexWhere((line)=>line.toString().contains(helper))+1;
+            if(helperLine==0 || !(reply['steps'] as List).any((step)=>
+                step['kind']=='line' && step['line']==helperLine)){
+              throw StateError('AVL trace did not enter $helper for insert($value)');
+            }
+          }
           final snap=(reply['steps'] as List).lastWhere((s)=>s['kind']=='snapshot') as Map;
           final audit=snap['avl'] as Map;
           if(audit['acyclic']!=true||audit['ordered']!=true||audit['heights']!=true||audit['balanced']!=true){

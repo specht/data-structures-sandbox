@@ -28,11 +28,22 @@ assert.equal(run("STRUCTURE_LABELS.array_queue"),'Queue (circular array)');
 assert.equal(run("STRUCTURE_LABELS.node_heap"),'Heap (node-based)');
 run("structure='linked_stack';ensureViewport(structure);nodes.set(1,{id:1,x:330,y:276,opacity:1,detached:false});head=1;references={current:1,previous:1};");
 const anchors=run('referenceAnchors(referenceValues())');
-assert.equal(anchors.get('head').x,386);
-assert.equal(anchors.get('head').y,206);
-assert.equal(anchors.get('current').y,176);
-assert.equal(anchors.get('previous').y,146);
-assert.ok(run('pointerBounds().minY')<150,'Pointer bounds include local labels above the node');
+assert.equal(anchors.get('head').y,226);
+assert.equal(anchors.get('current').y,226);
+assert.ok(anchors.get('head').x<anchors.get('current').x,
+  'Two pointers to one node need distinct horizontal label slots');
+assert.equal(anchors.get('previous').x,386);
+assert.equal(anchors.get('previous').y,184);
+assert.ok(run('pointerBounds().minY')<184,'Pointer bounds include upper labels');
+const width=name=>Math.max(40,run(`referenceLabel(${JSON.stringify(name)}).length`)*9);
+for(const a of ['head','current'])for(const b of ['head','current']){
+  if(a===b)continue;
+  const left=anchors.get(a),right=anchors.get(b);
+  assert.ok(Math.abs(left.x-right.x)>(width(a)+width(b))/2+8,
+    'Reference labels on the same row must not overlap');
+}
+const tips=run(`['head','current','previous'].map(name=>referencePoint(name,1).x)`);
+assert.equal(new Set(tips).size,3,'Reference arrowheads must not share one point');
 run("renderReferences()");
 assert.equal(elements.get('references').querySelectorAll('.ref-label').length,3);
 run('fitScene()');
