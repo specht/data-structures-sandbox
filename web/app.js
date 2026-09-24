@@ -2,7 +2,9 @@
 // Browser renders a trace sent by a persistent Dart server. No browser-side
 // simulation of list operations: node IDs and reference writes come from Dart.
 const NS = 'http://www.w3.org/2000/svg';
-const WIDTH = 112, HEIGHT = 68, ROW = 276, START_X = 112, GAP = 184;
+// Keep one fixed logical viewport throughout an operation: resizing it causes
+// every node and arrow to jump even when its own position has not changed.
+const SCENE_WIDTH = 1100, WIDTH = 112, HEIGHT = 68, ROW = 276, START_X = 112, GAP = 184;
 const $ = id => document.getElementById(id);
 const ui = {
   code:$('code'), codeScroll:$('code-scroll'), file:$('filename'),
@@ -109,7 +111,9 @@ function newNode(data, initial=false) {
   const marker=references.current??references.previous;
   const around=nodes.get(marker)??[...nodes.values()].at(-1);
   const node={id:data.id,value:data.value,next:data.next??null,left:data.left??null,right:data.right??null,
-    x:initial?START_X:(around?.x??START_X)+55,y:initial?ROW:135,
+    x:initial?(structure==='tree'?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2):
+      (around?.x??(structure==='tree'?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2))+55,
+    y:initial?ROW:135,
     opacity:initial?1:0,detached:false,wasReachable:false};nodes.set(node.id,node);
   const group=svg('g',{class:'node'});
   group.append(svg('rect',{class:'card',x:0,y:0,width:WIDTH,height:HEIGHT,rx:10}),
@@ -166,9 +170,11 @@ function drawArrow(group,start,tip,kind='edge',backward=false){
     const bend=Math.max(28,Math.abs(tip.x-start.x)*.45);
     c1={x:start.x+bend,y:start.y};c2={x:tip.x-bend,y:tip.y};
   }
-  // The final tangent determines the arrowhead's orientation (including on
-  // curved and animated references). Keep the shaft behind the triangle.
-  let dx=tip.x-c2.x,dy=tip.y-c2.y;
+  // For a STRAIGHT arrow the endpoint tangent is the line itself, not the
+  // unused Bezier control point. Otherwise vertical top/root arrows can have
+  // a sideways or collapsed triangle, disconnected from their shaft.
+  let dx=kind==='straight'?tip.x-start.x:tip.x-c2.x;
+  let dy=kind==='straight'?tip.y-start.y:tip.y-c2.y;
   let length=Math.hypot(dx,dy);
   if(length<.001){dx=tip.x-start.x;dy=tip.y-start.y;length=Math.hypot(dx,dy);}
   const ux=length>.001?dx/length:0,uy=length>.001?dy/length:1;
@@ -264,18 +270,24 @@ function renderAll(){if(structure==='stack'){renderStack();return;}for(const nod
 function layoutFor(snapshot){
   if(structure==='tree')return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
-  const targets=new Map(),seen=new Set();let cursor=snapshot.head,index=0;
+  const targets=new Map(),seen=new Set(),ordered=[];let cursor=snapshot.head,index=0;
   while(cursor!==null&&byId.has(cursor)&&!seen.has(cursor)&&index<100){
-    seen.add(cursor);targets.set(cursor,{x:START_X+index*GAP,y:ROW,opacity:1,detached:false});
+    seen.add(cursor);ordered.push(cursor);
     cursor=byId.get(cursor).next;index++;
   }
+  // Position the whole reachable chain as one centred group. Recompute these
+  // slots only when settling, never while an individual pointer is changing.
+  const gap=ordered.length>1
+    ?Math.min(GAP,(SCENE_WIDTH-140-WIDTH)/(ordered.length-1)):GAP;
+  const firstX=(SCENE_WIDTH-WIDTH-(ordered.length-1)*gap)/2;
+  ordered.forEach((id,i)=>targets.set(id,{x:firstX+i*gap,y:ROW,opacity:1,detached:false}));
   let detachedIndex=0;
   for(const item of snapshot.nodes){if(seen.has(item.id))continue;
     const former=nodes.get(item.id);
     // A newly allocated object must remain above the row until it has ever
     // belonged to the list, even before the local `fresh` is assigned.
     const pending=!former?.wasReachable;
-    targets.set(item.id,{x:former?.x??START_X+detachedIndex*140,
+    targets.set(item.id,{x:former?.x??SCENE_WIDTH/2-WIDTH/2+detachedIndex*140,
       y:pending?156:431,opacity:pending?1:.37,detached:!pending});detachedIndex++;
   }
   // Never change the viewBox halfway through an operation: that would scale
@@ -681,9 +693,9 @@ function acceptTrace(data){
   if(data.methods)updateMethodCatalog(data.methods);
   source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
   frames=makeFrames(rawSteps,ui.traceMode.value);
-  const maxVisible=Math.max(1,...rawSteps.filter(s=>s.kind==='snapshot').map(s=>s.nodes?.length??0));
-  const possibleRefs=Math.max(0, ...rawSteps.filter(s=>s.kind==='variableWrite').map(s=>s.name).filter(name=>!(name in DOCKS)).map((_,i)=>i+1));
-  ui.scene.setAttribute('viewBox',structure==='tree'?'0 0 1250 620':structure==='stack'?'0 0 1100 510':`0 0 ${Math.max(1100,START_X+maxVisible*GAP+55,800+possibleRefs*135)} 510`);
+  // Never resize the scene as the trace grows. Objects animate within a fixed
+  // coordinate system, so adding a node cannot zoom all existing nodes out.
+  ui.scene.setAttribute('viewBox',structure==='tree'?'0 0 1100 620':'0 0 1100 510');
   playbackToken++;
   renderSource(source);restore(0);
   if(playbackMode==='result')jumpTo(frames.length);
@@ -901,25 +913,27 @@ updatePlaybackButtons();
 function treeLayout(snapshot){
   const byId=new Map(snapshot.nodes.map(n=>[n.id,n]));
   const targets=new Map(),seen=new Set();
-  // Inorder slots keep even extremely unbalanced trees readable without a
-  // force layout; y follows depth and is capped only by the node count limit.
-  let index=0,maxDepth=0;
-  function walk(id,depth){
+  // Anchor the root at canvas centre. A node's x position depends on its
+  // parent/path, not the total in-order rank: adding a leaf does not move the
+  // root or unrelated subtrees. An actual re-parenting still animates normally.
+  const centre=SCENE_WIDTH/2;
+  function walk(id,depth,cx){
     if(id==null||seen.has(id)||!byId.has(id)||depth>20)return;
-    seen.add(id);const n=byId.get(id);
-    walk(n.left,depth+1);
-    targets.set(id,{x:100+index*105,y:155+depth*80,opacity:1,detached:false});
-    index++;maxDepth=Math.max(maxDepth,depth);
-    walk(n.right,depth+1);
+    seen.add(id);
+    targets.set(id,{x:cx-TREE_RADIUS,y:155+depth*80,opacity:1,detached:false});
+    const node=byId.get(id);
+    const offset=Math.max(40,220/Math.pow(2,depth));
+    walk(node.left,depth+1,cx-offset);
+    walk(node.right,depth+1,cx+offset);
   }
-  walk(snapshot.root,0);
+  walk(snapshot.root,0,centre);
   let orphan=0;
   for(const item of snapshot.nodes){
     if(targets.has(item.id))continue;
     const previous=nodes.get(item.id),pending=!previous?.wasReachable;
-    targets.set(item.id,{x:previous?.x??100+orphan*90,y:pending?90:530,opacity:pending?1:.32,detached:!pending});orphan++;
+    targets.set(item.id,{x:previous?.x??centre-TREE_RADIUS+orphan*90,y:pending?90:530,opacity:pending?1:.32,detached:!pending});orphan++;
   }
-  return {targets,count:index,cycle:false};
+  return {targets,count:seen.size,cycle:false};
 }
 // Tree edges connect the node centres, clipped to their circular outlines.
 // A relaxed tree always has straight edges; a modest Bezier bend is used ONLY
@@ -998,7 +1012,8 @@ async function animateRetire(ids,snapshot){
 function renderStack(){
   ui.stackView.replaceChildren();
   const cells=stackState.cells??[];
-  const w=94,start=120,y=235;
+  // Centre the entire memory strip. The top label and arrow share its x.
+  const w=94,start=(SCENE_WIDTH-((cells.length-1)*w+80))/2,y=235;
   // The label and arrow are one index indicator, centred over the active cell.
   // For an empty stack there is no arrow to an element.
   const topX=start+Math.max(stackState.top,0)*w+40;

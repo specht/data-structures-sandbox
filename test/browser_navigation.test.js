@@ -65,12 +65,13 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   await run('backward()');
   assert.equal(run('stepIndex'),4);
   assert.equal(run('nodes.get(1).next'),2);
-  assert.equal(run('nodes.get(2).x'),run('START_X+GAP'),'Old layout restored');
+  assert.equal(run('nodes.get(2).x'),(run('SCENE_WIDTH-WIDTH-GAP')/2)+run('GAP'),'Old centred layout restored');
   assert.deepEqual(context.durations,[650,700], 'Reverse moves nodes before rewinding pointer');
   // Never change the viewBox on any individual step; it would scale the scene.
   const viewBox=els.get('scene').getAttribute('viewBox');
   run('jumpTo(frames.length)');run('jumpTo(0)');
   assert.equal(els.get('scene').getAttribute('viewBox'),viewBox);
+  assert.equal(viewBox,'0 0 1100 510','List viewport must remain fixed for the whole trace');
   run(`send({action:'run',method:'insert',values:[25]})`);
   assert.equal(run('focusAfterCommand'),true);
   run(`acceptTrace(${JSON.stringify(trace)})`);

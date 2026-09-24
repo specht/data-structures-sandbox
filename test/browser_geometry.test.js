@@ -115,15 +115,23 @@ run('override=null;renderAll();');
   await run(`animateSettle({head:1,nodes:[
     {id:1,value:10,next:3},{id:2,value:20,next:3},{id:3,value:30,next:null}
   ]})`);
-  assert.equal(run('nodes.get(3).x'),run('START_X+GAP'));
+  assert.equal(run('nodes.get(3).x'),(run('SCENE_WIDTH-WIDTH-GAP')/2)+run('GAP'),
+    'The reachable chain must settle about canvas centre');
   assert.equal(run('nodes.get(2).detached'),true);
   run(`clearView(); structure='stack'; stackState={cells:[13,7,null,null],top:1}; renderStack();`);
   const stack=document.getElementById('stack-view');
   const label=stack.querySelector('.stack-label');
   const topArrow=stack.querySelector('.ref-arrow');
-  assert.equal(Number(label.getAttribute('x')),run('120+94+40'));
+  assert.equal(Number(label.getAttribute('x')),run('(SCENE_WIDTH-((stackState.cells.length-1)*94+80))/2+94+40'));
+  const cells=stack.children.filter(c=>c.getAttribute('class')?.includes('memory-cell'));
+  assert.equal((Number(cells[0].getAttribute('x'))+Number(cells.at(-1).getAttribute('x'))+80)/2,run('SCENE_WIDTH/2'), 'Memory strip centred');
   assert.equal(point(topArrow)[0],Number(label.getAttribute('x')));
   assert.match(topArrow.querySelector('.arrow-shaft').getAttribute('d'),/ L /);
+  const triangle=topArrow.querySelector('.arrow-tip').getAttribute('points')
+    .split(' ').map(point=>point.split(',').map(Number));
+  assert.equal(triangle[0][1],235-3,'Arrow tip must terminate above selected cell');
+  assert.equal(triangle[1][1],triangle[2][1], 'Vertical arrowhead base must be horizontal');
+  assert.ok(Math.abs(triangle[1][0]-triangle[2][0])>9,'Vertical arrowhead must not collapse sideways');
   run('stackState.top=-1;renderStack()');
   assert.equal(stack.querySelector('.ref-arrow'),null,'No arrow when the stack is empty');
   console.log('PASS: arrow geometry, null slots, two-phase motion, stack top indicator.');
