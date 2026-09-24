@@ -1,8 +1,10 @@
+/*
+Aufsteigend sortierte, einfach verkettete Liste.
+Aufgabe: Implementiere insert, contains und remove selbst.
+*/
+
 import '../../lib/sandbox.dart';
 
-// Sorted singly linked list of integers (current sandbox contract).
-// insert keeps ascending order; duplicates are allowed; remove deletes ONE
-// occurrence. Do not add append() to a sorted-list implementation.
 class MyLinkedList {
   ListNode? head;
 
@@ -20,3 +22,24 @@ class MyLinkedList {
     return false;
   }
 }
+
+/*
+HILFE: ListNode und sortierte Liste
+
+  ListNode(value)        Erzeugt einen neuen Knoten mit int-Wert.
+  node.value             Liest den Integer des Knotens.
+  node.next              Liest den Nachfolger (ListNode? oder null).
+  node.next = other;     Setzt den Nachfolger (other: ListNode?).
+  head                   Dein Verweis auf den ersten Knoten, anfangs null.
+
+  Beispiel für die Knoten-API (KEINE Listen-Implementierung):
+    final knot = ListNode(42);
+    knot.next = null;
+
+  insert(value): immer so einfügen, dass die Liste aufsteigend sortiert
+  bleibt. Doppelte Werte sind erlaubt.
+  contains(value): true, falls ein Knoten den Wert enthält.
+  remove(value): genau EIN Vorkommen entfernen; true bei Erfolg,
+  false, wenn der Wert nicht vorkam. Vergiss den Sonderfall am Kopf nicht.
+  Die next-Verweise bilden eine einfache Kette, keinen Kreis.
+*/

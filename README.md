@@ -80,10 +80,11 @@ next roadmap stage; see [the roadmap](docs/roadmap.md).
 
 ## Circular array queue (roadmap stage 2)
 
-Run `./new-structure example queue circular --example` if you already have a local
-`structures/example` folder, or copy `templates/example/my_array_queue.dart`
-into a student's separate repository. This is a new **template**, not a change
-to an existing student's code. A fresh `./run` initialization includes it.
+For a student exercise, run `./new-structure alice queue circular`. To add a
+reference queue to an existing `structures/example` folder, use
+`cp -n templates/example/my_array_queue.dart structures/example/`.
+This does not overwrite existing work. A fresh `./run` initialization
+already includes the sample.
 
 The queue uses eight **stationary** observable cells, with `front` pointing to
 its next dequeue slot, `rear` to the next enqueue position (once space is available), and `size` distinguishing
@@ -234,8 +235,7 @@ BST order, and shared/cyclic pointers **after each public operation** and
 reports the failures separately from the abstract set-value check.
 
 ```
-./new-structure example tree avl --example  # only if structures/example/my_avl.dart is absent
-# or: cp -n templates/example/my_avl.dart structures/example/
+cp -n templates/example/my_avl.dart structures/example/
 ./run
 ```
 
@@ -256,6 +256,6 @@ The standalone model test runs directly against the bundled example.
 Run `./new-structure` to list interface/implementation choices. For example,
 `./new-structure alice stack array` creates an unfinished eight-cell stack;
 `./new-structure alice stack nodes` creates a linked-node stack. The default
-is a starter; `--example` requests a complete reference implementation. Files
-are never overwritten, and `structures/` remains a separate Git repository.
+is always an unfinished starter. Files are never overwritten, and
+`structures/` remains a separate Git repository.
 See `docs/contracts.md`, `docs/start-here.md` and `docs/storage-api.md`.

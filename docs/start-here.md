@@ -37,9 +37,11 @@ You write the logic, **not** the drawing code. `top == -1` means empty, and
 3. Implement `pop()`: return `null` when empty. Otherwise read the old top,
    clear that cell by writing `null`, decrease `top`, return the saved value.
    Try `pop()` twice, then a third time on the empty stack.
-4. Test the boundary: push nine values; only eight may be stored. Use duplicate
-   values too. Compare the results and highlighted source lines with the
-   **example** student's working stack.
+4. Implement `isEmpty()` yourself: check the result before the first push,
+   after a successful push and after the final pop.
+5. Test the boundary: push nine values; only eight may be stored. Use duplicate
+   values too. Check that the ninth push returns `false` without changing the
+   stored values or the highlighted top position.
 
 The method-call box accepts only methods exposed by your selected class.
 Use Step and the arrow keys to inspect writes; Home/End jump through the
@@ -50,7 +52,6 @@ your implementation passes its checks.
 
 Run `./new-structure` without arguments to see every interface and
 implementation. The default creates an unfinished **starter**. For a linked
-stack use `./new-structure alice stack nodes`; for a complete reference
-implementation use `./new-structure alice stack array --example`.
+stack use `./new-structure alice stack nodes`.
 Existing files are never overwritten. See `docs/storage-api.md` for the
 observable memory and node classes used in the starter files.

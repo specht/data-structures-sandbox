@@ -63,7 +63,8 @@ the top reference. See `templates/starter/my_linked_stack.dart`.
 
 The same principle applies to `QueueMemory` (observable fixed cells and
 front/rear/size), `TreeNode` (value, left/right, height), `HeapMemory` (growable
-indexed heap cells), and `HashBuckets` (indexed bucket heads). Read the
-matching `lib/*_sandbox.dart` or the corresponding complete `templates/example/`
-file to see the full adapter API. Student methods, data-structure invariants,
-return values and pointer updates remain their responsibility.
+indexed heap cells), and `HashBuckets` (indexed bucket heads). The bottom
+comment of each starter explains the exact API needed for that exercise;
+`lib/*_sandbox.dart` contains the adapter definitions. Student methods,
+data-structure invariants, return values and pointer updates remain their
+responsibility.

@@ -1,7 +1,10 @@
+/*
+Min-Heap mit vergrößerbarem Array.
+Aufgabe: Implementiere insert, removeMin, peek und isEmpty.
+*/
+
 import '../../lib/heap_sandbox.dart';
 
-// Heap (array): dynamic MIN-heap. Duplicate keys are allowed.
-// Children of index i are 2*i+1 and 2*i+2; use HeapMemory operations.
 class MyArrayHeap {
   final HeapMemory memory = HeapMemory();
 
@@ -19,5 +22,35 @@ class MyArrayHeap {
     return null;
   }
 
-  bool isEmpty() => memory.isEmpty;
+  bool isEmpty() {
+    // TODO: Prüfe selbst, ob der Heap leer ist.
+    return false;
+  }
 }
+
+/*
+HILFE: HeapMemory und Min-Heap
+
+  memory ist eine WACHSENDE Folge von int-Zellen (anfangs leer).
+  memory.length          Anzahl belegter Zellen.
+  memory[index]          int an einem bestehenden Index lesen.
+  memory[index] = value; int an einem bestehenden Index überschreiben.
+  memory.add(value);     Eine neue Zelle am Ende anhängen.
+  memory.removeLast();   Letzten Wert entfernen und zurückgeben (int).
+  memory.swap(a, b);     Werte zweier vorhandener Indizes vertauschen.
+
+  Beispiel für die Speicher-API (KEINE Heap-Implementierung):
+    memory.add(42);
+    int gelesen = memory[0];
+    memory[0] = 21;
+
+  Ein Schreibzugriff auf memory[memory.length] erweitert den Speicher
+  NICHT; verwende dafür add. Greife nie außerhalb 0..length-1 zu.
+  Der kleinste Wert gehört an Index 0; für Index i liegen die Kinder
+  bei 2*i+1 und 2*i+2, der Elternindex bei (i-1) ~/ 2.
+  Jeder Elternwert muss <= beiden vorhandenen Kinderwerten sein.
+  insert(value): Element aufnehmen und Min-Heap-Eigenschaft herstellen.
+  removeMin(): kleinstes Element entfernen, bei leer null zurückgeben.
+  peek(): Minimum ohne Entfernen lesen, bei leer null.
+  isEmpty(): Leerzustand selbst prüfen. Doppelte Werte sind erlaubt.
+*/

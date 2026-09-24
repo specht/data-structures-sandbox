@@ -6,7 +6,7 @@ usage() {
   cat <<'EOF'
 Create a student data structure (unfinished starter by default).
 
-  ./new-structure STUDENT TYPE [IMPLEMENTATION] [--example]
+  ./new-structure STUDENT TYPE [IMPLEMENTATION]
 
 TYPE        IMPLEMENTATION          Result
 list        linked                  Sorted singly linked list
@@ -20,9 +20,7 @@ Examples:
   ./new-structure alice stack
   ./new-structure alice stack nodes
   ./new-structure alice tree avl
-  ./new-structure alice stack array --example
 
---example copies a complete reference implementation, not a starter.
 An existing file is never overwritten. The structures/ directory is a separate Git repository.
 EOF
 }
