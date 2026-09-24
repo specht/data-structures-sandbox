@@ -1226,7 +1226,11 @@ function autoFrameHash(steps,force=false){
   const snapshots=steps.filter(s=>s.kind==='snapshot'&&Array.isArray(s.buckets));
   const depth=Math.max(0,...snapshots.map(s=>Math.max(0,...hashChains(hashSnapshot(s)).chains.map(c=>c.length))));
   const bottom=220+Math.max(0,depth-1)*112+150;
-  const ratio=treeSceneRatio(),required=Math.max(1100,(bottom+100)*ratio);
+  // Every physical bucket needs its own space; fit BOTH the table width and
+  // the longest collision chain, even when students choose >8 buckets.
+  const capacity=Math.max(1,...snapshots.map(s=>s.buckets.length));
+  const width=(capacity-1)*126+98+160;
+  const ratio=treeSceneRatio(),required=Math.max(1100,width,(bottom+100)*ratio);
   const w=force?required:Math.max(viewport.w,required);
   viewport={x:(1100-w)/2,y:(bottom+20-w/ratio)/2,w,h:w/ratio};
   paintViewport();
@@ -1236,13 +1240,13 @@ function renderHash(){
   const state=hashState,capacity=state.buckets.length;
   const {chains,orphans}=hashChains(state);
   const occupied=chains.filter(c=>c.length>0).length;
-  const center=SCENE_WIDTH/2,spacing=Math.min(126,930/Math.max(1,capacity-1));
+  const center=SCENE_WIDTH/2,spacing=126; // Fixed cell width; camera fits chosen count.
   const first=center-(capacity-1)*spacing/2;
   const heading=svg('text',{x:center,y:51,class:'heap-title','text-anchor':'middle'});
   heading.textContent=`HASH TABLE · ${state.size} key${state.size===1?'':'s'} · ${occupied}/${capacity} buckets · α = ${(state.size/Math.max(1,capacity)).toFixed(2)}`;
   ui.stackView.append(heading);
   const note=svg('text',{x:center,y:80,class:'heap-section','text-anchor':'middle'});
-  note.textContent='index = key mod '+capacity+' · collision chains';ui.stackView.append(note);
+  note.textContent='index = student hash(key, capacity) · collision chains';ui.stackView.append(note);
   for(let i=0;i<capacity;i++){
     const x=first+i*spacing,head=chains[i][0];
     ui.stackView.append(svg('rect',{x:x-49,y:106,width:98,height:61,rx:11,

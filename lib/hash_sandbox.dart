@@ -1,13 +1,29 @@
 import 'sandbox.dart';
 
-// Eight stationary buckets, with real ListNode references for collisions.
-// Students can choose their own algorithm for traversing and updating chains.
+// The student chooses the bucket count AND the hash function. The sandbox
+// supplies observable storage only, not a fixed capacity or index formula.
 class HashBuckets {
   final List<ListNode?> _cells;
-  HashBuckets([int capacity = 8])
-      : assert(capacity > 0), _cells = List<ListNode?>.filled(capacity, null);
+  final int Function(int key, int capacity) _hash;
+  static int _checkedCapacity(int capacity) {
+    if (capacity < 1) {
+      throw RangeError.range(capacity, 1, null, 'capacity',
+          'A hash table needs at least one bucket');
+    }
+    return capacity;
+  }
+  HashBuckets(int capacity, int Function(int key, int capacity) hash)
+      : _hash = hash,
+        _cells = List<ListNode?>.filled(_checkedCapacity(capacity), null);
   int get length => _cells.length;
-  int indexFor(int value) => value % length; // Also nonnegative for negative keys.
+  int indexFor(int key) {
+    final index = _hash(key, length);
+    if (index < 0 || index >= length) {
+      throw RangeError.range(index, 0, length - 1, 'hash($key)',
+          'Student hash function must return a valid bucket index');
+    }
+    return index;
+  }
   ListNode? operator [](int index) {
     RangeError.checkValidIndex(index, _cells);
     final value = _cells[index];
@@ -73,8 +89,8 @@ class HashRecorder extends Recorder {
   }
 }
 
-// Independent physical audit. A cycle, shared node, incorrect bucket, or
-// duplicate key is an error even when a public method happens to return true.
+// Independently audit physical placement using the STUDENT'S hash function.
+// A valid alternative hash algorithm or bucket count must not fail the audit.
 // Temporarily disable recording: an invariant check is NOT a student traversal.
 Map<String,Object?> auditHash(HashBuckets buckets, int size) {
   final previous=Recorder.active;
@@ -89,7 +105,12 @@ Map<String,Object?> auditHash(HashBuckets buckets, int size) {
       while(cursor!=null) {
         if(!seen.add(cursor.id)){acyclic=false;break;}
         final key=cursor.value;
-        if(buckets.indexFor(key)!=i) placement=false;
+        // Invalid hash results are an invariant failure, not an audit crash.
+        try {
+          if (buckets.indexFor(key) != i) placement = false;
+        } catch (_) {
+          placement = false;
+        }
         if(!keys.add(key)) unique=false;
         values.add(key);length++;
         cursor=cursor.next;

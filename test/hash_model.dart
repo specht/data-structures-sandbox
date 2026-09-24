@@ -13,7 +13,9 @@ void check(MyHashTable table, Set<int> model) {
   if(values.length!=model.length || values.toSet().difference(model).isNotEmpty){
     throw StateError('Wrong key set: $values vs $model');
   }
-  if((table.loadFactor()-model.length/8).abs()>1e-12)throw StateError('Load factor wrong');
+  if((table.loadFactor()-model.length/table.buckets.length).abs()>1e-12){
+    throw StateError('Load factor wrong for ${table.buckets.length} buckets');
+  }
 }
 void main(){
   final table=MyHashTable(),model=<int>{};
@@ -61,6 +63,40 @@ void main(){
       throw StateError('Cycle not detected');
     }
     b.next=null;
-    print('PASS: hash table · collisions, negative keys, removal and 250 randomized operations');
+    // The same student code works with non-default capacities. Check both
+    // occupancy and load factor independently for each choice.
+    for (final capacity in [1, 3, 11, 16]) {
+      final other=MyHashTable(capacity), expected=<int>{};
+      for (final key in [-17, -1, 0, 1, 3, 7, 15, 23, 42]) {
+        if (!other.insert(key)) throw StateError('Insert failed at capacity $capacity');
+        expected.add(key);
+        check(other, expected);
+      }
+      if (other.buckets.length != capacity) throw StateError('Wrong capacity');
+      for (final key in [-17, 0, 15, 42]) {
+        if (!other.remove(key)) throw StateError('Removal failed at capacity $capacity');
+        expected.remove(key);
+        check(other, expected);
+      }
+    }
+    // Another valid student hash maps key 5 to bucket 4 at capacity 7.
+    final alternative=HashBuckets(7,(key,capacity)=>(key*5)%capacity);
+    alternative[4]=ListNode(5);
+    final customAudit=auditHash(alternative,1);
+    if(customAudit['placement']!=true || customAudit['sizeOk']!=true){
+      throw StateError('Audit rejected an alternative student hash: $customAudit');
+    }
+    final outOfRange=HashBuckets(3,(key,capacity)=>capacity);
+    try {
+      outOfRange.indexFor(5);
+      throw StateError('An invalid student hash index was accepted');
+    } on RangeError { /* Correctly rejected. */ }
+    for (final capacity in [0, -1]) {
+      try {
+        HashBuckets(capacity,(key,cap)=>0);
+        throw StateError('Invalid bucket count $capacity was accepted');
+      } on RangeError { /* Correctly rejected. */ }
+    }
+    print('PASS: student-defined hash and capacity, collisions, negative keys and 250 randomized operations');
   } finally { Recorder.active=null; }
 }

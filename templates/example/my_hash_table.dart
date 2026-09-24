@@ -5,7 +5,20 @@ import '../../lib/sandbox.dart';
 // This simple example deliberately does not resize: as the load factor rises,
 // students can observe how longer collision chains affect lookup and removal.
 class MyHashTable {
-  final HashBuckets buckets = HashBuckets(8);
+  // STUDENT CHOICES: edit the default bucket count and the hash function.
+  // The browser creates MyHashTable() so the default controls its capacity.
+  // Direct Dart tests can also use MyHashTable(3), MyHashTable(11), etc.
+  late final HashBuckets buckets;
+  MyHashTable([int bucketCount = 8]) {
+    buckets = HashBuckets(bucketCount, _hash);
+  }
+
+  // Any deterministic mapping to 0 .. capacity - 1 is permitted, including
+  // for negative keys. Change this example formula and compare collisions.
+  int _hash(int key, int capacity) {
+    return key % capacity;
+  }
+
   int size = 0;
 
   bool insert(int key) {
