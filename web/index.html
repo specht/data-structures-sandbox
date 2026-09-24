@@ -28,9 +28,10 @@
   </dialog>
   <main class="workspace">
     <section class="code-panel" aria-label="Dart source code">
-      <div class="section-heading"><div><span class="eyebrow">DART SOURCE</span><strong id="filename">structures/example/my_linked_list.dart</strong></div><span class="lang-chip">DART</span></div>
-      <div class="code-scroll" id="code-scroll"><div id="code" class="source"></div></div>
-      <div class="code-footer"><span class="key-dot"></span>Highlighted line follows your Dart source.</div>
+      <div class="section-heading"><div><span class="eyebrow">DART SOURCE</span><strong id="filename">No student implementation yet</strong></div><div class="source-actions"><button type="button" id="source-edit" disabled>Edit</button><button type="button" id="source-save" hidden disabled>Save</button><button type="button" id="source-discard" hidden>Cancel</button><span class="lang-chip">DART</span></div></div>
+      <div class="code-scroll" id="code-scroll"><div id="code" class="source">Create a starter: ./new-structure YOUR_NAME stack array</div></div>
+      <div class="source-editor" id="source-editor" hidden><div class="source-line-numbers" id="source-line-numbers" aria-hidden="true"></div><textarea id="source-textarea" aria-label="Edit the selected Dart file" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea></div>
+      <div class="code-footer"><span class="key-dot"></span>Highlighted line follows your Dart source.<span id="source-edit-status" hidden role="status"></span></div>
     </section>
     <section class="visual-panel" aria-label="Animated data structure">
       <div class="operation-banner"><div><span class="eyebrow">CURRENT OPERATION</span><div class="operation-result"><strong id="operation">Ready</strong><span id="return-value"></span></div><p id="description">Choose a method above, then use ← and → to inspect the trace.</p></div><span id="phase" class="phase">READY</span></div>
@@ -42,7 +43,7 @@
           <g id="null-rail"></g>
           <g id="edges"></g><g id="references"></g><g id="nodes"></g><g id="stack-view"></g>
         </svg>
-        <div id="scene-status" class="scene-status" aria-live="polite">The list is empty. Try an insert or append suggestion to begin.</div>
+        <div id="scene-status" class="scene-status" aria-live="polite">Create a starter to begin: ./new-structure YOUR_NAME stack array</div>
       </div>
       <div class="timeline"><div class="timeline-labels"><span id="step-label">Step 0 / 0</span><span id="result" role="status">Ready</span></div>
         <input id="seek" class="seek" type="range" min="0" max="0" value="0" aria-label="Seek through execution trace">
@@ -51,5 +52,5 @@
     </section>
   </main>
   <footer class="footnote"><span>Dart executes student methods; the browser visualizes the trace. Removed objects fade when no longer reachable.</span><span><kbd>←</kbd>/<kbd>→</kbd> step &nbsp; <kbd>Shift</kbd> + arrows: operation &nbsp; <kbd>Home</kbd>/<kbd>End</kbd> jump (<kbd>Ctrl</kbd> + Home/End in an input) &nbsp; <kbd>Space</kbd> play/pause</span></footer>
-</div><script src="/app.js" defer></script>
+</div><script src="/app.js" defer></script><script src="/editor.js" defer></script>
 </body></html>

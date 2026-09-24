@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
+import 'source_editor.dart';
 import 'prepare.dart';
 import 'registry.dart';
 import 'student_validation.dart';
@@ -51,7 +52,7 @@ Map<String,String> lastSelection(){
       return {'student':data['student'] as String,'structure':data['structure'] as String};
     }
   }catch(_){ }
-  return {'student':'example','structure':'list'};
+  return {'student':'','structure':''};
 }
 void saveSelection(String student,String kind){
   Directory('.runtime').createSync(recursive:true);
@@ -294,6 +295,29 @@ class Client {
       final chosen=requestedStructure is String ? requestedStructure : 'list';
       await select(selected,chosen);return;
     }
+    if(message['action']=='readSource'||message['action']=='saveSource'){
+      try {
+        final selected=student, selectedKind=kind;
+        if(selected==null||selectedKind==null){
+          throw const FormatException('Select a student implementation first.');
+        }
+        if(message['action']=='readSource'){
+          send(readEditableSource(repoPath,selected,selectedKind));
+        }else {
+          final content=message['content'], revision=message['revision'];
+          if(content is! String || revision is! String){
+            throw const FormatException('Invalid source save request.');
+          }
+          send(saveEditableSource(repoPath,selected,selectedKind,revision,content));
+          markChanged(); // Existing watcher recompiles the saved student file.
+        }
+      } on FormatException catch(error){
+        send({'type':'sourceError','message':error.message});
+      } on FileSystemException catch(error){
+        send({'type':'sourceError','message':'Could not access the selected source: $error'});
+      }
+      return;
+    }
     final runner=worker;
     if(runner==null){error('Select a valid student implementation first.');return;}
     try{
@@ -321,9 +345,7 @@ Future<void> main(List<String> args) async {
       default:throw FormatException('Usage: ./run [--port PORT] [--no-open] [--students PATH]');
     }
   }
-  if(!Directory(repoPath).existsSync()){
-    throw FormatException('Student repository not found: $repoPath');
-  }
+  // Missing class repository is an intentional empty first-run state.
   final server=await HttpServer.bind(InternetAddress.loopbackIPv4,port);
   final url='http://127.0.0.1:${server.port}/';
   stdout.writeln('Data Structure Sandbox · $url · Students: ${Directory(repoPath).absolute.path}');
@@ -362,13 +384,20 @@ Future<void> _handleRequest(HttpRequest request) async {
       '/' || '/index.html'=>'web/index.html',
       '/style.css'=>'web/style.css',
       '/app.js'=>'web/app.js',
+      '/editor.js'=>'web/editor.js',
+      '/background.jpg'=>'web/background.jpg',
       _=>null,
     };
     if(path==null){request.response.statusCode=HttpStatus.notFound;await request.response.close();return;}
     final file=File(path);
+    if(!file.existsSync()){
+      request.response.statusCode=HttpStatus.notFound;
+      await request.response.close();return;
+    }
     request.response.headers
       ..contentType=path.endsWith('.html')?ContentType.html:path.endsWith('.css')?
-        ContentType('text','css',charset:'utf-8'):ContentType('application','javascript',charset:'utf-8')
+        ContentType('text','css',charset:'utf-8'):path.endsWith('.jpg')?
+        ContentType('image','jpeg'):ContentType('application','javascript',charset:'utf-8')
       ..set(HttpHeaders.cacheControlHeader,'no-store');
     if(request.method=='GET')await request.response.addStream(file.openRead());
     await request.response.close();

@@ -2,15 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$(realpath "$0")")"
 if ! command -v dart >/dev/null 2>&1; then echo 'Dart SDK is required in PATH.' >&2; exit 127; fi
-if [[ ! -d structures ]] || [[ -z $(find structures -type f -name '*.dart' -print -quit) ]]; then
-  echo '==> No class repository found. Initializing a local example (see README for GitLab setup).'
-  mkdir -p structures/example
-  cp templates/example/*.dart structures/example/
-fi
-if [[ ! -e structures/.git ]]; then
-  echo "==> Initializing a separate local Git repository under structures/"
-  (cd structures && git init -q -b main)
-fi
+# An empty sandbox stays empty. Clone the class repository to structures/
+# before creating files; starting the visualizer must never create this path.
 if [[ ! -f .dart_tool/package_config.json || pubspec.yaml -nt .dart_tool/package_config.json || ( -f pubspec.lock && pubspec.lock -nt .dart_tool/package_config.json ) ]]; then
   dart pub get
 fi

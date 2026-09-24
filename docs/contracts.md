@@ -21,15 +21,12 @@ synchronous and do not print output to communicate their result.
 | Heap (node-based) | Same heap interface | Same min-heap semantics but real nodes: complete binary tree; `size` equals reachable node count; node IDs remain stable when values sift. |
 | Hash table (separate chaining) | `bool insert(int)`, `bool contains(int)`, `bool remove(int)`, `bool isEmpty()`, `double loadFactor()` | Integer **set**: duplicate insert returns `false`, missing remove returns `false`; fixed positive bucket count chosen by student; student's deterministic hash function returns a valid index even for negative keys; load factor is `size / bucketCount` (can exceed 1). |
 
-### Sorted-list caveat
+### Sorted-list contract
 
-A *generic* linked list need not be sorted. However, this sandbox's existing
-`list` reference model expects **sorted `insert`**. Its older working example
-also exposes `append()`, which appends even if this destroys sorted order.
-Do not teach `append()` as part of the sorted-list contract. The starter leaves
-it out. A future *unsorted list* exercise should use an explicitly separate
-contract/adapter (`append`, `prepend`, `contains`, `removeFirst`), not silently
-change the semantics of existing student files or call `insert` an append.
+The linked-list exercise is sorted and exposes `insert`, `contains` and `remove`.
+There is no `append` method because adding to the end could break ascending
+order. An unsorted list, if introduced later, should be a distinct exercise
+with its own contract and visual adapter.
 
 ### Worker, source, and representation
 

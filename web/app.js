@@ -283,7 +283,7 @@ ui.speed.addEventListener('input',()=>{
 ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
 const STRUCTURE_LABELS={hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
-let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
+let selectedStudent='',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
 function rememberChoice(){try{localStorage.setItem(preferenceKey,JSON.stringify({student:selectedStudent,structure}));}catch(_){}}
@@ -292,6 +292,7 @@ function selectImplementation(){
   resetValidation('Implementation changed; previous test results are outdated.');
   rememberChoice();
   socket.send(JSON.stringify({action:'select',student:selectedStudent,structure}));
+  window.sandboxEditor?.ready();
   ui.cmdStatus.textContent=`Loading ${selectedStudent} / ${structure}…`;
 }
 function updateStructures(){
@@ -321,12 +322,20 @@ function receiveCatalog(data){
   if(!initializedCatalog || previous!==selectedStudent || kindChanged){
     initializedCatalog=true;
     if(selectedStudent && structure)selectImplementation();
-    else {ui.cmdStatus.textContent='No student implementations found. Add a file to the separate class repository.';}
+    else {
+      window.sandboxEditor?.clear();
+      ui.file.textContent='No student implementation yet';
+      ui.code.textContent='Create a starter from the app terminal: ./new-structure YOUR_NAME stack array';
+      ui.cmdStatus.textContent='No implementations yet. Clone the class repository, then create your array stack starter.';
+      ui.callInput.value='';ui.callInput.placeholder='Create a starter to begin';
+      ui.suggestions.replaceChildren();
+      validationUI.button.disabled=true;
+    }
   }
 }
 
 let animationGeneration = 0, animating = false;
-let playbackMode='step', playbackToken=0;
+let playbackMode='play', playbackToken=0;
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
@@ -991,6 +1000,8 @@ ui.traceMode.addEventListener('change',()=>{
 });
 document.addEventListener('keydown',event=>{
   if(validationUI.dialog.open)return; // Let the native test dialog handle its own keys.
+  // A focused editor must retain its own cursor, Home/End and Space keys.
+  if(event.target?.closest?.('#source-editor'))return;
   if(event.altKey)return;
   // Ctrl/Cmd+Home/End works even while the method field has focus. Plain
   // Home/End still belongs to a text editor or native select when editing.
@@ -1123,7 +1134,7 @@ function acceptTrace(data){
   playbackToken++;
   renderSource(source);restore(0);
   if(playbackMode==='result')jumpTo(frames.length);
-  else if(playbackMode==='play')void playTrace(playbackToken);
+  else if(playbackMode==='play'&&focusAfterCommand)void playTrace(playbackToken);
   savedValues=[...data.values];savedCapacity=data.capacity??8;savedSessionId=data.sessionId??null;renderSuggestions();
   if(focusAfterCommand){focusAfterCommand=false;ui.next.focus({preventScroll:true});}
   ui.connection.textContent='Dart connected';ui.cmdStatus.classList.remove('error');
@@ -1296,9 +1307,13 @@ function connect(){
     try{
       const data=JSON.parse(msg.data);
       if(data.type==='pong')return;
+      if(data.type==='sourceFile'||data.type==='sourceSaved'||data.type==='sourceError'){
+        window.sandboxEditor?.receive(data);return;
+      }
       if(data.type.startsWith('validation')){validationMessage(data);return;}
       if(data.type==='catalog'){receiveCatalog(data);return;}
       if(data.type==='building'||data.type==='sourceChanged'){
+        if(data.type==='sourceChanged')window.sandboxEditor?.sourceChanged();
         resetValidation('Implementation changed; previous test results are outdated.');
         showCompiling(data.type==='building'&&data.recompiling===true);
         ui.cmdStatus.textContent=data.message+' Previous trace may be out of date.';
@@ -1310,6 +1325,7 @@ function connect(){
         focusAfterCommand=false;ui.cmdStatus.textContent=data.message;ui.cmdStatus.classList.add('error');return;
       }
       if(data.type==='hello'){
+        window.sandboxEditor?.ready();
         validationUI.button.disabled=false;
         validationUI.rerun.disabled=false;
         showCompiling(false);
@@ -1868,14 +1884,23 @@ function finishPan(event){
 }
 ui.scene.addEventListener('pointerup',finishPan);
 ui.scene.addEventListener('pointercancel',finishPan);
-ui.retry.addEventListener('click',()=>{savedValues=null;selectImplementation();});
+ui.retry.addEventListener('click',()=>{
+  if(window.sandboxEditor && !window.sandboxEditor.beforeSelection())return;
+  savedValues=null;selectImplementation();
+});
 ui.student.addEventListener('change',()=>{
+  if(window.sandboxEditor && !window.sandboxEditor.beforeSelection()){
+    ui.student.value=selectedStudent;return;
+  }
   selectedStudent=ui.student.value;
   updateStructures();
   animationGeneration++;animating=false;playbackToken++;frames=[];rawSteps=[];savedValues=null;
   clearView();sync();selectImplementation();
 });
 ui.structure.addEventListener('change',()=>{
+  if(window.sandboxEditor && !window.sandboxEditor.beforeSelection()){
+    ui.structure.value=structure;return;
+  }
   structure=ui.structure.value;
   animationGeneration++;animating=false;playbackToken++;frames=[];rawSteps=[];savedValues=null;
   clearView();sync();ui.cmdStatus.textContent='Switching structure…';

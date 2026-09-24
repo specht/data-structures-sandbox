@@ -349,7 +349,6 @@ class BrowserSession {
       case 'insert' when kind=='list':
         final index=reference.indexWhere((v)=>v>=value);
         reference.insert(index<0?reference.length:index,value);return true;
-      case 'append' when kind=='list':reference.add(value);return true;
       case 'contains':return returned==present;
       case 'remove':
         reference.remove(value);
@@ -500,7 +499,7 @@ class BrowserSession {
         (kind=='stack'||kind=='linked_stack') ? {'push','pop','peek','isEmpty'} :
         kind=='array_queue' ? {'enqueue','dequeue','peek','isEmpty','isFull'} :
         kind=='linked_queue' ? {'enqueue','dequeue','peek','isEmpty'} :
-        (kind=='tree'||kind=='avl') ? {'insert','contains','remove'} : {'insert','append','contains','remove'};
+        (kind=='tree'||kind=='avl') ? {'insert','contains','remove'} : {'insert','contains','remove'};
       final canVerify=standard.contains(name) &&
         (name=='pop'||name=='dequeue'||name=='removeMin'||name=='peek'||name=='isEmpty'||name=='isFull'||(args.length==1&&args.single is int));
       final checked=updateReference(name,args,result);

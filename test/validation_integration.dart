@@ -1,4 +1,4 @@
-// Run from the repository root after ./run has created structures/example:
+// Run from the repository root after explicitly creating structures/example:
 //   dart test/validation_integration.dart
 import 'dart:async';
 import 'dart:convert';

@@ -1,4 +1,4 @@
-// Run after ./run has initialized the local example repository:
+// Run after explicitly creating an optional reference student in structures/:
 //   dart test/smoke.dart
 import 'dart:async';
 import 'dart:convert';
@@ -10,7 +10,7 @@ import '../tool/host.dart' as host;
 Future<void> main() async {
   final found=host.catalog();
   if(!found.any((s)=>s['id']=='example')) {
-    throw StateError('Missing example student; run ./run once first.');
+    throw StateError('Missing reference student; populate structures/example explicitly before running smoke.dart.');
   }
   for(final kind in ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap','hash']){
     final worker=await prepare('example',kind,'structures');

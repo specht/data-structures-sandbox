@@ -72,9 +72,8 @@ Use **Step**, **Play**, or **Show result**, and arrow keys to navigate the trace
 Visual adapters currently cover the sorted linked list, unbalanced BST, AVL
 tree, fixed-array and linked stacks/queues, array and node min-heaps, and the
 separate-chaining hash set. Method discovery works for synchronous public
-methods with supported scalar parameters. The sorted list's legacy `append()`
-method is still recognized, but is **not part of its canonical sorted-list
-contract**: append can break ordering. See [the contracts](docs/contracts.md)
+methods with supported scalar parameters. The sorted list exposes only
+`insert`, `contains` and `remove`. See [the contracts](docs/contracts.md)
 before assigning an exercise. Directed graphs and traversal overlays are the
 next roadmap stage; see [the roadmap](docs/roadmap.md).
 

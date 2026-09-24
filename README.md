@@ -1,7 +1,7 @@
 # Data Structure Sandbox
 
 Mit der Data Structure Sandbox könnt ihr Datenstrukturen in Dart selbst
-implementieren, im Browser beobachten und mit automatischen Tests überprüfen.
+implementieren, direkt im Browser bearbeiten, beobachten und mit automatischen Tests überprüfen.
 
 ## Was liegt wo?
 
@@ -107,8 +107,11 @@ cd ~/data-structures-sandbox
 ./run
 ```
 
-Der Browser öffnet sich automatisch. Lass dieses Terminal geöffnet, während
-du arbeitest. Öffne für deinen Quelltext und Git ein zweites Terminal.
+Der Browser öffnet sich automatisch. Bei einer frischen Installation bleibt die
+App zunächst **leer**: Sie erstellt weder einen Beispielnutzer noch den Ordner
+`structures/`. Klone das Klassen-Repository wie in Schritt 4 beschrieben,
+bevor du eine eigene Datenstruktur anlegst. Lass das App-Terminal geöffnet;
+für Git verwendest du weiterhin ein zweites Terminal.
 
 ## 6. Deine Datenstruktur hinzufügen
 
@@ -156,8 +159,17 @@ Du kannst auf dieselbe Weise weitere Datenstrukturen anlegen, zum Beispiel:
 Die Varianten sind eigenständige Dateien. Wenn du einen Stack mit Knoten
 implementieren möchtest, verwende `stack nodes` statt `stack array`.
 
-Öffne deine neu erzeugte Dart-Datei im Editor. Die Kommentare erläutern die
-geforderte Wirkung der Methoden und die bereitgestellte Speicher-API. Hinweise
+Wähle im Browser deine Datei und klicke im Quelltextbereich auf **Edit**.
+Der einfache, lokal mitgelieferte Editor unterstützt Tab, automatische
+Einrückung nach `{`, Rückgängig und **Ctrl+S** bzw. **Save**. Änderungen werden
+**nur beim Speichern** in dieselbe Datei unter `structures/` geschrieben, die
+du auch im Workspace-Editor öffnen kannst. Ein Dateikonflikt wird gemeldet,
+statt fremde Änderungen zu überschreiben. Wechsle über **Cancel** zurück zur
+Visualisierung, ohne Änderungen zu speichern. Deine Git-Commits und Pushes
+führst du wie bisher im Terminal aus.
+
+Die Kommentare in der Dart-Datei erläutern die geforderte Wirkung der Methoden
+und die bereitgestellte Speicher-API. Hinweise
 zu den Schnittstellen und zulässigen Zuständen stehen außerdem in
 [docs/contracts.md](docs/contracts.md) und
 [docs/storage-api.md](docs/storage-api.md). Die Darstellung im Browser musst
@@ -169,8 +181,9 @@ Wähle im Browser unter **Student** deinen Ordner und unter **Structure** deine
 Datenstruktur aus. Führe einzelne Methoden aus, etwa `push(5)` oder `pop()`.
 Mit **Step**, **Play** und **Show result** kannst du die Ausführung verfolgen.
 
-Speichere deine Änderungen im Editor. Die laufende App lädt die geänderte
-Implementierung automatisch neu; dabei wird der Zustand der ausgewählten
+Speichere deine Änderungen im Browser mit **Save** (oder im Workspace-Editor).
+Die laufende App lädt die geänderte Implementierung automatisch neu; dabei
+wird der Zustand der ausgewählten
 Datenstruktur zurückgesetzt. Bei einem Kompilierungsfehler korrigiere die im
 Browser bzw. Terminal angezeigte Fehlermeldung.
 
@@ -239,3 +252,17 @@ Arbeite immer an deiner Datei im eigenen Ordner unter `structures/`.
 Die bisherige technische Projektdokumentation steht in
 [DEVELOPMENT.md](DEVELOPMENT.md). Für einen ersten Einstieg in den Array-Stack
 gibt es außerdem [docs/start-here.md](docs/start-here.md).
+
+## Hintergrundbild lokal mitliefern
+
+Zum einmaligen Herunterladen des Hintergrundbildes aus dem 2D-Projekt:
+
+```bash
+./web/fetch-background.sh
+git add web/background.jpg
+git commit -m "Bundle sandbox background"
+```
+
+Das Bild wird als lokale Datei `web/background.jpg` ausgeliefert; nach dem
+Herunterladen benötigt die App dafür keine Internetverbindung. Der Browser-
+Editor benötigt keine externen Bibliotheken und speichert nur auf **Save**.

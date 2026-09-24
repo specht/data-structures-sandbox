@@ -21,17 +21,6 @@ class MyLinkedList {
     }
   }
 
-  void append(int value) {
-    ListNode node = ListNode(value);
-    if (head == null) {
-      head = node;
-      return;
-    }
-    ListNode? p = head;
-    while (p!.next != null) p = p.next;
-    p.next = node;
-  }
-
   bool contains(int value) {
     ListNode? current = head;
     while (current != null) {
