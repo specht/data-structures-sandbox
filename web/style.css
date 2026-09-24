@@ -470,17 +470,34 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   background:#263c5a;border-color:#6484b2;color:#e4efff}
 .suggestion-rows .call-suggestion.has-present-argument:hover{background:#304b71;border-color:#90b4ec}
 .timeline .controls{gap:7px;align-items:center}
-.step-controls{display:inline-flex;align-items:center;flex:none;gap:0;padding:2px;
-  background:#111e31;border:1px solid #354c69;border-radius:7px}
-.step-controls button{height:30px!important;min-height:30px!important;margin:0!important;
-  padding:0 9px!important;border:0;border-radius:4px;min-width:0!important}
-.step-controls #first,.step-controls #last{width:32px;padding:0!important}
-.step-controls #back,.step-controls #next{min-width:78px!important}
-.step-controls button+button{border-left:1px solid #334965}
-.step-controls #next{background:#356bb1}
-.controls .control-spacer{flex:1 1 8px;min-width:0}
-.controls input[type="range"]#speed{width:clamp(116px,9vw,164px);min-width:116px;flex:0 1 164px}
-.controls #speed-output{min-width:27px;white-space:nowrap}
+/* One continuous navigation control: the border belongs to the group, not
+   to individual buttons. Preserve disabled states and keyboard focus. */
+.step-controls{display:inline-flex;align-items:stretch;flex:none;gap:0;padding:2px;
+  background:#101b2b;border:1px solid #38516f;border-radius:7px;overflow:hidden}
+.timeline .step-controls button{height:30px!important;min-height:30px!important;
+  margin:0!important;padding:0 9px!important;min-width:0!important;
+  border:0!important;border-radius:0!important;box-shadow:none!important;
+  background:transparent!important;color:#d3e1f5;opacity:1}
+.timeline .step-controls #first,.timeline .step-controls #last{width:32px;padding:0!important}
+.timeline .step-controls #back,.timeline .step-controls #next{min-width:78px!important}
+.timeline .step-controls button+button{border-left:1px solid #334965!important}
+.timeline .step-controls button:disabled{color:#788ea9;opacity:1}
+.timeline .step-controls button:hover:not(:disabled){background:#243954!important;filter:none}
+.timeline .step-controls #next:not(:disabled){background:#274669!important;color:#edf5ff}
+.timeline .step-controls button:focus-visible{position:relative;z-index:1;
+  outline:2px solid #9cc6ff!important;outline-offset:-3px!important}
+/* Keep trace and animation speed together as a second, compact control. */
+.trace-settings{display:inline-flex;align-items:center;gap:0;flex:0 1 auto;
+  margin-left:auto;min-width:0;height:34px;padding:2px 6px;
+  background:#101b2b;border:1px solid #38516f;border-radius:7px}
+.trace-choice,.speed-choice{display:inline-flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.speed-choice{margin-left:8px;padding-left:9px;border-left:1px solid #354b68}
+.trace-settings label{font-size:11px;color:#a6bcda}
+.trace-settings #trace-mode{min-width:92px;width:123px;max-width:123px;
+  padding:0 4px;flex:0 1 123px;border:0;background:#1a2b43;border-radius:4px}
+.trace-settings input[type="range"]#speed{width:112px;min-width:76px;
+  max-width:112px;height:30px;flex:0 1 112px;margin:0}
+.trace-settings #speed-output{min-width:27px;width:27px;flex:none;text-align:right;white-space:nowrap}
 /* CodeMirror uses separate horizontal/vertical scrollers and a filler corner. */
 .source-editor .CodeMirror-scroll,.source-editor .CodeMirror-hscrollbar,
 .source-editor .CodeMirror-vscrollbar{scrollbar-color:#4a627f #101a29;scrollbar-width:thin}
@@ -522,16 +539,15 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   .timeline .step-controls{flex:0 0 auto}
   .timeline .step-controls #back,.timeline .step-controls #next{
     min-width:64px!important;padding:0 6px!important}
-  .timeline .control-spacer{flex:1 1 0;min-width:0}
-  .timeline #trace-mode{min-width:96px;width:125px;max-width:125px;flex:0 1 125px}
-  .timeline .controls input[type="range"]#speed{
-    min-width:76px;width:110px;flex:0 1 110px}
-  .timeline .controls #speed-output{width:26px;min-width:26px;flex:none}
+  .timeline .trace-settings{flex:0 1 auto}
 }
-/* Within the shared navigation group, the Next control must not retain the
-   standalone primary button's border or disabled transparency. */
-.timeline .step-controls #next{border:0!important;box-shadow:none!important}
-.timeline .step-controls #next:disabled{
-  opacity:1;background:#263d59;color:#8ca4bf}
-.timeline .step-controls #next:focus-visible{
-  outline:2px solid #a6c8fb;outline-offset:-2px}
+/* At narrower window widths, keep each control group intact while permitting
+   the two groups to wrap instead of splitting the speed control in half. */
+@media(max-width:1300px){
+  .timeline .controls{flex-wrap:wrap!important}
+  .trace-settings{margin-left:0;max-width:100%}
+}
+@media(max-width:600px){
+  .trace-settings{flex-wrap:wrap;height:auto;gap:6px}
+  .speed-choice{margin-left:0;padding-left:0;border-left:0}
+}
