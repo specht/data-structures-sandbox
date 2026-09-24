@@ -11,8 +11,10 @@ if [[ ! -e structures/.git ]]; then
   echo "==> Initializing a separate local Git repository under structures/"
   (cd structures && git init -q -b main)
 fi
-if [[ ! -f .dart_tool/package_config.json ]]; then dart pub get; fi
-# Scratch files must never enter the main Git repository.
-rm -rf tool/generated
-rm -f tool/generated_worker_*.dart
+if [[ ! -f .dart_tool/package_config.json || pubspec.yaml -nt .dart_tool/package_config.json || ( -f pubspec.lock && pubspec.lock -nt .dart_tool/package_config.json ) ]]; then
+  dart pub get
+fi
+# Generated workers are content-addressed and intentionally survive restarts.
+# To reclaim space manually, stop ./run and remove tool/generated/ and
+# tool/generated_worker_*; they will be regenerated on demand.
 exec dart run tool/host.dart "$@"

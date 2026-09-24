@@ -14,6 +14,9 @@ Future<void> main() async {
   }
   for(final kind in ['list','tree','stack']){
     final worker=await prepare('example',kind,'structures');
+    final cached=await prepare('example',kind,'structures');
+    if(worker!=cached)throw StateError('Cache did not reuse $kind worker: $worker vs $cached');
+    stdout.writeln('PASS: $kind · identical sources reuse ${worker.endsWith('.dill') ? 'compiled kernel' : 'validated worker'}');
     final process=await Process.start(Platform.resolvedExecutable,[worker]);
     final lines=StreamIterator(process.stdout.transform(utf8.decoder).transform(const LineSplitter()));
     try{

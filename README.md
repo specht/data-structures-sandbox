@@ -118,3 +118,34 @@ Create a fresh student implementation without overwriting existing work:
 ```
 
 Only the three implemented adapters are offered by this helper so far.
+
+## Worker cache (patch after v1.2)
+
+`./run` no longer deletes the generated files on each startup. A worker's
+fingerprint includes the selected student's source (and relative imports),
+the Dart SDK version, framework libraries, templates, generator, and dependency
+lockfile. Only the selected implementation needs rebuilding when it changes;
+other students and structures keep their cached workers.
+
+The first preparation of a revision instruments the source and attempts to
+compile a Dart kernel (`.dill`). Later selections and application restarts use
+that same validated artifact; the browser/HTTP server are never recompiled.
+Each browser session still has its **own** persistent worker process and
+independent in-memory data structure. A worker is replaced only when its
+source changes, its selection changes, it crashes, or it times out. On SDKs
+without `dart compile kernel`, the cache reuses the validated generated Dart
+source instead, but launching that source may still incur VM compilation.
+
+`[build]` and `[cache]` messages in the terminal distinguish new preparations
+from cache hits. A genuine code change does require recompilation; caching does
+not make the first compile of a new revision instantaneous. A syntax error does
+not replace the previously cached successful artifact or make the server exit.
+
+To clear old artifacts, **stop** `./run` and execute:
+
+```bash
+rm -rf tool/generated tool/generated_worker_*.dart tool/generated_worker_*.dill
+```
+
+These are ignored scratch files, not student files. They are recreated on demand.
+Run `dart test/smoke.dart` to check worker startup and calls in your Workspace.

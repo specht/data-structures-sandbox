@@ -19,8 +19,7 @@ String _studentPath(String student, String kind) =>
 String stamp(String student,String kind){
   final f=File(_studentPath(student,kind));
   if(!f.existsSync()) return 'missing';
-  final s=f.statSync();
-  return '${s.size}:${s.modified.microsecondsSinceEpoch}';
+  return studentStamp(f);
 }
 
 List<Map<String,Object?>> catalog(){

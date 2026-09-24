@@ -6,3 +6,4 @@
 /runtime/
 /.runtime/
 /tool/generated_worker_*.dart
+/tool/generated_worker_*.dill

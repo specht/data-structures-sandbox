@@ -175,8 +175,9 @@ function drawArrow(group,start,tip,kind='edge',backward=false){
   const base={x:tip.x-ux*12,y:tip.y-uy*12};
   const left={x:base.x-uy*5.4,y:base.y+ux*5.4};
   const right={x:base.x+uy*5.4,y:base.y-ux*5.4};
-  group.querySelector('.arrow-shaft').setAttribute('d',
-    `M ${fmt(start.x)} ${fmt(start.y)} C ${fmt(c1.x)} ${fmt(c1.y)}, ${fmt(c2.x)} ${fmt(c2.y)}, ${fmt(base.x)} ${fmt(base.y)}`);
+  group.querySelector('.arrow-shaft').setAttribute('d',kind==='straight'
+    ? `M ${fmt(start.x)} ${fmt(start.y)} L ${fmt(base.x)} ${fmt(base.y)}`
+    : `M ${fmt(start.x)} ${fmt(start.y)} C ${fmt(c1.x)} ${fmt(c1.y)}, ${fmt(c2.x)} ${fmt(c2.y)}, ${fmt(base.x)} ${fmt(base.y)}`);
   group.querySelector('.arrow-tip').setAttribute('points',
     `${fmt(tip.x)},${fmt(tip.y)} ${fmt(left.x)},${fmt(left.y)} ${fmt(right.x)},${fmt(right.y)}`);
 }
@@ -245,12 +246,17 @@ function renderReferences(){
   }
   for(const [name,id] of Object.entries(actual)){
     const dock=dockFor(name);
-    const active=hotReference===name, label=svg('text',{x:dock.x,y:dock.y,class:`ref-label ${(name==='head'||name==='root')?'':'local'} ${active?'active':''}`});
+    // A tree root has a dedicated vertical pointer attached to its moving
+    // node, rather than the fixed upper-left dock used for ordinary locals.
+    const rootNode=structure==='tree' && name==='root' && id!=null ? nodes.get(id) : null;
+    const anchor=rootNode?{x:rootNode.x+TREE_RADIUS,y:rootNode.y-65}:dock;
+    const active=hotReference===name, label=svg('text',{x:anchor.x,y:anchor.y,class:`ref-label ${(name==='head'||name==='root')?'':'local'} ${active?'active':''}`});
     label.textContent=name;ui.references.append(label);
     const target=override?.from===`root:${name}`||override?.from===`var:${name}`
       ?{x:override.x,y:override.y}:referencePoint(name,id);
     const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root')?'':'local'} ${active?'hot':''}`);
-    drawArrow(arrow,{x:dock.x,y:dock.y+10},target,'reference');
+    const rootInMotion=override?.from==='root:root';
+    drawArrow(arrow,{x:anchor.x,y:anchor.y+10},target,rootNode&&!rootInMotion?'straight':'reference');
     ui.references.append(arrow);
   }
 }
@@ -993,7 +999,12 @@ function renderStack(){
   ui.stackView.replaceChildren();
   const cells=stackState.cells??[];
   const w=94,start=120,y=235;
-  const index=svg('text',{x:64,y:180,class:'stack-label'});index.textContent=`top = ${stackState.top}`;ui.stackView.append(index);
+  // The label and arrow are one index indicator, centred over the active cell.
+  // For an empty stack there is no arrow to an element.
+  const topX=start+Math.max(stackState.top,0)*w+40;
+  const index=svg('text',{x:topX,y:169,class:'stack-label','text-anchor':'middle'});
+  index.textContent=stackState.top<0?'top = -1 (empty)':`top = ${stackState.top}`;
+  ui.stackView.append(index);
   for(let i=0;i<cells.length;i++){
     const x=start+i*w;
     const rect=svg('rect',{x,y,width:80,height:65,rx:8,class:i===stackState.top?'memory-cell selected':'memory-cell'});
@@ -1002,7 +1013,7 @@ function renderStack(){
     const label=svg('text',{x:x+40,y:y+82,class:'memory-index'});label.textContent=`[${i}]`;
     ui.stackView.append(rect,text,label);
     if(i===stackState.top){
-      const arrow=makeArrow('ref-arrow');drawArrow(arrow,{x:x+40,y:171},{x:x+40,y:y-3},'reference');
+      const arrow=makeArrow('ref-arrow');drawArrow(arrow,{x:topX,y:178},{x:topX,y:y-3},'straight');
       ui.stackView.append(arrow);
     }
   }

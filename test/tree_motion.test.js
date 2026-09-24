@@ -83,4 +83,16 @@ run('treeEdgeMotion=.7;renderEdges()');
 assert.match(shaft(left),/ C /,'Curves during transition');
 run('treeEdgeMotion=0;renderEdges()');
 assert.match(shaft(left),/ L /,'Returns to a straight segment');
+const rootLabel=document.getElementById('references').querySelector('.ref-label');
+const rootPointer=document.getElementById('references').querySelector('.ref-arrow');
+assert.equal(Number(rootLabel.getAttribute('x')),run('treeCentre(nodes.get(1)).x'),
+  'Root label must be centred over the root node');
+assert.match(shaft(rootPointer),/ L /,'Root pointer must be straight at rest');
+const [rx,ry]=tip(rootPointer);
+assert.equal(rx,run('treeCentre(nodes.get(1)).x'));
+assert.equal(ry,run('nodes.get(1).y-1'));
+run('nodes.get(1).x+=25;renderReferences()');
+assert.equal(Number(rootLabel.getAttribute('x'))+25,
+  Number(document.getElementById('references').querySelector('.ref-label').getAttribute('x')),
+  'Root label must follow the root node during layout changes');
 console.log('PASS: Tree edges are centre-clipped, straight at rest, curved while moving.');
