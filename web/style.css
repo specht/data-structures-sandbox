@@ -45,7 +45,10 @@ body { background:radial-gradient(circle at 78% 0%,#172844 0%,transparent 45%),v
 .scene-hint { font-size:10px; display:flex; align-items:center; gap:7px; }
 .legend-amber,.legend-blue { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--gold); margin-left:8px; }
 .legend-blue { background:var(--blue); }
-#scene { width:100%; flex:1; min-height:290px; display:block; overflow:visible; }
+#scene { width:100%; flex:1; min-height:290px; display:block; overflow:hidden; cursor:grab; touch-action:none; }
+#scene:active { cursor:grabbing; }
+.scene-zoom { display:flex; gap:4px; margin-left:auto; }
+.scene-zoom button {padding:3px 9px; font-size:12px; min-width:28px;}
 .edge { fill:none; stroke:#82a7d4; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;  }
 .edge.hot { stroke:var(--gold); stroke-width:3.7;  }
 .node .card { fill:#1b3455; stroke:#719fda; stroke-width:2; }

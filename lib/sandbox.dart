@@ -40,6 +40,9 @@ class Recorder {
   final List<String> lines;
   final List<Map<String, Object?>> steps = EventLog();
   ListNode? Function()? root;
+  // A linked queue has a second owning reference. The ordinary list and linked
+  // stack leave this null, so their trace format does not change.
+  ListNode? Function()? tail;
   String method = '';
   int sourceLine = 0;
 
@@ -119,6 +122,7 @@ class Recorder {
 
   Map<String, Object?> snapshot() => {
     'kind': 'snapshot', 'head': root?.call()?.id,
+    if (tail != null) 'tail': tail!.call()?.id,
     'nodes': [for (final node in registry.values)
       {'id': node.id, 'value': node._value, 'next': node.next?.id}],
   };

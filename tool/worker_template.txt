@@ -10,13 +10,22 @@ import 'generated/@@ID@@/my_bst.dart' as tree_student;
 import 'generated/@@ID@@/tree_methods.dart' as tree_methods;
 import 'generated/@@ID@@/my_array_stack.dart' as stack_student;
 import 'generated/@@ID@@/stack_methods.dart' as stack_methods;
+import 'generated/@@ID@@/my_linked_stack.dart' as linked_stack_student;
+import 'generated/@@ID@@/linked_stack_methods.dart' as linked_stack_methods;
+import 'generated/@@ID@@/my_linked_queue.dart' as linked_queue_student;
+import 'generated/@@ID@@/linked_queue_methods.dart' as linked_queue_methods;
 
-const maxNodes = 12, maxOperations = 12, maxValue = 999;
-const kinds = ['list','tree','stack'];
+// Batching is bounded for trace/readability; a structure is not capped at 12 nodes.
+// A runaway student program is still bounded by the event log, host deadline and
+// WebSocket message-size limit, not by its number of nodes.
+const maxOperations = 12, maxValue = 999;
+const kinds = ['list','tree','stack','linked_stack','linked_queue'];
 const paths = {
   'list': '@@LIST_PATH@@',
   'tree': '@@TREE_PATH@@',
   'stack': '@@STACK_PATH@@',
+  'linked_stack': '@@LINKED_STACK_PATH@@',
+  'linked_queue': '@@LINKED_QUEUE_PATH@@',
 };
 
 class BrowserSession {
@@ -32,6 +41,8 @@ class BrowserSession {
     methods = (jsonDecode(switch(kind) {
       'tree' => tree_methods.discoveredMethodsJson,
       'stack' => stack_methods.discoveredMethodsJson,
+      'linked_stack' => linked_stack_methods.discoveredMethodsJson,
+      'linked_queue' => linked_queue_methods.discoveredMethodsJson,
       _ => list_methods.discoveredMethodsJson,
     }) as List).map((entry)=>Map<String,dynamic>.from(entry as Map)).toList();
     reset();
@@ -42,6 +53,8 @@ class BrowserSession {
     switch(kind){
       case 'tree': tree_api.TreeRecorder.resetIds(); instance=tree_student.MyBST(); break;
       case 'stack': instance=stack_student.MyArrayStack(); break;
+      case 'linked_stack': list_api.Recorder.resetIds(); instance=linked_stack_student.MyLinkedStack(); break;
+      case 'linked_queue': list_api.Recorder.resetIds(); instance=linked_queue_student.MyLinkedQueue(); break;
       default: list_api.Recorder.resetIds(); instance=list_student.MyLinkedList();
     }
   }
@@ -52,6 +65,11 @@ class BrowserSession {
     'stack' => stack_api.StackRecorder(lines)
       ..memory = (() => (instance as stack_student.MyArrayStack).memory)
       ..top = (() => (instance as stack_student.MyArrayStack).top),
+    'linked_stack' => list_api.Recorder(lines)
+      ..root = (() => (instance as linked_stack_student.MyLinkedStack).head),
+    'linked_queue' => list_api.Recorder(lines)
+      ..root = (() => (instance as linked_queue_student.MyLinkedQueue).head)
+      ..tail = (() => (instance as linked_queue_student.MyLinkedQueue).tail),
     _ => list_api.Recorder(lines)
       ..root = (() => (instance as list_student.MyLinkedList).head),
   };
@@ -101,6 +119,8 @@ class BrowserSession {
   Object? invoke(String name,List<Object?> args) => switch(kind){
     'tree' => tree_methods.invokeDiscovered(instance as tree_student.MyBST,name,args),
     'stack' => stack_methods.invokeDiscovered(instance as stack_student.MyArrayStack,name,args),
+    'linked_stack' => linked_stack_methods.invokeDiscovered(instance as linked_stack_student.MyLinkedStack,name,args),
+    'linked_queue' => linked_queue_methods.invokeDiscovered(instance as linked_queue_student.MyLinkedQueue,name,args),
     _ => list_methods.invokeDiscovered(instance as list_student.MyLinkedList,name,args),
   };
 
@@ -112,18 +132,34 @@ class BrowserSession {
       return values;
     }
     if(kind=='tree'){
+      // Iterative inorder traversal: a deliberately skewed student BST should
+      // not exhaust the worker's Dart call stack or fail a 100-node sentinel.
       final seen=<int>{};
-      void visit(tree_api.TreeNode? node){
-        if(node==null)return;
-        if(!seen.add(node.id)||seen.length>100){values.add(10000000);return;}
-        visit(node.left);values.add(node.value);visit(node.right);
+      final pending=<tree_api.TreeNode>[];
+      tree_api.TreeNode? current=(instance as tree_student.MyBST).root;
+      while(current!=null || pending.isNotEmpty){
+        while(current!=null){
+          if(!seen.add(current.id)) {
+            // A cycle/shared child is an invalid BST, not a reason to hang.
+            values.add(10000000);
+            return values;
+          }
+          pending.add(current);
+          current=current.left;
+        }
+        final node=pending.removeLast();
+        values.add(node.value);
+        current=node.right;
       }
-      visit((instance as tree_student.MyBST).root);
       return values;
     }
     final seen=<int>{};
-    var node=(instance as list_student.MyLinkedList).head;
-    while(node!=null && seen.add(node.id) && values.length<100){values.add(node.value);node=node.next;}
+    var node=switch(kind){
+      'linked_stack' => (instance as linked_stack_student.MyLinkedStack).head,
+      'linked_queue' => (instance as linked_queue_student.MyLinkedQueue).head,
+      _ => (instance as list_student.MyLinkedList).head,
+    };
+    while(node!=null && seen.add(node.id)){values.add(node.value);node=node.next;}
     if(node!=null)values.add(10000000);
     return values;
   }
@@ -144,6 +180,30 @@ class BrowserSession {
         default:stack..clear()..addAll(actualValues());return true;
       }
     }
+    if(kind=='linked_stack'){
+      switch(name){
+        case 'push' when value!=null:
+          reference.insert(0,value);return returned==true;
+        case 'pop':
+          final expected=reference.isEmpty?null:reference.removeAt(0);
+          return returned==expected;
+        case 'peek':return returned==(reference.isEmpty?null:reference.first);
+        case 'isEmpty':return returned==reference.isEmpty;
+        default:reference..clear()..addAll(actualValues());return true;
+      }
+    }
+    if(kind=='linked_queue'){
+      switch(name){
+        case 'enqueue' when value!=null:
+          reference.add(value);return returned==true;
+        case 'dequeue':
+          final expected=reference.isEmpty?null:reference.removeAt(0);
+          return returned==expected;
+        case 'peek':return returned==(reference.isEmpty?null:reference.first);
+        case 'isEmpty':return returned==reference.isEmpty;
+        default:reference..clear()..addAll(actualValues());return true;
+      }
+    }
     if(value==null){reference..clear()..addAll(actualValues());return true;}
     final present=reference.contains(value);
     switch(name){
@@ -162,13 +222,25 @@ class BrowserSession {
     }
   }
 
+  bool queuePointersValid(){
+    if(kind!='linked_queue')return true;
+    final q=instance as linked_queue_student.MyLinkedQueue;
+    if(q.head==null)return q.tail==null;
+    if(q.tail==null)return false;
+    final visited=<int>{};
+    list_api.ListNode? last, cursor=q.head;
+    while(cursor!=null && visited.add(cursor.id)){
+      last=cursor;
+      cursor=cursor.next;
+    }
+    // A cycle, an overly long chain, a dangling tail, or tail.next!=null
+    // is a physical queue error even when displayed values happen to match.
+    return cursor==null && identical(last,q.tail) && q.tail!.next==null;
+  }
+
   Map<String,Object?> execute(Map<String,dynamic> message){
     if(message['action']=='reset'){reset();return initial();}
     final commands=plan(message);
-    final inserts=commands.where((c)=>['insert','append','push'].contains(c['method'])).length;
-    if(reference.length+inserts>maxNodes && kind!='stack'){
-      throw const FormatException('Structure limit reached (12 nodes).');
-    }
     final r=recorder();
     r.steps.add(r.snapshot());
     for(final command in commands){
@@ -187,12 +259,13 @@ class BrowserSession {
         list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;
       }
       final actual=actualValues();
-      final standard=kind=='stack' ? {'push','pop','peek','isEmpty'} :
+      final standard=(kind=='stack'||kind=='linked_stack') ? {'push','pop','peek','isEmpty'} :
+        kind=='linked_queue' ? {'enqueue','dequeue','peek','isEmpty'} :
         kind=='tree' ? {'insert','contains','remove'} : {'insert','append','contains','remove'};
       final canVerify=standard.contains(name) &&
-        (name=='pop'||name=='peek'||name=='isEmpty'||(args.length==1&&args.single is int));
+        (name=='pop'||name=='dequeue'||name=='peek'||name=='isEmpty'||(args.length==1&&args.single is int));
       final checked=updateReference(name,args,result);
-      final ok=checked && actual.join(',')==reference.join(',');
+      final ok=checked && actual.join(',')==reference.join(',') && queuePointersValid();
       r.steps.add(r.snapshot());
       final descriptorReturn=descriptor(name)['returns']=='void';
       final label='$name(${args.join(', ')})';

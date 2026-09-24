@@ -149,3 +149,49 @@ rm -rf tool/generated tool/generated_worker_*.dart tool/generated_worker_*.dill
 
 These are ignored scratch files, not student files. They are recreated on demand.
 Run `dart test/smoke.dart` to check worker startup and calls in your Workspace.
+
+## Roadmap milestone 1a · linked stack
+
+The linked stack uses `ListNode` and an owning `head` pointer (the top), with
+`push`, `pop`, `peek`, and `isEmpty` methods. Its contents appear in LIFO order,
+not sorted order. The reference model checks successful push, empty and nonempty
+pop/peek, and empty state against the actual reachable chain. There is no fixed
+capacity. The trace-event and worker-time budgets still prevent runaway code.
+
+After `./run` initializes `structures/example`, copy
+`templates/example/my_linked_stack.dart` into `structures/example/` if the
+student repository already existed before this milestone. Run
+`./new-structure alice linked_stack` for a new student file.
+
+## Roadmap milestone 1b · linked queue
+
+The linked queue uses `ListNode` with separate `head` (front) and `tail`
+(rear) owning references. Its `enqueue`, `dequeue`, `peek`, and `isEmpty`
+methods are FIFO; duplicates are preserved. The reference model checks
+returned results, logical order, and physical head/tail consistency, including
+last.next == null and the empty-to-nonempty transition. The renderer shows the
+head and tail pointers independently alongside the same node-link animations.
+
+If your student repo predates this milestone, add the example without
+overwriting existing work:
+
+```bash
+cp templates/example/my_linked_queue.dart structures/example/
+./new-structure alice linked_queue
+```
+
+Run `dart test/smoke.dart` in the Workspace after adding example files.
+
+## Larger structures and diagram navigation
+
+Trees, linked lists, linked stacks, and linked queues no longer stop at 12
+reachable nodes. The 12-call **batch** limit remains separate; students can
+submit more calls subsequently, with state retained in the same worker. The
+fixed-array stack still has eight physical cells by design.
+
+Use **+**, **−**, the mouse wheel, or **Fit** to inspect large diagrams; drag
+the diagram to pan. The viewport is never automatically resized during trace
+playback. Run Fit again after making a tree much larger. Very large or
+strongly unbalanced trees can still become crowded, and execution remains
+subject to the worker deadline, the 4,000-event trace cap, and the response
+size budget.

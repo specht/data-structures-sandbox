@@ -11,6 +11,8 @@ const configs = <String, Map<String,String>>{
   'list': {'file':'my_linked_list','class':'MyLinkedList','recorder':'Recorder','node':'ListNode','root':'head'},
   'tree': {'file':'my_bst','class':'MyBST','recorder':'TreeRecorder','node':'TreeNode','root':'root'},
   'stack': {'file':'my_array_stack','class':'MyArrayStack','recorder':'StackRecorder','node':'','root':''},
+  'linked_stack': {'file':'my_linked_stack','class':'MyLinkedStack','recorder':'Recorder','node':'ListNode','root':'head'},
+  'linked_queue': {'file':'my_linked_queue','class':'MyLinkedQueue','recorder':'Recorder','node':'ListNode','root':'head','tail':'tail'},
 };
 late Map<String,String> config;
 late String sourcePath;
@@ -101,7 +103,8 @@ class BodyInstrumenter extends RecursiveAstVisitor<void> {
     var after = '';
     if (expr is AssignmentExpression) {
       final lhs = expr.leftHandSide.toSource();
-      if (lhs == config['root'] && config['root']!.isNotEmpty && expr.operator.lexeme == '=') {
+      if ((lhs == config['root'] || lhs == config['tail']) &&
+          lhs.isNotEmpty && expr.operator.lexeme == '=') {
         final old = '__previousRoot_${s.offset}';
         before = 'final $old = $lhs;';
         after = "trace.pointerWrite('root:$lhs', $old, $lhs);";

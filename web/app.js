@@ -5,6 +5,40 @@ const NS = 'http://www.w3.org/2000/svg';
 // Keep one fixed logical viewport throughout an operation: resizing it causes
 // every node and arrow to jump even when its own position has not changed.
 const SCENE_WIDTH = 1100, WIDTH = 112, HEIGHT = 68, ROW = 276, START_X = 112, GAP = 184;
+// The logical scene stays fixed through a trace; only explicit user navigation
+// changes the viewport. This avoids the jumping caused by auto-fitting each step.
+let viewport={x:0,y:0,w:1100,h:510},viewportKind=null;
+function paintViewport(){
+  ui.scene.setAttribute('viewBox',`${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`);
+}
+function ensureViewport(kind){
+  if(viewportKind!==kind){
+    viewportKind=kind;
+    viewport={x:0,y:0,w:1100,h:kind==='tree'?620:510};
+  }
+  paintViewport();
+}
+function zoomScene(factor){
+  const w=Math.max(230,Math.min(200000,viewport.w*factor));
+  const h=viewport.h*w/viewport.w;
+  viewport={x:viewport.x+(viewport.w-w)/2,y:viewport.y+(viewport.h-h)/2,w,h};
+  paintViewport();
+}
+function fitScene(){
+  const visible=[...nodes.values()].filter(n=>n.opacity>.01);
+  if(!visible.length){viewportKind=null;ensureViewport(structure);return;}
+  const right=structure==='tree'?72:WIDTH;
+  const x0=Math.min(...visible.map(n=>n.x))-115;
+  const x1=Math.max(...visible.map(n=>n.x+right))+115;
+  const y0=Math.min(...visible.map(n=>n.y))-160;
+  const y1=Math.max(...visible.map(n=>n.y+HEIGHT))+115;
+  const ratio=(structure==='tree'?1100/620:1100/510);
+  const w=Math.max(460,x1-x0,(y1-y0)*ratio);
+  const h=w/ratio;
+  viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
+  paintViewport();
+}
+
 const $ = id => document.getElementById(id);
 const ui = {
   code:$('code'), codeScroll:$('code-scroll'), file:$('filename'),
@@ -16,6 +50,7 @@ const ui = {
   nullRail:$('null-rail'), nodes:$('nodes'), form:$('invoke'), method:$('method'), values:$('values'),
   reset:$('reset'), suggestions:$('method-suggestions'), cmdStatus:$('command-status'), invoke:$('invoke-button'),
   singleArg:$('single-argument'), argLabel:$('arg-label'), multiArgs:$('multi-arguments'),
+  zoomIn:$('zoom-in'),zoomOut:$('zoom-out'),fitScene:$('fit-scene'),
   student:$('student'),structure:$('structure'),retry:$('retry'), callForm:$('call-form'),callInput:$('call-input'),returnValue:$('return-value'),stackView:$('stack-view'),
   playbackModes:[...document.querySelectorAll('[data-playback-mode]')],
 };
@@ -27,7 +62,7 @@ const svg = (name, attrs={}) => {
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
-const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',stack:'Array stack'};
+const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',stack:'Array stack',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -74,7 +109,7 @@ let playbackMode='step', playbackToken=0;
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
-let head = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
+let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
 const nodes = new Map(), nodeViews = new Map(), links = new Map();
 
 function syntaxColor(line, destination) {
@@ -140,7 +175,7 @@ function renderNode(node){
   view.setAttribute('transform',`translate(${node.x.toFixed(2)} ${node.y.toFixed(2)})`);
   view.setAttribute('opacity',node.opacity.toFixed(3));
   view.classList.toggle('hot',hotNode===node.id);view.classList.toggle('detached',node.detached);
-  const nil=structure==='list'&&node.next==null && override?.from!==`node:${node.id}.next`;
+  const nil=structure!=='tree'&&node.next==null && override?.from!==`node:${node.id}.next`;
   const pointer=view.querySelector('.pointer-label');
   pointer.textContent=structure==='tree'?'':(nil?'null':'→');
   pointer.classList.toggle('is-null',nil);
@@ -207,11 +242,11 @@ function renderEdges(){
   }
   for(const [id,edge] of links)if(!active.has(id)){edge.remove();links.delete(id);}
 }
-const DOCKS={root:{x:56,y:62},head:{x:56,y:62},current:{x:245,y:62},previous:{x:451,y:62},fresh:{x:643,y:62}};
+const DOCKS={root:{x:56,y:62},head:{x:56,y:62},tail:{x:1010,y:62},current:{x:245,y:62},previous:{x:451,y:62},fresh:{x:643,y:62}};
 const TARGET_OFFSETS={head:.18,current:.45,previous:.78,fresh:.62};
 function dockFor(name){
   if(!DOCKS[name]){
-    const count=Object.keys(DOCKS).length-4;
+    const count=Object.keys(DOCKS).length-5;
     DOCKS[name]={x:785+count*135,y:62};
     TARGET_OFFSETS[name]=.28+(count%4)*.15;
   }
@@ -225,7 +260,8 @@ function referencePoint(name,id){
 function renderReferences(){
   if(structure==='stack')return;
   ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  const actual={ [structure==='tree'?'root':'head']:structure==='tree'?rootId:head,...references};
+  const actual={ [structure==='tree'?'root':'head']:structure==='tree'?rootId:head,
+    ...(structure==='linked_queue'?{tail:tailId}:{}),...references};
   Object.keys(actual).forEach(dockFor);
   // A newly declared local must be visible DURING its first null→node move.
   if(override?.from.startsWith('var:')) {
@@ -256,11 +292,11 @@ function renderReferences(){
     // node, rather than the fixed upper-left dock used for ordinary locals.
     const rootNode=structure==='tree' && name==='root' && id!=null ? nodes.get(id) : null;
     const anchor=rootNode?{x:rootNode.x+TREE_RADIUS,y:rootNode.y-65}:dock;
-    const active=hotReference===name, label=svg('text',{x:anchor.x,y:anchor.y,class:`ref-label ${(name==='head'||name==='root')?'':'local'} ${active?'active':''}`});
-    label.textContent=name;ui.references.append(label);
+    const active=hotReference===name, label=svg('text',{x:anchor.x,y:anchor.y,class:`ref-label ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'active':''}`});
+    label.textContent=name==='head'&&structure==='linked_stack'?'head (top)':name;ui.references.append(label);
     const target=override?.from===`root:${name}`||override?.from===`var:${name}`
       ?{x:override.x,y:override.y}:referencePoint(name,id);
-    const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root')?'':'local'} ${active?'hot':''}`);
+    const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'hot':''}`);
     const rootInMotion=override?.from==='root:root';
     drawArrow(arrow,{x:anchor.x,y:anchor.y+10},target,rootNode&&!rootInMotion?'straight':'reference');
     ui.references.append(arrow);
@@ -297,6 +333,7 @@ function layoutFor(snapshot){
 function applySnapshot(snapshot,animate=false){
   if(structure==='stack'){stackState={cells:[...snapshot.cells],top:snapshot.top};renderStack();return {targets:new Map(),count:snapshot.top+1,cycle:false};}
   if(structure==='tree')rootId=snapshot.root;else head=snapshot.head;
+  if(structure==='linked_queue')tailId=snapshot.tail??null;
   for(const data of snapshot.nodes){const node=newNode(data,true);node.value=data.value;node.next=data.next??null;node.left=data.left??null;node.right=data.right??null;}
   const {targets,count,cycle}=layoutFor(snapshot);
   // Reachability is historical: a newly created detached node floats above
@@ -328,19 +365,19 @@ async function animateCreate(data){const node=newNode(data);const startY=node.y;
   await tween(430,t=>{node.y=lerp(startY,156,t);node.opacity=t;renderAll();});
 }
 async function animateReference(name,to){
-  const old=name==='head'?head:name==='root'?rootId:references[name];
+  const old=name==='head'?head:name==='tail'?tailId:name==='root'?rootId:references[name];
   const dock=dockFor(name);
   const start=referencePoint(name,old);
   const end=referencePoint(name,to);
-  hotReference=name;override={from:name==='head'?`root:${name}`:`var:${name}`,...start,nullTarget:to==null};
-  ui.phase.textContent=(name==='head'||name==='root')?'ROOT POINTER':'LOCAL POINTER';
+  hotReference=name;override={from:['head','tail','root'].includes(name)?`root:${name}`:`var:${name}`,...start,nullTarget:to==null};
+  ui.phase.textContent=(name==='head'||name==='tail'||name==='root')?'ROOT POINTER':'LOCAL POINTER';
   ui.status.textContent=`${name}: ${old==null?'null':'#'+old} → ${to==null?'null':'#'+to}. Nodes remain stationary.`;
   await tween(570,t=>{override={from:override.from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t),nullTarget:to==null};renderReferences();});
-  if(name==='head')head=to;else if(name==='root')rootId=to;else references[name]=to;
+  if(name==='head')head=to;else if(name==='tail')tailId=to;else if(name==='root')rootId=to;else references[name]=to;
   override=null;hotReference=null;renderAll();
 }
 async function animateWrite(step){
-  if(step.from==='root:head'||step.from==='root:root'){await animateReference(step.from==='root:head'?'head':'root',step.to);return;}
+  if(step.from==='root:head'||step.from==='root:root'||step.from==='root:tail'){await animateReference(step.from.slice(5),step.to);return;}
   const parsed=/^node:(\d+)\.(next|left|right)$/.exec(step.from);
   if(!parsed)throw Error(`Unrecognized pointer origin ${step.from}`);
   const node=nodes.get(Number(parsed[1]));if(!node)throw Error('Missing pointer source.');
@@ -374,7 +411,7 @@ async function animateSettle(snapshot){
   ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
 }
 function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  head=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded Dart execution.';
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
@@ -415,6 +452,7 @@ function instant(frame){
     case 'compare':hotNode=frame.id;break;
     case 'writeAndSettle':{
       if(frame.from==='root:head')head=frame.to;
+      else if(frame.from==='root:tail')tailId=frame.to;
       else if(frame.from==='root:root')rootId=frame.to;
       else{const match=/^node:(\d+)\.(next|left|right)$/.exec(frame.from);if(match&&nodes.has(Number(match[1])))nodes.get(Number(match[1]))[match[2]]=frame.to;}
       applySnapshot(frame.snapshot);break;
@@ -695,7 +733,7 @@ function acceptTrace(data){
   frames=makeFrames(rawSteps,ui.traceMode.value);
   // Never resize the scene as the trace grows. Objects animate within a fixed
   // coordinate system, so adding a node cannot zoom all existing nodes out.
-  ui.scene.setAttribute('viewBox',structure==='tree'?'0 0 1100 620':'0 0 1100 510');
+  ensureViewport(structure);
   playbackToken++;
   renderSource(source);restore(0);
   if(playbackMode==='result')jumpTo(frames.length);
@@ -767,6 +805,11 @@ function suggestedCalls(method, values){
     const type=params[0].type;
     if(type==='int'){
       const candidates=[];
+      if((structure==='linked_stack' && method.name==='push') ||
+          (structure==='linked_queue' && method.name==='enqueue')){
+        for(const value of absent.slice(0,4))candidates.push(call([value],structure==='linked_queue'?'Enqueue at rear':'Push onto top'));
+        return candidates;
+      }
       if(['remove','contains','find','search','delete','has','get','indexOf'].some(s=>method.name.toLowerCase().includes(s.toLowerCase()))){
         for(const value of present.slice(0,3))candidates.push(call([value],'Exists in list'));
         for(const value of absent.slice(0,3))candidates.push(call([value],'Not in list'));
@@ -917,16 +960,19 @@ function treeLayout(snapshot){
   // parent/path, not the total in-order rank: adding a leaf does not move the
   // root or unrelated subtrees. An actual re-parenting still animates normally.
   const centre=SCENE_WIDTH/2;
-  function walk(id,depth,cx){
-    if(id==null||seen.has(id)||!byId.has(id)||depth>20)return;
+  // Use an explicit stack: a long one-sided tree must not be dropped at depth
+  // 20, or overflow JavaScript recursion while a student experiments.
+  const pending=[{id:snapshot.root,depth:0,cx:centre}];
+  while(pending.length){
+    const {id,depth,cx}=pending.pop();
+    if(id==null||seen.has(id)||!byId.has(id))continue;
     seen.add(id);
     targets.set(id,{x:cx-TREE_RADIUS,y:155+depth*80,opacity:1,detached:false});
     const node=byId.get(id);
     const offset=Math.max(40,220/Math.pow(2,depth));
-    walk(node.left,depth+1,cx-offset);
-    walk(node.right,depth+1,cx+offset);
+    pending.push({id:node.right,depth:depth+1,cx:cx+offset});
+    pending.push({id:node.left,depth:depth+1,cx:cx-offset});
   }
-  walk(snapshot.root,0,centre);
   let orphan=0;
   for(const item of snapshot.nodes){
     if(targets.has(item.id))continue;
@@ -1057,6 +1103,35 @@ async function animateStack(frame){
   if(frame.kind==='operationEnd')ui.phase.textContent='DONE';
 }
 
+// Viewport navigation is independent of Dart execution and trace playback.
+ui.zoomIn.addEventListener('click',()=>zoomScene(1/1.35));
+ui.zoomOut.addEventListener('click',()=>zoomScene(1.35));
+ui.fitScene.addEventListener('click',fitScene);
+ui.scene.addEventListener('wheel',event=>{
+  event.preventDefault();
+  zoomScene(event.deltaY>0?1.12:1/1.12);
+},{passive:false});
+let dragging=null;
+ui.scene.addEventListener('pointerdown',event=>{
+  if(event.button!==0)return;
+  dragging={id:event.pointerId,x:event.clientX,y:event.clientY};
+  ui.scene.setPointerCapture?.(event.pointerId);
+});
+ui.scene.addEventListener('pointermove',event=>{
+  if(!dragging||event.pointerId!==dragging.id)return;
+  const rect=ui.scene.getBoundingClientRect();
+  if(rect.width>0&&rect.height>0){
+    viewport.x-=(event.clientX-dragging.x)*viewport.w/rect.width;
+    viewport.y-=(event.clientY-dragging.y)*viewport.h/rect.height;
+    paintViewport();
+  }
+  dragging.x=event.clientX;dragging.y=event.clientY;
+});
+function finishPan(event){
+  if(dragging?.id===event.pointerId){dragging=null;ui.scene.releasePointerCapture?.(event.pointerId);}
+}
+ui.scene.addEventListener('pointerup',finishPan);
+ui.scene.addEventListener('pointercancel',finishPan);
 ui.retry.addEventListener('click',()=>{savedValues=null;selectImplementation();});
 ui.student.addEventListener('change',()=>{
   selectedStudent=ui.student.value;

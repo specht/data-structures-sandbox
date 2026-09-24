@@ -134,5 +134,22 @@ run('override=null;renderAll();');
   assert.ok(Math.abs(triangle[1][0]-triangle[2][0])>9,'Vertical arrowhead must not collapse sideways');
   run('stackState.top=-1;renderStack()');
   assert.equal(stack.querySelector('.ref-arrow'),null,'No arrow when the stack is empty');
-  console.log('PASS: arrow geometry, null slots, two-phase motion, stack top indicator.');
+  // A queue has two independently owned references, even when head and tail
+  // point at the same object. Both follow the same centered linked-node layout.
+  run(`clearView();structure='linked_queue';applySnapshot({head:1,tail:3,nodes:[
+    {id:1,value:25,next:2},{id:2,value:6,next:3},{id:3,value:25,next:null}
+  ]});`);
+  const queueArrows=document.getElementById('references').querySelectorAll('.ref-arrow');
+  assert.equal(queueArrows.length,2,'Queue must show both head and tail pointers');
+  assert.equal(point(queueArrows[0])[0],run('nodes.get(1).x+WIDTH*TARGET_OFFSETS.head'));
+  assert.equal(point(queueArrows[1])[0],run('nodes.get(3).x+WIDTH*.5'));
+  assert.equal(run('tailId'),3);
+  await run(`animateWrite({from:'root:tail',oldTo:3,to:2})`);
+  assert.equal(run('tailId'),2,'Tail retargeting must be animatable, not a local variable');
+  assert.equal(run('nodes.get(1).x+WIDTH/2'),run('SCENE_WIDTH/2-GAP'));
+  run(`instant({kind:'writeAndSettle',from:'root:tail',oldTo:3,to:2,snapshot:{head:1,tail:2,nodes:[
+    {id:1,value:25,next:2},{id:2,value:6,next:null}
+  ]}})`);
+  assert.equal(run('tailId'),2,'Seek/replay must restore the queue tail from snapshots');
+  console.log('PASS: arrow geometry, linked queue head/tail playback, stack top, centred nodes.');
 })().catch(error => { console.error(error); process.exitCode=1; });

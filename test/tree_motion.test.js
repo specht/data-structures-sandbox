@@ -95,4 +95,17 @@ run('nodes.get(1).x+=25;renderReferences()');
 assert.equal(Number(rootLabel.getAttribute('x'))+25,
   Number(document.getElementById('references').querySelector('.ref-label').getAttribute('x')),
   'Root label must follow the root node during layout changes');
+// A one-sided tree of depth >20 must retain every node in the layout.
+const chain=Array.from({length:27},(_,i)=>({id:i+1,value:i+1,left:null,right:i<26?i+2:null}));
+const layout=run(`treeLayout({root:1,nodes:${JSON.stringify(chain)}})`);
+assert.equal(layout.count,27,'No 12-node or 20-level visualization cutoff');
+assert.equal(layout.targets.size,27);
+run('ensureViewport("tree")');
+const originalView=ids.get('scene').getAttribute('viewBox');
+run('zoomScene(1.35)');
+const zoomedView=ids.get('scene').getAttribute('viewBox');
+assert.notEqual(zoomedView,originalView,'Zoom changes the viewport when requested');
+run('ensureViewport("tree")');
+assert.equal(ids.get('scene').getAttribute('viewBox'),zoomedView,
+  'Repeated scene updates must preserve student-controlled zoom');
 console.log('PASS: Tree edges are centre-clipped, straight at rest, curved while moving.');

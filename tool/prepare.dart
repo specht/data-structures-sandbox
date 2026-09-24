@@ -169,7 +169,10 @@ Future<String> _build(
     final token = switch (spec.id) {
       'list' => 'LIST',
       'tree' => 'TREE',
-      _ => 'STACK',
+      'stack' => 'STACK',
+      'linked_stack' => 'LINKED_STACK',
+      'linked_queue' => 'LINKED_QUEUE',
+      _ => throw StateError('Unknown structure for worker path: ${spec.id}'),
     };
     text = text.replaceAll('@@${token}_PATH@@',
       spec.id == kind ? source.path : 'templates/example/${spec.filename}');

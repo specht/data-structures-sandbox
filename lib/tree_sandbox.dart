@@ -35,8 +35,15 @@ class TreeRecorder {
     'nodes':[for(final n in registry.values){'id':n.id,'value':n._value,'left':n._left?.id,'right':n._right?.id}]};
   void end(Object? value,bool ok,{bool returnedVoid=false,String? message}){
     final alive=<int>{};
-    void visitReachable(TreeNode? node){ if(node==null || !alive.add(node.id))return; visitReachable(node._left); visitReachable(node._right); }
-    visitReachable(root?.call());
+    // Student trees may be unbalanced and thousands of nodes deep. Keep the
+    // reachability check iterative and cycle-safe as well.
+    final pending=<TreeNode?>[root?.call()];
+    while(pending.isNotEmpty){
+      final node=pending.removeLast();
+      if(node==null || !alive.add(node.id))continue;
+      pending.add(node._left);
+      pending.add(node._right);
+    }
     final retired=registry.keys.where((id)=>!alive.contains(id)).toList();
     if(retired.isNotEmpty){ steps.add({'kind':'retire','ids':retired,'line':0});for(final id in retired)registry.remove(id);steps.add(snapshot()); }
     steps.add({'kind':'operationEnd','value':value,'returnedVoid':returnedVoid,'ok':ok,'result':message??'Result: $value','line':0});
