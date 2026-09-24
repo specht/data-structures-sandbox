@@ -165,8 +165,8 @@ function validationRows(){
     if(record.state==='pass'||record.state==='fail'){
       const symbol=document.createElement('span');symbol.className='validation-icon';
       symbol.innerHTML=record.state==='pass'
-        ?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>'
-        :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+        ?'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg>'
+        :'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg>';
       const detail=document.createElement('span');
       detail.textContent=`${record.state==='pass'?'Passed':'Failed'}: ${record.name}`+
         (record.message?` — ${record.message}`:'');
@@ -267,10 +267,9 @@ const svg = (name, attrs={}) => {
 function showReturnValue(frame){
   if(!frame.returnedVoid){ui.returnValue.textContent=`⟶ ${String(frame.value)}`;return;}
   if(frame.ok===false){ui.returnValue.textContent='Check failed';return;}
-  // A vector check icon, not a font-dependent Unicode glyph.
   const check=svg('svg',{viewBox:'0 0 24 24',width:16,height:16,
-    class:'completion-icon','aria-hidden':'true',fill:'none',stroke:'currentColor','stroke-width':2.6});
-  check.append(svg('path',{d:'M4 12.5 9.5 18 20 6','stroke-linecap':'round','stroke-linejoin':'round'}));
+    class:'ui-icon completion-icon','aria-hidden':'true'});
+  check.append(svg('use',{href:'/vendor/tabler-icons.svg#ti-check'}));
   ui.returnValue.replaceChildren(check,document.createTextNode('Completed'));
 }
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;

@@ -430,3 +430,13 @@ button,select{font-family:"Open Sans",ui-sans-serif,system-ui,sans-serif}
  .controls input[type="range"]#speed{width:clamp(120px,10vw,180px);min-width:120px;height:33px}
 }
 @media(max-width:600px){.controls input[type="range"]#speed{width:130px;min-width:100px}}
+
+/* Tabler Icons: one local, accessible SVG set for all application controls. */
+.ui-icon{display:inline-block;width:16px;height:16px;flex:none;vertical-align:middle;
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.validation-icon .ui-icon{width:16px;height:16px}
+.playback-modes button .ui-icon{width:15px;height:15px}
+.scene-zoom button .ui-icon,.controls .icon-button .ui-icon{width:17px;height:17px}
+.command-line button .ui-icon,.source-actions button .ui-icon{width:15px;height:15px}
+@media(max-width:600px){.command-line button .ui-icon,.source-actions button .ui-icon{width:14px;height:14px}}

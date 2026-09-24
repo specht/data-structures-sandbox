@@ -389,6 +389,7 @@ Future<void> _handleRequest(HttpRequest request) async {
       '/vendor/codemirror.css'=>'web/vendor/codemirror.css',
       '/vendor/fonts/OpenSans.ttf'=>'web/vendor/fonts/OpenSans.ttf',
       '/vendor/fonts/0xProtoNerdFont.ttf'=>'web/vendor/fonts/0xProtoNerdFont.ttf',
+      '/vendor/tabler-icons.svg'=>'web/vendor/tabler-icons.svg',
       '/background.jpg'=>'web/background.jpg',
       _=>null,
     };
@@ -402,7 +403,8 @@ Future<void> _handleRequest(HttpRequest request) async {
       ..contentType=path.endsWith('.html')?ContentType.html:path.endsWith('.css')?
         ContentType('text','css',charset:'utf-8'):path.endsWith('.jpg')?
         ContentType('image','jpeg'):path.endsWith('.ttf')?
-        ContentType('font','ttf'):ContentType('application','javascript',charset:'utf-8')
+        ContentType('font','ttf'):path.endsWith('.svg')?
+        ContentType('image','svg+xml'):ContentType('application','javascript',charset:'utf-8')
       ..set(HttpHeaders.cacheControlHeader,'no-store');
     if(request.method=='GET')await request.response.addStream(file.openRead());
     await request.response.close();
