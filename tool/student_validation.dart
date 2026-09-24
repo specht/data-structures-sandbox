@@ -86,9 +86,9 @@ List<ValidationCase> validationCases(String kind) {
   ];
   if (kind == 'hash') return [
     ValidationCase('Empty table', [c('isEmpty'), c('contains', 5), c('remove', 5), c('loadFactor')]),
-    ValidationCase('Insert and membership', [c('insert', 1), c('insert', 9), c('insert', 17), c('contains', 9), c('contains', 3), c('loadFactor')]),
+    ValidationCase('Insert and membership', [c('insert', 1), c('insert', 10), c('insert', 27), c('contains', 1), c('contains', 10), c('contains', 27), c('contains', 3), c('loadFactor')]),
     ValidationCase('Duplicate keys', [c('insert', 4), c('insert', 4), c('contains', 4), c('loadFactor'), c('remove', 4), c('contains', 4), c('remove', 4)]),
-    ValidationCase('Remove first and last keys', [c('insert', 2), c('insert', 10), c('insert', 18), c('remove', 10), c('contains', 2), c('remove', 2), c('remove', 18), c('isEmpty')]),
+    ValidationCase('Remove existing and missing keys', [c('insert', 2), c('insert', 11), c('insert', 29), c('remove', 11), c('contains', 11), c('contains', 2), c('remove', 2), c('remove', 29), c('remove', 29), c('isEmpty')]),
     ValidationCase('Negative keys and reuse', [c('insert', -9), c('insert', -1), c('insert', 0), c('contains', -9), c('remove', -1), c('loadFactor'), c('remove', -9), c('remove', 0), c('isEmpty')]),
   ];
   throw ArgumentError.value(kind, 'kind', 'Unsupported data structure');

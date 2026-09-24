@@ -128,72 +128,136 @@ const ui = {
   playbackModes:[...document.querySelectorAll('[data-playback-mode]')],
 };
 const validationUI={
-  button:$('validation-run'), status:$('validation-status'),
-  progress:$('validation-progress'), results:$('validation-results'),
+  button:$('validation-run'), summary:$('validation-summary'),
+  dialog:$('validation-dialog'), close:$('validation-close'), rerun:$('validation-rerun'),
+  status:$('validation-status'), progress:$('validation-progress'), results:$('validation-results'),
 };
-let validationItems=[];
+const validationCachePrefix='data-structure-sandbox.validation.v2';
+let validationItems=[],validationResults=[],validationRevision=null;
+let validationRunning=false,validationCompleted=false;
+function validationCacheKey(){return `${validationCachePrefix}:${selectedStudent}:${structure}`;}
+function validationBadge(passed,total){
+  validationUI.summary.hidden=false;
+  validationUI.summary.textContent=`${passed} / ${total}`;
+  validationUI.button.classList.toggle('validation-success',passed===total);
+  validationUI.button.classList.toggle('validation-errors',passed!==total);
+  validationUI.button.setAttribute('aria-label',`Test my implementation; ${passed} of ${total} groups passed`);
+}
 function resetValidation(message='Run tests on the selected implementation.'){
+  validationRevision=null;validationRunning=false;validationCompleted=false;
   validationUI.button.disabled=true;
+  validationUI.rerun.disabled=true;
+  validationUI.button.classList.remove('validation-running-button','validation-success','validation-errors');
+  validationUI.button.setAttribute('aria-label','Test my implementation');
+  validationUI.summary.hidden=true;
   validationUI.status.textContent=message;
   validationUI.progress.hidden=true;
   validationUI.results.hidden=true;
   validationUI.results.replaceChildren();
-  validationItems=[];
+  validationItems=[];validationResults=[];
+}
+function validationRows(){
+  validationUI.results.replaceChildren();
+  validationItems=validationResults.map(record=>{
+    const item=document.createElement('li');
+    item.className=record.state==='pass'?'validation-pass':record.state==='fail'?'validation-fail':
+      record.state==='running'?'validation-running':'validation-pending';
+    if(record.state==='pass'||record.state==='fail'){
+      const symbol=document.createElement('span');symbol.className='validation-icon';
+      symbol.innerHTML=record.state==='pass'
+        ?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>'
+        :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+      const detail=document.createElement('span');
+      detail.textContent=`${record.state==='pass'?'Passed':'Failed'}: ${record.name}`+
+        (record.message?` — ${record.message}`:'');
+      item.append(symbol,detail);
+    }else item.textContent=record.state==='running'?`${record.name} — running…`:record.name;
+    validationUI.results.append(item);
+    return item;
+  });
+  validationUI.results.hidden=!validationItems.length;
+}
+function restoreValidation(revision){
+  validationRevision=revision??null;
+  if(!validationRevision)return;
+  try{
+    const cached=JSON.parse(localStorage.getItem(validationCacheKey())||'null');
+    if(!cached||cached.revision!==validationRevision||!Array.isArray(cached.results)||
+       !Number.isInteger(cached.passed)||!Number.isInteger(cached.total)||
+       cached.results.length!==cached.total)return;
+    validationResults=cached.results;
+    validationCompleted=true;
+    validationUI.progress.hidden=false;
+    validationUI.progress.max=Math.max(1,cached.total);
+    validationUI.progress.value=cached.total;
+    validationUI.status.textContent=`${cached.passed} / ${cached.total} test groups passed (cached)`;
+    validationBadge(cached.passed,cached.total);
+    validationRows();
+  }catch(_){/* Results remain available during this session if storage is unavailable. */}
+}
+function startValidation(){
+  if(validationRunning||validationUI.button.disabled||!socket||socket.readyState!==WebSocket.OPEN)return;
+  validationRunning=true;validationCompleted=false;
+  validationResults=[];validationRows();
+  validationUI.rerun.disabled=true;
+  validationUI.button.classList.remove('validation-success','validation-errors');
+  validationUI.button.classList.add('validation-running-button');
+  validationUI.summary.hidden=true;
+  validationUI.progress.hidden=false;
+  validationUI.progress.removeAttribute('value');
+  validationUI.status.textContent='Starting tests…';
+  try{localStorage.removeItem(validationCacheKey());}catch(_){}
+  socket.send(JSON.stringify({action:'validate'}));
 }
 function validationMessage(data){
   switch(data.type){
-    case 'validationStart': {
-      validationUI.button.disabled=true;
-      validationUI.results.replaceChildren();
-      validationItems=(data.tests??[]).map(name=>{
-        const item=document.createElement('li');
-        item.className='validation-pending';item.textContent=`○ ${name}`;
-        validationUI.results.append(item);
-        return item;
-      });
-      validationUI.results.hidden=false;
+    case 'validationStart':
+      validationRunning=true;validationCompleted=false;
+      validationResults=(data.tests??[]).map(name=>({name,state:'pending'}));
+      validationUI.rerun.disabled=true;
       validationUI.progress.hidden=false;
-      validationUI.progress.max=Math.max(1,validationItems.length);
+      validationUI.progress.max=Math.max(1,validationResults.length);
       validationUI.progress.value=0;
-      validationUI.status.textContent=`Testing 0 / ${validationItems.length}…`;
-      return;
-    }
-    case 'validationRunning': {
-      const item=validationItems[data.index];
-      if(item){item.className='validation-running';item.textContent=`${data.name} — running…`;}
-      return;
-    }
-    case 'validationResult': {
-      const item=validationItems[data.index];
-      if(item){
-        item.className=data.passed?'validation-pass':'validation-fail';
-        const symbol=document.createElement('span');symbol.className='validation-icon';
-        // Use graphical SVG icons rather than platform-dependent glyphs.
-        symbol.innerHTML=data.passed
-          ?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>'
-          :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
-        const detail=document.createElement('span');
-        detail.textContent=`${data.passed?'Passed':'Failed'}: ${data.name}`+(data.message?` — ${data.message}`:'');
-        item.replaceChildren(symbol,detail);
-      }
+      validationUI.status.textContent=`Testing 0 / ${validationResults.length}…`;
+      validationRows();return;
+    case 'validationRunning':
+      if(validationResults[data.index])validationResults[data.index].state='running';
+      validationRows();return;
+    case 'validationResult':
+      if(validationResults[data.index])validationResults[data.index]={
+        name:data.name,state:data.passed?'pass':'fail',message:data.message??null,
+      };
       validationUI.progress.value=data.completed;
       validationUI.status.textContent=`${data.completed} / ${data.total} groups · ${data.passedCount} passed`;
-      return;
-    }
+      validationRows();return;
     case 'validationDone':
-      validationUI.button.disabled=false;
+      validationRunning=false;validationCompleted=true;
+      validationUI.rerun.disabled=false;
+      validationUI.button.classList.remove('validation-running-button');
       validationUI.status.textContent=`${data.passed} / ${data.total} test groups passed`;
+      validationBadge(data.passed,data.total);
+      if(validationRevision&&validationResults.length===data.total){
+        try{localStorage.setItem(validationCacheKey(),JSON.stringify({
+          revision:validationRevision,passed:data.passed,total:data.total,results:validationResults,
+        }));}catch(_){}
+      }
       return;
     case 'validationError':
-      validationUI.button.disabled=false;
-      validationUI.status.textContent=data.message;
-      return;
+      validationRunning=false;
+      validationUI.rerun.disabled=false;
+      validationUI.button.classList.remove('validation-running-button');
+      validationUI.progress.hidden=true;
+      validationUI.status.textContent=data.message;return;
   }
 }
 validationUI.button.addEventListener('click',()=>{
-  if(!socket||socket.readyState!==WebSocket.OPEN)return;
-  validationUI.button.disabled=true;
-  socket.send(JSON.stringify({action:'validate'}));
+  if(!validationUI.dialog.open)validationUI.dialog.showModal();
+  if(!validationCompleted&&!validationRunning)startValidation();
+});
+validationUI.rerun.addEventListener('click',startValidation);
+validationUI.close.addEventListener('click',()=>validationUI.dialog.close());
+validationUI.dialog.addEventListener('click',event=>{
+  if(event.target===validationUI.dialog)validationUI.dialog.close();
 });
 const svg = (name, attrs={}) => {
   const element = document.createElementNS(NS,name);
@@ -1246,9 +1310,11 @@ function connect(){
       }
       if(data.type==='hello'){
         validationUI.button.disabled=false;
+        validationUI.rerun.disabled=false;
         showCompiling(false);
         const initial=data.trace;
         if(data.student)selectedStudent=data.student;rememberChoice();
+        restoreValidation(data.validationRevision);
         if(savedValues===null){acceptTrace(initial);return;}
         if(savedSessionId===(initial.sessionId??null) && JSON.stringify(savedValues)===JSON.stringify(initial.values)){
           ui.connection.textContent='Dart connected';return;

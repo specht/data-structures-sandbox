@@ -292,16 +292,23 @@ button:focus-visible,select:focus-visible,input:focus-visible{
   .controls{flex-wrap:wrap}
   .controls input[type="range"]#speed{width:85px}
 }
-/* Isolated validation panel: no change to the step-by-step workspace layout. */
-.validation{border:1px solid var(--border);border-radius:10px;background:#111c2d;margin-top:12px;padding:10px 14px}
-.validation-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.validation-bar button{min-height:34px;border-radius:6px}
-.validation-bar button:disabled{opacity:.55;cursor:default}
-#validation-status{color:var(--muted);font-size:12px;flex:1}
-#validation-progress{width:110px;max-width:100%;height:8px;accent-color:#6ccc9a}
-.validation-results{list-style:none;padding:10px 0 0;margin:8px 0 0;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
+/* The test control is compact; the detailed report lives in a native modal. */
+.validation-button{display:inline-flex;align-items:center;gap:7px;flex:none;white-space:nowrap}
+.validation-button:disabled{opacity:.55;cursor:default}
+.validation-summary{padding:2px 6px;border-radius:5px;font:700 11px ui-monospace,monospace;border:1px solid currentColor}
+.validation-success .validation-summary{color:#a2e5bf}
+.validation-errors .validation-summary{color:#ffc1c1}
+.validation-running-button::before{content:'';width:12px;height:12px;flex:none;border:2px solid #8da3c1;border-top-color:transparent;border-radius:50%;animation:validation-spin .8s linear infinite}
+.validation-dialog{width:min(640px,calc(100vw - 28px));max-height:min(80vh,740px);overflow:auto;color:var(--text);background:#111c2d;border:1px solid #405575;border-radius:11px;padding:19px;box-shadow:0 22px 80px #0009}
+.validation-dialog::backdrop{background:#060b15ba}
+.validation-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.validation-dialog-heading h2{font-size:19px;margin:5px 0 0}
+.validation-dialog-heading button{flex:none}
+#validation-status{display:block;color:var(--muted);font-size:13px;margin:15px 0 10px}
+#validation-progress{width:100%;height:8px;accent-color:#6ccc9a}
+.validation-results{list-style:none;padding:12px 0 0;margin:11px 0 0;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr;gap:7px}
 .validation-results[hidden]{display:none}
-.validation-results li{display:flex;align-items:flex-start;gap:8px;min-width:0;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;overflow-wrap:anywhere}
+.validation-results li{display:flex;align-items:flex-start;gap:8px;min-width:0;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;overflow-wrap:anywhere}
 .validation-results .validation-pass{color:#a2e5bf;border-color:#276b4c}
 .validation-results .validation-fail{color:#ffc1c1;border-color:#8a3c42;background:#331e2b}
 .validation-results .validation-running{color:#f7bf61}
@@ -309,3 +316,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 @keyframes validation-spin{to{transform:rotate(360deg)}}
 .validation-icon{display:inline-flex;flex:none;width:16px;height:16px}
 .validation-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round}
+.validation-dialog-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:15px;padding-top:12px;border-top:1px solid var(--border)}
+.validation-dialog-footer span{font-size:11px;color:var(--muted);line-height:1.5}
+.validation-dialog-footer button{flex:none}
+@media(max-width:600px){.validation-dialog{padding:14px}.validation-dialog-footer{flex-wrap:wrap}.validation-button{font-size:12px}}

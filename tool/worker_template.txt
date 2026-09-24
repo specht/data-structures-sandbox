@@ -409,8 +409,70 @@ class BrowserSession {
     return cursor==null && identical(last,q.tail) && q.tail!.next==null;
   }
 
+  // The classroom validator evaluates the public contract, not representation
+  // details such as bucket placement, node links or the particular hash function.
+  // The interactive trace retains its stronger physical invariant checks.
+  Map<String,Object?> validateCall(Map<String,dynamic> message){
+    final name=message['method'] as String;
+    final params=(descriptor(name)['params'] as List).cast<Map<String,dynamic>>();
+    final raw=message['arguments'];
+    if(raw is! List || raw.length!=params.length){
+      throw const FormatException('Wrong number of test arguments.');
+    }
+    final args=<Object?>[
+      for(var i=0;i<raw.length;i++) scalar(raw[i],params[i]['type'] as String),
+    ];
+    Object? expected;
+    if(kind=='hash'){
+      final key=args.isNotEmpty?args.single as int:null;
+      expected=switch(name){
+        'insert' => !reference.contains(key),
+        'remove' || 'contains' => reference.contains(key),
+        'isEmpty' => reference.isEmpty,
+        'loadFactor' => reference.length/(instance as hash_student.MyHashTable).buckets.length,
+        _ => null,
+      };
+    }
+    // Instrumented student methods expect an active recorder. Use a fresh,
+    // disposable recorder here; its trace is never interpreted as a test result.
+    final trace=recorder();
+    Object? returned;
+    try {
+      switch(kind){
+        case 'tree':case 'avl':case 'node_heap':
+          tree_api.TreeRecorder.active=trace as tree_api.TreeRecorder;break;
+        case 'stack':stack_api.StackRecorder.active=trace as stack_api.StackRecorder;break;
+        case 'array_queue':queue_api.QueueRecorder.active=trace as queue_api.QueueRecorder;break;
+        case 'array_heap':heap_api.HeapRecorder.active=trace as heap_api.HeapRecorder;break;
+        case 'hash':list_api.Recorder.active=trace as hash_api.HashRecorder;break;
+        default:list_api.Recorder.active=trace as list_api.Recorder;
+      }
+      returned=invoke(name,args);
+    }finally{
+      list_api.Recorder.active=null;
+      tree_api.TreeRecorder.active=null;
+      stack_api.StackRecorder.active=null;
+      queue_api.QueueRecorder.active=null;
+      heap_api.HeapRecorder.active=null;
+    }
+    final bool ok;
+    if(kind=='hash' && name=='loadFactor'){
+      ok=returned is num && expected is num &&
+        (returned-expected).abs()<0.0000001;
+    }else{
+      ok=updateReference(name,args,returned);
+    }
+    return {
+      'type':'validationCall','ok':ok,
+      if(!ok) 'message': kind=='hash'
+        ? '$name(${args.join(', ')}) returned $returned; expected $expected.'
+        : '$name(${args.join(', ')}) returned $returned; the public contract was not met.',
+    };
+  }
+
   Map<String,Object?> execute(Map<String,dynamic> message){
     if(message['action']=='reset'){reset();return initial();}
+    if(message['action']=='validateCall')return validateCall(message);
     final commands=plan(message);
     final r=recorder();
     r.steps.add(r.snapshot());

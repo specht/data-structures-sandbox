@@ -184,7 +184,7 @@ class Client {
       worker=newWorker;
       preparedPath=path;
       saveSelection(selected,structure);
-      send({...hello,'student':selected});
+      send({...hello,'student':selected,'validationRevision':path});
     }catch(e){
       if(closed)return;
       if(epoch==selectionEpoch){
@@ -242,24 +242,19 @@ class Client {
           for(final call in scenario.calls) {
             if(!current()) return;
             failingCall=call.label;
-            final reply=await isolated.request(call.toRequest());
+            final reply=await isolated.request({
+              ...call.toRequest(),'action':'validateCall',
+            });
             if(reply['type']=='error') {
               failure='$failingCall: ${reply['message']}';
               break;
             }
-            if(reply['type']!='trace' || reply['steps'] is! List) {
+            if(reply['type']!='validationCall') {
               failure='$failingCall: Invalid test response.';
               break;
             }
-            final steps=reply['steps'] as List;
-            final ends=steps.whereType<Map>().where((step)=>step['kind']=='operationEnd');
-            if(ends.isEmpty) {
-              failure='$failingCall: No operation result was returned.';
-              break;
-            }
-            final end=ends.last;
-            if(end['ok']!=true) {
-              failure='$failingCall: ${end['result'] ?? 'Incorrect return value or internal state.'}';
+            if(reply['ok']!=true) {
+              failure='$failingCall: ${reply['message'] ?? 'The public contract was not met.'}';
               break;
             }
           }

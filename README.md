@@ -174,13 +174,15 @@ Implementierung automatisch neu; dabei wird der Zustand der ausgewählten
 Datenstruktur zurückgesetzt. Bei einem Kompilierungsfehler korrigiere die im
 Browser bzw. Terminal angezeigte Fehlermeldung.
 
-Klicke auf **Test my implementation**, um mehrere Testfälle auszuführen. Der
-Fortschrittsbalken und die einzelnen Ergebnisse zeigen, welche Situationen
-funktionieren und bei welcher Operation ein Test fehlschlägt. Die Tests
-verwenden einen **separaten Testprozess** und verändern die Struktur im
-normalen Visualisierungsbereich nicht. Nach Änderungen an der Datei musst du
-die Tests erneut starten. Bestehende Tests decken viele Fälle ab, beweisen
-aber nicht, dass ein Programm in jeder Situation korrekt ist.
+Klicke auf **Test implementation**, um das Testfenster zu öffnen. Dort siehst
+du den Fortschritt, die Ergebnisse der einzelnen Testgruppen und das
+Gesamtergebnis. Mit **Run tests again** kannst du die Tests erneut ausführen.
+Die Schaltfläche zeigt das zuletzt gespeicherte Gesamtergebnis für genau diese
+Codeversion an. Nach einer Änderung am Quelltext gilt das alte Ergebnis nicht
+mehr. Die Tests überprüfen die öffentliche Schnittstelle, nicht die konkrete
+Umsetzung. Sie laufen in einem **separaten Testprozess** und verändern die
+Datenstruktur im normalen Visualisierungsbereich nicht. Auch bestandene Tests
+beweisen nicht, dass ein Programm in jeder Situation korrekt ist.
 
 ## 8. Deine Datenstruktur veröffentlichen
 

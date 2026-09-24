@@ -35,15 +35,9 @@ Future<void> main() async {
         final reset=await request({'action':'reset'});
         if(reset['type']!='trace')throw StateError('$kind: reset failed');
         for(final call in scenario.calls) {
-          final result=await request(call.toRequest());
-          if(result['type']!='trace'||result['steps'] is! List) {
+          final result=await request({...call.toRequest(),'action':'validateCall'});
+          if(result['type']!='validationCall' || result['ok']!=true) {
             throw StateError('$kind / ${scenario.name} / ${call.label}: $result');
-          }
-          final steps=result['steps'] as List;
-          final ends=steps.whereType<Map>().where((step)=>step['kind']=='operationEnd');
-          if(ends.isEmpty || ends.last['ok']!=true) {
-            throw StateError('$kind / ${scenario.name} / ${call.label}: '
-                '${ends.isEmpty ? 'no result' : ends.last['result']}');
           }
         }
       }
