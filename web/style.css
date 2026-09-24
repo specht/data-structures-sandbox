@@ -230,3 +230,12 @@ button.subtle { margin-left:auto; background:#262c3d; }
 @media(max-width:700px){.topbar{flex-wrap:wrap;padding:10px 0}.topright{width:100%;gap:7px;flex-wrap:wrap}.topright select{max-width:145px}}
 
 .retry-button {font-size:11px;padding:7px 9px;white-space:nowrap;background:#1b3454;}
+/* Array heap: one indexed storage, two synchronized projections. */
+.heap-title{fill:#d5e8ff;font:700 20px ui-monospace,monospace}
+.heap-section{fill:#8faecb;font:600 15px ui-monospace,monospace}
+.heap-cell-value{fill:#f2f6ff;font:700 19px ui-monospace,monospace}
+.heap-node{fill:#203852;stroke:#87b0de;stroke-width:2}
+.heap-node.heap-hot{fill:#5e4628;stroke:#f6c16b;stroke-width:3}
+.heap-node-value{fill:#f2f6ff;font:700 19px ui-monospace,monospace}
+.heap-node-index{fill:#8eaece;font:12px ui-monospace,monospace}
+.heap-index-edge{stroke:#8ab0d7;stroke-width:2.1;stroke-linecap:round}

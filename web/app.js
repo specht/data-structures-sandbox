@@ -15,7 +15,7 @@ function ensureViewport(kind){
   if(viewportKind!==kind){
     viewportKind=kind;
     cameraMode='auto';
-    viewport={x:0,y:0,w:1100,h:(kind==='tree'||kind==='avl')?620:510};
+    viewport={x:0,y:0,w:1100,h:kind==='array_heap'?810:(kind==='tree'||kind==='avl')?620:510};
   }
   paintViewport();
 }
@@ -33,6 +33,7 @@ function treeSceneRatio(){
 }
 function fitScene(){
   cameraMode='auto';
+  if(structure==='array_heap'){autoFrameHeap([{kind:'snapshot',cells:heapState.cells}],true);return;}
   const visible=[...nodes.values()].filter(n=>n.opacity>.01 && (!isTree()||!n.detached));
   if(!visible.length){viewportKind=null;ensureViewport(structure);return;}
   const right=isTree()?72:WIDTH;
@@ -116,7 +117,7 @@ let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
 function isTree(){return structure==='tree'||structure==='avl';}
-const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
+const STRUCTURE_LABELS={array_heap:'Array min-heap',list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -163,7 +164,7 @@ let playbackMode='step', playbackToken=0;
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
-let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
+let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, heapState={cells:[],heapOrder:true},heapHot=[], savedCapacity=8, references = {}, override = null, viewWidth = 1100;
 const nodes = new Map(), nodeViews = new Map(), links = new Map();
 
 function syntaxColor(line, destination) {
@@ -367,7 +368,7 @@ function renderReferences(){
     ui.references.append(arrow);
   }
 }
-function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
+function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
 function layoutFor(snapshot){
   if(isTree())return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
@@ -398,6 +399,7 @@ function layoutFor(snapshot){
 function applySnapshot(snapshot,animate=false){
   if(structure==='stack'){stackState={cells:[...snapshot.cells],top:snapshot.top};renderStack();return {targets:new Map(),count:snapshot.top+1,cycle:false};}
   if(structure==='array_queue'){queueState=queueSnapshot(snapshot);renderQueue();return {targets:new Map(),count:queueState.size,cycle:false};}
+  if(structure==='array_heap'){heapState=heapSnapshot(snapshot);renderHeap();return {targets:new Map(),count:heapState.cells.length,cycle:false};}
   if(isTree())rootId=snapshot.root;else head=snapshot.head;
   if(structure==='linked_queue')tailId=snapshot.tail??null;
   for(const data of snapshot.nodes){
@@ -484,7 +486,7 @@ async function animateSettle(snapshot){
   ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
 }
 function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};heapState={cells:[],heapOrder:true};heapHot=[];ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded Dart execution.';
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
@@ -506,7 +508,7 @@ function makeFrames(raw, mode='conceptual'){
       continue;
     }
     if(s.kind==='localsClear')continue;
-    if((s.kind==='pointerWrite'||s.kind==='cellWrite'||s.kind==='indexWrite'||s.kind==='heightWrite')&&raw[i+1]?.kind==='snapshot'){
+    if((s.kind==='pointerWrite'||s.kind==='cellWrite'||s.kind==='indexWrite'||s.kind==='heightWrite'||['heapWrite','heapAppend','heapRemove','heapSwap'].includes(s.kind))&&raw[i+1]?.kind==='snapshot'){
       result.push({...s,kind:s.kind==='pointerWrite'?'writeAndSettle':s.kind==='heightWrite'?'heightAndSettle':'memoryWriteAndSettle',snapshot:raw[++i],line:s.line??pendingLine});
     } else result.push({...s,line:s.line??pendingLine});
     pendingLine=null;
@@ -517,6 +519,7 @@ function instant(frame){
   if(frame.line!=null)showLine(frame.line);
   if(structure==='stack'){instantStack(frame);return;}
   if(structure==='array_queue'){instantQueue(frame);return;}
+  if(structure==='array_heap'){instantHeap(frame);return;}
   switch(frame.kind){
     case 'line':break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.textContent=frame.description;break;
@@ -549,6 +552,7 @@ async function animate(frame){
   if(frame.line!=null)showLine(frame.line);
   if(structure==='stack'){await animateStack(frame);return;}
   if(structure==='array_queue'){await animateQueue(frame);return;}
+  if(structure==='array_heap'){await animateHeap(frame);return;}
   switch(frame.kind){
     case 'line':ui.phase.textContent='SOURCE LINE';break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;ui.returnValue.textContent='';
@@ -815,6 +819,7 @@ function acceptTrace(data){
   // The SVG viewBox then stays unchanged throughout the entire recorded trace.
   ensureViewport(structure);
   autoFrameTree(rawSteps);
+  autoFrameHeap(rawSteps);
   playbackToken++;
   renderSource(source);restore(0);
   if(playbackMode==='result')jumpTo(frames.length);
@@ -1185,6 +1190,103 @@ async function animateRetire(ids,snapshot){
     renderAll();
   });
   retireNodes(ids);applySnapshot(snapshot);
+}
+// The array row and tree use exactly the same indexed Dart storage snapshot.
+// No independent browser heap model, no synthetic pointer/reference edges.
+function heapSnapshot(snapshot){
+  return {cells:[...(snapshot.cells??[])],heapOrder:snapshot.heapOrder!==false};
+}
+function heapArrayRows(n){return Math.ceil(Math.max(1,n)/10);}
+function heapTreeTop(n){return 350+(heapArrayRows(n)-1)*78;}
+function heapTreeWidth(n){
+  if(!n)return 880;
+  const deepest=Math.floor(Math.log2(n));
+  return Math.max(880,Math.pow(2,deepest)*78);
+}
+function heapTreePosition(i,n){
+  const level=Math.floor(Math.log2(i+1));
+  const offset=i-(Math.pow(2,level)-1);
+  return {x:SCENE_WIDTH/2+((offset+.5)/Math.pow(2,level)-.5)*heapTreeWidth(n),
+    y:heapTreeTop(n)+level*100};
+}
+function autoFrameHeap(steps,force=false){
+  if(structure!=='array_heap'||(!force&&cameraMode!=='auto'))return;
+  const sizes=steps.filter(frame=>frame.kind==='snapshot'&&Array.isArray(frame.cells))
+    .map(frame=>frame.cells.length);
+  const n=force?(sizes.at(-1)??0):Math.max(0,...sizes);
+  const ratio=treeSceneRatio(),width=heapTreeWidth(n);
+  const depth=n?Math.floor(Math.log2(n)):0;
+  const bottom=heapTreeTop(n)+depth*100+105;
+  const required=Math.max(SCENE_WIDTH,width+160,bottom*ratio);
+  const w=force?required:Math.max(viewport.w,required),h=w/ratio;
+  viewport={x:(SCENE_WIDTH-w)/2,y:(bottom-h)/2-30,w,h};
+  paintViewport();
+}
+function renderHeap(){
+  ui.stackView.replaceChildren();
+  const cells=heapState.cells,n=cells.length,highlight=new Set(heapHot);
+  const heading=svg('text',{x:SCENE_WIDTH/2,y:70,class:'heap-title','text-anchor':'middle'});
+  heading.textContent=`MIN-HEAP · ${n} element${n===1?'':'s'}${heapState.heapOrder?'':' · HEAP ORDER VIOLATED'}`;
+  ui.stackView.append(heading);
+  const arrayHeading=svg('text',{x:SCENE_WIDTH/2,y:105,class:'heap-section','text-anchor':'middle'});
+  arrayHeading.textContent='ARRAY STORAGE · index i';ui.stackView.append(arrayHeading);
+  const count=n;
+  for(let i=0;i<count;i++){
+    const row=Math.floor(i/10),col=i%10,cols=Math.min(10,count-row*10);
+    const x=SCENE_WIDTH/2-(cols*86-10)/2+col*86,y=122+row*78;
+    const cls=`memory-cell heap-cell${highlight.has(i)?' selected':''}`;
+    ui.stackView.append(svg('rect',{x,y,width:76,height:52,rx:7,class:cls}));
+    const value=svg('text',{x:x+38,y:y+32,class:'heap-cell-value','text-anchor':'middle'});
+    value.textContent=String(cells[i]);ui.stackView.append(value);
+    const index=svg('text',{x:x+38,y:y+68,class:'memory-index','text-anchor':'middle'});
+    index.textContent=`[${i}]`;ui.stackView.append(index);
+  }
+  const top=heapTreeTop(n);
+  const label=svg('text',{x:SCENE_WIDTH/2,y:top-55,class:'heap-section','text-anchor':'middle'});
+  label.textContent='SAME ARRAY · binary-tree projection';ui.stackView.append(label);
+  // Edges are index relationships, never references. Both projections show
+  // exactly cells[i], including duplicate values at different indices.
+  for(let i=1;i<n;i++){
+    const parent=heapTreePosition((i-1)>>1,n),child=heapTreePosition(i,n);
+    ui.stackView.append(svg('line',{x1:parent.x,y1:parent.y+22,x2:child.x,y2:child.y-22,class:'heap-index-edge'}));
+  }
+  for(let i=0;i<n;i++){
+    const {x,y}=heapTreePosition(i,n);
+    const cls=`heap-node${highlight.has(i)?' heap-hot':''}`;
+    ui.stackView.append(svg('circle',{cx:x,cy:y,r:27,class:cls}));
+    const value=svg('text',{x,y:y+2,class:'heap-node-value','text-anchor':'middle'});
+    value.textContent=String(cells[i]);ui.stackView.append(value);
+    const index=svg('text',{x,y:y+17,class:'heap-node-index','text-anchor':'middle'});
+    index.textContent=`[${i}]`;ui.stackView.append(index);
+  }
+  ui.status.textContent=n?`The same ${n} indexed values appear in the array and tree.`:
+    'The heap is empty. Insert a value to begin.';
+}
+function instantHeap(frame){
+  if(frame.line!=null)showLine(frame.line);
+  switch(frame.kind){
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;
+      ui.returnValue.textContent='';ui.result.textContent='Running…';heapHot=[];break;
+    case 'heapRead':heapHot=[frame.index];break;
+    case 'memoryWriteAndSettle':heapState=heapSnapshot(frame.snapshot);
+      heapHot=frame.a!=null?[frame.a,frame.b]:[frame.index];break;
+    case 'snapshot':heapState=heapSnapshot(frame.snapshot);heapHot=[];break;
+    case 'operationEnd':heapHot=[];ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+      ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';ui.result.textContent=frame.result;showLine(null);break;
+  }
+  renderHeap();
+}
+async function animateHeap(frame){
+  instantHeap(frame);
+  if(frame.kind==='heapRead'){
+    ui.phase.textContent='ARRAY READ';ui.status.textContent=`Read cells[${frame.index}] = ${frame.value}`;
+    await tween(180,()=>{});
+  }else if(frame.kind==='memoryWriteAndSettle'){
+    ui.phase.textContent=frame.a!=null?'SWAP TWO INDICES':frame.kind==='heapRemove'?'REMOVE LAST CELL':'ARRAY WRITE';
+    ui.status.textContent=frame.a!=null?`Swap cells[${frame.a}] ↔ cells[${frame.b}]`:
+      `Array index ${frame.index} changed. Both projections show the same cell.`;
+    await tween(440,()=>{});
+  }
 }
 function renderStack(){
   ui.stackView.replaceChildren();

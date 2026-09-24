@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$(realpath "$0")")"
 if [[ $# -ne 2 ]]; then
-  printf 'Usage: ./new-structure STUDENT list|tree|avl|stack|linked_stack|linked_queue|array_queue\n' >&2
+  printf 'Usage: ./new-structure STUDENT list|tree|avl|stack|linked_stack|linked_queue|array_queue|array_heap\n' >&2
   exit 64
 fi
 student="$1"
@@ -18,7 +18,8 @@ case "$kind" in
   linked_stack) filename=my_linked_stack.dart;;
   linked_queue) filename=my_linked_queue.dart;;
   array_queue) filename=my_array_queue.dart;;
-  *) echo 'Currently supported types: list, tree, stack, linked_stack, linked_queue, array_queue.' >&2; exit 64;;
+  array_heap) filename=my_array_heap.dart;;
+  *) echo 'Currently supported types: list, tree, avl, stack, linked_stack, linked_queue, array_queue, array_heap.' >&2; exit 64;;
 esac
 mkdir -p "structures/$student"
 if [[ -e "structures/$student/$filename" ]]; then

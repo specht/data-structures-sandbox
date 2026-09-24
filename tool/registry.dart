@@ -12,6 +12,7 @@ const structures = <StructureSpec>[
   StructureSpec('linked_stack','Linked stack (LIFO)','my_linked_stack.dart','MyLinkedStack','linked','linked-list'),
   StructureSpec('linked_queue','Linked queue (FIFO)','my_linked_queue.dart','MyLinkedQueue','linked','linked-list'),
   StructureSpec('array_queue','Circular array queue (FIFO)','my_array_queue.dart','MyArrayQueue','array','fixed-memory'),
+  StructureSpec('array_heap','Array min-heap','my_array_heap.dart','MyArrayHeap','array','array-heap'),
 ];
 StructureSpec specFor(String id) => structures.firstWhere((s)=>s.id==id,
   orElse:()=>throw FormatException('Unsupported structure: $id'));

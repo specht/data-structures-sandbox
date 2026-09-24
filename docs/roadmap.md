@@ -17,7 +17,7 @@ model snapshot/invariants and a renderer that can animate the relevant memory.
    writes, balance factors and invariants for every subtree. Animate pointer
    writes first and allow the settled layout to move the same node IDs through
    rotations. Invalid balance remains visible and is reported separately.
-4. **Array heap:** synchronized array and tree projections of the **same**
+4. **Array heap (adapter and example added; Dart smoke test required):** synchronized array and tree projections of the **same**
    indexed storage; pointer arrows are not appropriate for array indices.
    Record reads/writes/swaps, check heap order and complete-tree property.
 5. **Node heap:** heap semantics shared with array heap, but reference-based

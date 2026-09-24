@@ -5,6 +5,7 @@ import 'package:data_structure_sandbox_browser/sandbox.dart' as list_api;
 import 'package:data_structure_sandbox_browser/tree_sandbox.dart' as tree_api;
 import 'package:data_structure_sandbox_browser/stack_sandbox.dart' as stack_api;
 import 'package:data_structure_sandbox_browser/queue_sandbox.dart' as queue_api;
+import 'package:data_structure_sandbox_browser/heap_sandbox.dart' as heap_api;
 import 'generated/@@ID@@/my_linked_list.dart' as list_student;
 import 'generated/@@ID@@/list_methods.dart' as list_methods;
 import 'generated/@@ID@@/my_bst.dart' as tree_student;
@@ -19,12 +20,14 @@ import 'generated/@@ID@@/my_linked_queue.dart' as linked_queue_student;
 import 'generated/@@ID@@/linked_queue_methods.dart' as linked_queue_methods;
 import 'generated/@@ID@@/my_array_queue.dart' as array_queue_student;
 import 'generated/@@ID@@/array_queue_methods.dart' as array_queue_methods;
+import 'generated/@@ID@@/my_array_heap.dart' as array_heap_student;
+import 'generated/@@ID@@/array_heap_methods.dart' as array_heap_methods;
 
 // Batching is bounded for trace/readability; a structure is not capped at 12 nodes.
 // A runaway student program is still bounded by the event log, host deadline and
 // WebSocket message-size limit, not by its number of nodes.
 const maxOperations = 12, maxValue = 999;
-const kinds = ['list','tree','avl','stack','linked_stack','linked_queue','array_queue'];
+const kinds = ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap'];
 const paths = {
   'list': '@@LIST_PATH@@',
   'tree': '@@TREE_PATH@@',
@@ -33,6 +36,7 @@ const paths = {
   'linked_stack': '@@LINKED_STACK_PATH@@',
   'linked_queue': '@@LINKED_QUEUE_PATH@@',
   'array_queue': '@@ARRAY_QUEUE_PATH@@',
+  'array_heap': '@@ARRAY_HEAP_PATH@@',
 };
 
 class BrowserSession {
@@ -52,6 +56,7 @@ class BrowserSession {
       'linked_stack' => linked_stack_methods.discoveredMethodsJson,
       'linked_queue' => linked_queue_methods.discoveredMethodsJson,
       'array_queue' => array_queue_methods.discoveredMethodsJson,
+      'array_heap' => array_heap_methods.discoveredMethodsJson,
       _ => list_methods.discoveredMethodsJson,
     }) as List).map((entry)=>Map<String,dynamic>.from(entry as Map)).toList();
     reset();
@@ -64,6 +69,7 @@ class BrowserSession {
       case 'avl': tree_api.TreeRecorder.resetIds(); instance=avl_student.MyAVL(); break;
       case 'stack': instance=stack_student.MyArrayStack(); break;
       case 'array_queue': instance=array_queue_student.MyArrayQueue(); break;
+      case 'array_heap': instance=array_heap_student.MyArrayHeap(); break;
       case 'linked_stack': list_api.Recorder.resetIds(); instance=linked_stack_student.MyLinkedStack(); break;
       case 'linked_queue': list_api.Recorder.resetIds(); instance=linked_queue_student.MyLinkedQueue(); break;
       default: list_api.Recorder.resetIds(); instance=list_student.MyLinkedList();
@@ -81,6 +87,8 @@ class BrowserSession {
       ..top = (() => (instance as stack_student.MyArrayStack).top),
     'array_queue' => queue_api.QueueRecorder(lines)
       ..memory = (() => (instance as array_queue_student.MyArrayQueue).memory),
+    'array_heap' => heap_api.HeapRecorder(lines)
+      ..memory = (() => (instance as array_heap_student.MyArrayHeap).memory),
     'linked_stack' => list_api.Recorder(lines)
       ..root = (() => (instance as linked_stack_student.MyLinkedStack).head),
     'linked_queue' => list_api.Recorder(lines)
@@ -102,6 +110,7 @@ class BrowserSession {
     'capacity':switch(kind) {
       'stack' => (instance as stack_student.MyArrayStack).memory.length,
       'array_queue' => (instance as array_queue_student.MyArrayQueue).memory.length,
+      'array_heap' => null, // dynamically growing array, not fixed-capacity memory
       _ => null,
     },
   };
@@ -141,6 +150,7 @@ class BrowserSession {
     'avl' => avl_methods.invokeDiscovered(instance as avl_student.MyAVL,name,args),
     'stack' => stack_methods.invokeDiscovered(instance as stack_student.MyArrayStack,name,args),
     'array_queue' => array_queue_methods.invokeDiscovered(instance as array_queue_student.MyArrayQueue,name,args),
+    'array_heap' => array_heap_methods.invokeDiscovered(instance as array_heap_student.MyArrayHeap,name,args),
     'linked_stack' => linked_stack_methods.invokeDiscovered(instance as linked_stack_student.MyLinkedStack,name,args),
     'linked_queue' => linked_queue_methods.invokeDiscovered(instance as linked_queue_student.MyLinkedQueue,name,args),
     _ => list_methods.invokeDiscovered(instance as list_student.MyLinkedList,name,args),
@@ -148,6 +158,7 @@ class BrowserSession {
 
   List<int> actualValues() {
     final values=<int>[];
+    if(kind=='array_heap')return (instance as array_heap_student.MyArrayHeap).memory.copy();
     if(kind=='array_queue') {
       final q=instance as array_queue_student.MyArrayQueue;
       final n=q.memory.length;
@@ -204,6 +215,19 @@ class BrowserSession {
 
   bool updateReference(String name,List<Object?> args,Object? returned) {
     final value=args.length==1 && args[0] is int?args[0] as int:null;
+    if(kind=='array_heap'){
+      final heap=instance as array_heap_student.MyArrayHeap;
+      switch(name){
+        case 'insert' when value!=null:
+          reference.add(value);reference.sort();return true;
+        case 'removeMin':
+          final expected=reference.isEmpty?null:reference.removeAt(0);
+          return returned==expected;
+        case 'peek':return returned==(reference.isEmpty?null:reference.first);
+        case 'isEmpty':return returned==reference.isEmpty;
+        default:reference..clear()..addAll(heap.memory.copy()..sort());return true;
+      }
+    }
     if(kind=='stack'){
       final stack=reference;
       switch(name){
@@ -277,6 +301,14 @@ class BrowserSession {
     }
   }
 
+  // A heap must be a contiguous array (no gaps) and obey the min-heap
+  // parent/child ordering after EACH completed public method.
+  bool heapStorageValid(){
+    if(kind!='array_heap')return true;
+    final cells=(instance as array_heap_student.MyArrayHeap).memory.copy();
+    return heap_api.heapOrderValid(cells);
+  }
+
   // Physical FIFO invariants: indices are in range; the size identifies
   // exactly the occupied circular slots; rear points to the next free slot.
   // In the full and empty cases front == rear, but size is different.
@@ -324,19 +356,21 @@ class BrowserSession {
           case 'tree':case 'avl':tree_api.TreeRecorder.active=r as tree_api.TreeRecorder;break;
           case 'stack':stack_api.StackRecorder.active=r as stack_api.StackRecorder;break;
           case 'array_queue':queue_api.QueueRecorder.active=r as queue_api.QueueRecorder;break;
+          case 'array_heap':heap_api.HeapRecorder.active=r as heap_api.HeapRecorder;break;
           default:list_api.Recorder.active=r as list_api.Recorder;
         }
         result=invoke(name,args);
       } finally {
-        list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;queue_api.QueueRecorder.active=null;
+        list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;queue_api.QueueRecorder.active=null;heap_api.HeapRecorder.active=null;
       }
       final actual=actualValues();
-      final standard=(kind=='stack'||kind=='linked_stack') ? {'push','pop','peek','isEmpty'} :
+      final standard=kind=='array_heap' ? {'insert','removeMin','peek','isEmpty'} :
+        (kind=='stack'||kind=='linked_stack') ? {'push','pop','peek','isEmpty'} :
         kind=='array_queue' ? {'enqueue','dequeue','peek','isEmpty','isFull'} :
         kind=='linked_queue' ? {'enqueue','dequeue','peek','isEmpty'} :
         (kind=='tree'||kind=='avl') ? {'insert','contains','remove'} : {'insert','append','contains','remove'};
       final canVerify=standard.contains(name) &&
-        (name=='pop'||name=='dequeue'||name=='peek'||name=='isEmpty'||name=='isFull'||(args.length==1&&args.single is int));
+        (name=='pop'||name=='dequeue'||name=='removeMin'||name=='peek'||name=='isEmpty'||name=='isFull'||(args.length==1&&args.single is int));
       final checked=updateReference(name,args,result);
       // Report structural AVL violations independently of abstract set values.
       // Intermediate rotation snapshots may temporarily be unbalanced: only
@@ -349,12 +383,14 @@ class BrowserSession {
         if(avlCheck!=null && avlCheck['heights']!=true) 'stored heights',
         if(avlCheck!=null && avlCheck['balanced']!=true) 'balance factor',
       ];
-      final ok=checked && actual.join(',')==reference.join(',') &&
+      final orderedActual=kind=='array_heap' ? (List<int>.of(actual)..sort()) : actual;
+      final ok=checked && orderedActual.join(',')==reference.join(',') &&
+        heapStorageValid() &&
         queuePointersValid() && queueStorageValid() && faults.isEmpty;
       r.steps.add(r.snapshot());
       final descriptorReturn=descriptor(name)['returns']=='void';
       final label='$name(${args.join(', ')})';
-      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}':canVerify?'checked':'not automatically verified'}';
+      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}${kind=='array_heap' && !heapStorageValid()?' (min-heap order)':''}':canVerify?'checked':'not automatically verified'}';
       r.end(result,ok,returnedVoid:descriptorReturn,message:message);
       if(!ok)break;
     }

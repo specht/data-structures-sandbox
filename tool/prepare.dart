@@ -174,6 +174,7 @@ Future<String> _build(
       'linked_stack' => 'LINKED_STACK',
       'linked_queue' => 'LINKED_QUEUE',
       'array_queue' => 'ARRAY_QUEUE',
+      'array_heap' => 'ARRAY_HEAP',
       _ => throw StateError('Unknown structure for worker path: ${spec.id}'),
     };
     text = text.replaceAll('@@${token}_PATH@@',
