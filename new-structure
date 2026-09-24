@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$(realpath "$0")")"
+if [[ $# -ne 2 ]]; then
+  printf 'Usage: ./new-structure STUDENT list|tree|stack\n' >&2
+  exit 64
+fi
+student="$1"
+kind="$2"
+if [[ ! "$student" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$ ]]; then
+  echo 'Invalid student folder name.' >&2; exit 64
+fi
+case "$kind" in
+  list) filename=my_linked_list.dart;;
+  tree) filename=my_bst.dart;;
+  stack) filename=my_array_stack.dart;;
+  *) echo 'Currently supported types: list, tree, stack.' >&2; exit 64;;
+esac
+mkdir -p "structures/$student"
+if [[ -e "structures/$student/$filename" ]]; then
+  echo "File exists; not overwriting: structures/$student/$filename" >&2; exit 73
+fi
+cp "templates/example/$filename" "structures/$student/$filename"
+echo "Created structures/$student/$filename in the separate student Git repository."

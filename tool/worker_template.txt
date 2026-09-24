@@ -1,0 +1,223 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:data_structure_sandbox_browser/sandbox.dart' as list_api;
+import 'package:data_structure_sandbox_browser/tree_sandbox.dart' as tree_api;
+import 'package:data_structure_sandbox_browser/stack_sandbox.dart' as stack_api;
+import 'generated/@@ID@@/my_linked_list.dart' as list_student;
+import 'generated/@@ID@@/list_methods.dart' as list_methods;
+import 'generated/@@ID@@/my_bst.dart' as tree_student;
+import 'generated/@@ID@@/tree_methods.dart' as tree_methods;
+import 'generated/@@ID@@/my_array_stack.dart' as stack_student;
+import 'generated/@@ID@@/stack_methods.dart' as stack_methods;
+
+const maxNodes = 12, maxOperations = 12, maxValue = 999;
+const kinds = ['list','tree','stack'];
+const paths = {
+  'list': '@@LIST_PATH@@',
+  'tree': '@@TREE_PATH@@',
+  'stack': '@@STACK_PATH@@',
+};
+
+class BrowserSession {
+  final String kind;
+  final String sessionId = DateTime.now().microsecondsSinceEpoch.toString();
+  late Object instance;
+  final List<int> reference = [];
+  late final List<String> lines;
+  late final List<Map<String,dynamic>> methods;
+
+  BrowserSession(this.kind) {
+    lines = File(paths[kind]!).readAsLinesSync();
+    methods = (jsonDecode(switch(kind) {
+      'tree' => tree_methods.discoveredMethodsJson,
+      'stack' => stack_methods.discoveredMethodsJson,
+      _ => list_methods.discoveredMethodsJson,
+    }) as List).map((entry)=>Map<String,dynamic>.from(entry as Map)).toList();
+    reset();
+  }
+
+  void reset() {
+    reference.clear();
+    switch(kind){
+      case 'tree': tree_api.TreeRecorder.resetIds(); instance=tree_student.MyBST(); break;
+      case 'stack': instance=stack_student.MyArrayStack(); break;
+      default: list_api.Recorder.resetIds(); instance=list_student.MyLinkedList();
+    }
+  }
+
+  dynamic recorder() => switch(kind) {
+    'tree' => tree_api.TreeRecorder(lines)
+      ..root = (() => (instance as tree_student.MyBST).root),
+    'stack' => stack_api.StackRecorder(lines)
+      ..memory = (() => (instance as stack_student.MyArrayStack).memory)
+      ..top = (() => (instance as stack_student.MyArrayStack).top),
+    _ => list_api.Recorder(lines)
+      ..root = (() => (instance as list_student.MyLinkedList).head),
+  };
+
+  Map<String,Object?> initial() {
+    final r=recorder();
+    return envelope([r.snapshot()]);
+  }
+
+  Map<String,Object?> envelope(List<Map<String,Object?>> steps) => {
+    'type':'trace','structure':kind,'sessionId':'$kind:$sessionId',
+    'source':{'file':paths[kind], 'lines':lines},
+    'steps':steps,'values':[...reference], 'methods':methods,
+    'capacity':kind=='stack' ? (instance as stack_student.MyArrayStack).memory.length : null,
+  };
+
+  Map<String,dynamic> descriptor(String name) => methods.firstWhere(
+    (m)=>m['name']==name,orElse:()=>throw FormatException('Unknown method: $name'));
+
+  Object? scalar(Object? raw,String type)=>switch(type) {
+    'int' when raw is int && raw.abs()<=maxValue => raw,
+    'double' when raw is num && raw.isFinite => raw.toDouble(),
+    'bool' when raw is bool => raw,
+    'String' when raw is String && raw.length<=256 => raw,
+    _ => throw FormatException('Invalid $type argument (integer range: -999…999).'),
+  };
+
+  List<Map<String,Object?>> plan(Map<String,dynamic> message) {
+    if(message['action']!='run')throw const FormatException('Unknown command.');
+    final name=message['method'] as String;
+    final params=(descriptor(name)['params'] as List).cast<Map<String,dynamic>>();
+    final raw=message['arguments'], legacy=message['values'];
+    final List<List<Object?>> calls;
+    if(raw is List) {calls=[raw.cast<Object?>()];}
+    else if(legacy is List && params.length==1 && params.single['type']=='int'){
+      calls=legacy.map((value)=><Object?>[value]).toList();
+    }else{throw const FormatException('Supply the method arguments.');}
+    if(calls.isEmpty||calls.length>maxOperations)throw const FormatException('Use 1–12 calls.');
+    for(final args in calls){
+      if(args.length!=params.length)throw const FormatException('Wrong number of arguments.');
+    }
+    return [for(final args in calls)<String,Object?>{
+      'method':name,'args':[for(var i=0;i<args.length;i++)scalar(args[i],params[i]['type'] as String)],
+    }];
+  }
+
+  Object? invoke(String name,List<Object?> args) => switch(kind){
+    'tree' => tree_methods.invokeDiscovered(instance as tree_student.MyBST,name,args),
+    'stack' => stack_methods.invokeDiscovered(instance as stack_student.MyArrayStack,name,args),
+    _ => list_methods.invokeDiscovered(instance as list_student.MyLinkedList,name,args),
+  };
+
+  List<int> actualValues() {
+    final values=<int>[];
+    if(kind=='stack') {
+      final s=instance as stack_student.MyArrayStack;
+      for(var i=0;i<=s.top && i<s.memory.length;i++) { final v=s.memory[i]; if(v!=null)values.add(v); }
+      return values;
+    }
+    if(kind=='tree'){
+      final seen=<int>{};
+      void visit(tree_api.TreeNode? node){
+        if(node==null)return;
+        if(!seen.add(node.id)||seen.length>100){values.add(10000000);return;}
+        visit(node.left);values.add(node.value);visit(node.right);
+      }
+      visit((instance as tree_student.MyBST).root);
+      return values;
+    }
+    final seen=<int>{};
+    var node=(instance as list_student.MyLinkedList).head;
+    while(node!=null && seen.add(node.id) && values.length<100){values.add(node.value);node=node.next;}
+    if(node!=null)values.add(10000000);
+    return values;
+  }
+
+  bool updateReference(String name,List<Object?> args,Object? returned) {
+    final value=args.length==1 && args[0] is int?args[0] as int:null;
+    if(kind=='stack'){
+      final stack=reference;
+      switch(name){
+        case 'push' when value!=null:
+          final expected=stack.length<8;
+          if(expected)stack.add(value);
+          return returned==expected;
+        case 'pop':
+          final expected=stack.isEmpty?null:stack.removeLast();return returned==expected;
+        case 'peek':return returned==(stack.isEmpty?null:stack.last);
+        case 'isEmpty':return returned==stack.isEmpty;
+        default:stack..clear()..addAll(actualValues());return true;
+      }
+    }
+    if(value==null){reference..clear()..addAll(actualValues());return true;}
+    final present=reference.contains(value);
+    switch(name){
+      case 'insert' when kind=='tree':
+        if(!present){reference.add(value);reference.sort();}
+        return true;
+      case 'insert' when kind=='list':
+        final index=reference.indexWhere((v)=>v>=value);
+        reference.insert(index<0?reference.length:index,value);return true;
+      case 'append' when kind=='list':reference.add(value);return true;
+      case 'contains':return returned==present;
+      case 'remove':
+        reference.remove(value);
+        return returned==present;
+      default:reference..clear()..addAll(actualValues());return true;
+    }
+  }
+
+  Map<String,Object?> execute(Map<String,dynamic> message){
+    if(message['action']=='reset'){reset();return initial();}
+    final commands=plan(message);
+    final inserts=commands.where((c)=>['insert','append','push'].contains(c['method'])).length;
+    if(reference.length+inserts>maxNodes && kind!='stack'){
+      throw const FormatException('Structure limit reached (12 nodes).');
+    }
+    final r=recorder();
+    r.steps.add(r.snapshot());
+    for(final command in commands){
+      final name=command['method'] as String;
+      final args=command['args'] as List<Object?>;
+      r.begin(name,args);
+      Object? result;
+      try {
+        switch(kind){
+          case 'tree':tree_api.TreeRecorder.active=r as tree_api.TreeRecorder;break;
+          case 'stack':stack_api.StackRecorder.active=r as stack_api.StackRecorder;break;
+          default:list_api.Recorder.active=r as list_api.Recorder;
+        }
+        result=invoke(name,args);
+      } finally {
+        list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;
+      }
+      final actual=actualValues();
+      final standard=kind=='stack' ? {'push','pop','peek','isEmpty'} :
+        kind=='tree' ? {'insert','contains','remove'} : {'insert','append','contains','remove'};
+      final canVerify=standard.contains(name) &&
+        (name=='pop'||name=='peek'||name=='isEmpty'||(args.length==1&&args.single is int));
+      final checked=updateReference(name,args,result);
+      final ok=checked && actual.join(',')==reference.join(',');
+      r.steps.add(r.snapshot());
+      final descriptorReturn=descriptor(name)['returns']=='void';
+      final label='$name(${args.join(', ')})';
+      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED':canVerify?'checked':'not automatically verified'}';
+      r.end(result,ok,returnedVoid:descriptorReturn,message:message);
+      if(!ok)break;
+    }
+    return envelope(r.steps.cast<Map<String,Object?>>());
+  }
+}
+
+// This file is generated for exactly one selected student/structure. It is a
+// separate Dart process. A stuck method cannot block the browser server.
+Future<void> main() async {
+  final session = BrowserSession('@@KIND@@');
+  stdout.writeln(jsonEncode({'type':'hello','trace':session.initial()}));
+  await for (final line in stdin.transform(utf8.decoder).transform(const LineSplitter())) {
+    try {
+      final message=jsonDecode(line);
+      if (message is! Map<String,dynamic>) throw const FormatException('Invalid request');
+      if (message['action']=='ping') { stdout.writeln('{"type":"pong"}'); continue; }
+      stdout.writeln(jsonEncode(session.execute(message)));
+    } catch (error, stack) {
+      stderr.writeln('Student execution failed: $error\n$stack');
+      stdout.writeln(jsonEncode({'type':'error','message':'$error'}));
+    }
+  }
+}

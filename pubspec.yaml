@@ -1,0 +1,6 @@
+name: data_structure_sandbox_browser
+publish_to: none
+environment:
+  sdk: '>=3.9.0 <4.0.0'
+dependencies:
+  analyzer: ^8.4.1

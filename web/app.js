@@ -1,0 +1,1068 @@
+'use strict';
+// Browser renders a trace sent by a persistent Dart server. No browser-side
+// simulation of list operations: node IDs and reference writes come from Dart.
+const NS = 'http://www.w3.org/2000/svg';
+const WIDTH = 112, HEIGHT = 68, ROW = 276, START_X = 112, GAP = 184;
+const $ = id => document.getElementById(id);
+const ui = {
+  code:$('code'), codeScroll:$('code-scroll'), file:$('filename'),
+  operation:$('operation'), description:$('description'), phase:$('phase'),
+  connection:$('connection'), status:$('scene-status'), result:$('result'),
+  stepLabel:$('step-label'), seek:$('seek'), next:$('next'), back:$('back'),
+  first:$('first'), last:$('last'), traceMode:$('trace-mode'),
+  speed:$('speed'), scene:$('scene'), edges:$('edges'), references:$('references'),
+  nullRail:$('null-rail'), nodes:$('nodes'), form:$('invoke'), method:$('method'), values:$('values'),
+  reset:$('reset'), suggestions:$('method-suggestions'), cmdStatus:$('command-status'), invoke:$('invoke-button'),
+  singleArg:$('single-argument'), argLabel:$('arg-label'), multiArgs:$('multi-arguments'),
+  student:$('student'),structure:$('structure'),retry:$('retry'), callForm:$('call-form'),callInput:$('call-input'),returnValue:$('return-value'),stackView:$('stack-view'),
+  playbackModes:[...document.querySelectorAll('[data-playback-mode]')],
+};
+const svg = (name, attrs={}) => {
+  const element = document.createElementNS(NS,name);
+  for(const [key,value] of Object.entries(attrs)) element.setAttribute(key,value);
+  return element;
+};
+let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
+let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
+let focusAfterCommand = false, stopped = false;
+const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',stack:'Array stack'};
+let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
+const preferenceKey='data-structure-sandbox.v1.selection';
+function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
+function rememberChoice(){try{localStorage.setItem(preferenceKey,JSON.stringify({student:selectedStudent,structure}));}catch(_){}}
+function selectImplementation(){
+  if(!socket||socket.readyState!==WebSocket.OPEN)return;
+  rememberChoice();
+  socket.send(JSON.stringify({action:'select',student:selectedStudent,structure}));
+  ui.cmdStatus.textContent=`Loading ${selectedStudent} / ${structure}…`;
+}
+function updateStructures(){
+  const available=studentCatalog.find(s=>s.id===selectedStudent)?.structures??[];
+  const before=structure;
+  ui.structure.replaceChildren();
+  for(const kind of available){const option=document.createElement('option');option.value=kind;option.textContent=STRUCTURE_LABELS[kind]??kind;ui.structure.append(option);}
+  if(!available.includes(structure))structure=available[0]??'';
+  ui.structure.value=structure;return before!==structure;
+}
+function receiveCatalog(data){
+  if(!Array.isArray(data.students))return;
+  studentCatalog=data.students;
+  const previous=selectedStudent;
+  if(!initializedCatalog){
+    const saved=savedPreference();
+    selectedStudent=saved?.student??data.default?.student??'example';
+    structure=saved?.structure??data.default?.structure??'list';
+  }
+  if(!studentCatalog.some(s=>s.id===selectedStudent)) selectedStudent=studentCatalog[0]?.id??'';
+  ui.student.replaceChildren();
+  for(const entry of studentCatalog){
+    const option=document.createElement('option');option.value=entry.id;option.textContent=entry.id;ui.student.append(option);
+  }
+  ui.student.value=selectedStudent;
+  const kindChanged=updateStructures();
+  if(!initializedCatalog || previous!==selectedStudent || kindChanged){
+    initializedCatalog=true;
+    if(selectedStudent && structure)selectImplementation();
+    else {ui.cmdStatus.textContent='No student implementations found. Add a file to the separate class repository.';}
+  }
+}
+
+let animationGeneration = 0, animating = false;
+let playbackMode='step', playbackToken=0;
+const CANCELLED = Symbol('animation interrupted');
+let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
+let hotNode = null, hotLink = null, hotReference = null;
+let head = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
+const nodes = new Map(), nodeViews = new Map(), links = new Map();
+
+function syntaxColor(line, destination) {
+  const tokens = /(\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:class|int|bool|void|final|return|while|if|else|true|false|null|set|get|this)\b|\b(?:ListNode|TreeNode|FixedMemory|MyBST|MyArrayStack|MyLinkedList|Recorder)\b|\b-?\d+\b)/g;
+  let offset=0;
+  for (const m of line.matchAll(tokens)) {
+    if(m.index>offset) destination.append(document.createTextNode(line.slice(offset,m.index)));
+    const token=m[0], span=document.createElement('span');
+    span.className=token.startsWith('//')?'syntax-comment':token.startsWith('"')||token.startsWith("'")?'syntax-string':/^-?\d+$/.test(token)?'syntax-number':/^(ListNode|TreeNode|FixedMemory|MyBST|MyArrayStack|MyLinkedList|Recorder)$/.test(token)?'syntax-type':'syntax-keyword';
+    span.textContent=token;destination.append(span);offset=m.index+token.length;
+  }
+  destination.append(document.createTextNode(line.slice(offset)||'\u00a0'));
+}
+function renderSource(src) {
+  ui.file.textContent=src.file;ui.code.replaceChildren();
+  src.lines.forEach((line,i)=>{
+    const row=document.createElement('div');row.className='code-line';row.dataset.line=String(i+1);
+    const no=document.createElement('span');no.className='line-number';no.textContent=String(i+1).padStart(2);
+    const contents=document.createElement('span');contents.className='line-text';syntaxColor(line,contents);
+    row.append(no,contents);ui.code.append(row);
+  });ui.codeScroll.scrollTop=0;activeLine=null;
+}
+function showLine(line) {
+  if(line===activeLine)return;
+  if(activeLine!==null)ui.code.querySelector(`[data-line="${activeLine}"]`)?.classList.remove('active');
+  activeLine=Number.isInteger(line)?line:null;
+  if(activeLine===null)return;
+  const row=ui.code.querySelector(`[data-line="${line}"]`);if(!row)return;
+  row.classList.add('active');const rr=row.getBoundingClientRect(),pr=ui.codeScroll.getBoundingClientRect();
+  if(rr.top<pr.top+20||rr.bottom>pr.bottom-20)ui.codeScroll.scrollTop+=rr.top-pr.top-pr.height*.32;
+}
+function newNode(data, initial=false) {
+  if(nodes.has(data.id))return nodes.get(data.id);
+  const marker=references.current??references.previous;
+  const around=nodes.get(marker)??[...nodes.values()].at(-1);
+  const node={id:data.id,value:data.value,next:data.next??null,left:data.left??null,right:data.right??null,
+    x:initial?START_X:(around?.x??START_X)+55,y:initial?ROW:135,
+    opacity:initial?1:0,detached:false,wasReachable:false};nodes.set(node.id,node);
+  const group=svg('g',{class:'node'});
+  group.append(svg('rect',{class:'card',x:0,y:0,width:WIDTH,height:HEIGHT,rx:10}),
+    svg('line',{class:'divider',x1:77,y1:0,x2:77,y2:HEIGHT}),
+    svg('rect',{class:'port',x:80,y:19,width:24,height:29,rx:5}));
+  const value=svg('text',{class:'value',x:38,y:33});value.textContent=String(data.value);
+  const id=svg('text',{class:'node-id',x:38,y:53});id.textContent='#'+data.id;
+  const pointer=svg('text',{class:'pointer-label',x:92,y:37});
+  group.append(value,id,pointer);
+  if(structure==='tree'){
+    group.querySelector('.card').setAttribute('width',72);
+    group.querySelector('.card').setAttribute('height',72);
+    group.querySelector('.card').setAttribute('rx',36);
+    group.querySelector('.divider').setAttribute('display','none');
+    group.querySelector('.port').setAttribute('display','none');
+    pointer.setAttribute('display','none');
+  }
+  ui.nodes.append(group);nodeViews.set(node.id,group);
+  renderNode(node);return node;
+}
+function renderNode(node){
+  const view=nodeViews.get(node.id);if(!view)return;
+  view.querySelector('.value').textContent=String(node.value);
+  view.setAttribute('transform',`translate(${node.x.toFixed(2)} ${node.y.toFixed(2)})`);
+  view.setAttribute('opacity',node.opacity.toFixed(3));
+  view.classList.toggle('hot',hotNode===node.id);view.classList.toggle('detached',node.detached);
+  const nil=structure==='list'&&node.next==null && override?.from!==`node:${node.id}.next`;
+  const pointer=view.querySelector('.pointer-label');
+  pointer.textContent=structure==='tree'?'':(nil?'null':'→');
+  pointer.classList.toggle('is-null',nil);
+}
+function pointFor(id, fallback) {
+  const node=nodes.get(id);
+  return node?{x:node.x-1,y:node.y+HEIGHT/2}:fallback;
+}
+// A shaft plus an explicit closed triangle avoids browser-specific SVG marker
+// offsets/scaling. The triangle TIP is the endpoint supplied by the layout:
+// the outside boundary of the target, never its centre or an arbitrary gap.
+const fmt=n=>Number(n.toFixed(2));
+function makeArrow(className){
+  const group=svg('g',{class:className});
+  group.append(svg('path',{class:'arrow-shaft'}),svg('polygon',{class:'arrow-tip'}));
+  return group;
+}
+function drawArrow(group,start,tip,kind='edge',backward=false){
+  let c1,c2;
+  if(kind==='reference'){
+    c1={x:start.x,y:start.y+Math.max(26,(tip.y-start.y)*.55)};
+    c2={x:tip.x,y:tip.y-Math.max(23,(tip.y-start.y)*.42)};
+  }else if(backward){
+    const bottom=Math.max(start.y,tip.y)+84;
+    c1={x:start.x+48,y:bottom};c2={x:tip.x-50,y:bottom};
+  }else{
+    const bend=Math.max(28,Math.abs(tip.x-start.x)*.45);
+    c1={x:start.x+bend,y:start.y};c2={x:tip.x-bend,y:tip.y};
+  }
+  // The final tangent determines the arrowhead's orientation (including on
+  // curved and animated references). Keep the shaft behind the triangle.
+  let dx=tip.x-c2.x,dy=tip.y-c2.y;
+  let length=Math.hypot(dx,dy);
+  if(length<.001){dx=tip.x-start.x;dy=tip.y-start.y;length=Math.hypot(dx,dy);}
+  const ux=length>.001?dx/length:0,uy=length>.001?dy/length:1;
+  const base={x:tip.x-ux*12,y:tip.y-uy*12};
+  const left={x:base.x-uy*5.4,y:base.y+ux*5.4};
+  const right={x:base.x+uy*5.4,y:base.y-ux*5.4};
+  group.querySelector('.arrow-shaft').setAttribute('d',
+    `M ${fmt(start.x)} ${fmt(start.y)} C ${fmt(c1.x)} ${fmt(c1.y)}, ${fmt(c2.x)} ${fmt(c2.y)}, ${fmt(base.x)} ${fmt(base.y)}`);
+  group.querySelector('.arrow-tip').setAttribute('points',
+    `${fmt(tip.x)},${fmt(tip.y)} ${fmt(left.x)},${fmt(left.y)} ${fmt(right.x)},${fmt(right.y)}`);
+}
+function renderEdges(){
+  if(structure==='tree'){renderTreeEdges();return;}
+  if(structure==='stack')return;
+  const active=new Set();
+  for(const node of nodes.values()){
+    const from=`node:${node.id}.next`;
+    const event=override?.from===from?override:null;
+    const fallback={x:node.x+WIDTH+26,y:node.y+HEIGHT/2};
+    const target=event?{x:event.x,y:event.y}:pointFor(node.next,fallback);
+    if(!event&&node.next===null)continue;
+    active.add(node.id);
+    let edge=links.get(node.id);
+    if(!edge){edge=makeArrow('edge');ui.edges.append(edge);links.set(node.id,edge);}
+    const src={x:node.x+WIDTH+1,y:node.y+HEIGHT/2};
+    drawArrow(edge,src,target,'edge',target.x<src.x+12);
+    edge.setAttribute('opacity',Math.min(1,node.opacity*(nodes.get(node.next)?.opacity??1)).toFixed(3));
+    edge.classList.toggle('hot',hotLink===from);
+  }
+  for(const [id,edge] of links)if(!active.has(id)){edge.remove();links.delete(id);}
+}
+const DOCKS={root:{x:56,y:62},head:{x:56,y:62},current:{x:245,y:62},previous:{x:451,y:62},fresh:{x:643,y:62}};
+const TARGET_OFFSETS={head:.18,current:.45,previous:.78,fresh:.62};
+function dockFor(name){
+  if(!DOCKS[name]){
+    const count=Object.keys(DOCKS).length-4;
+    DOCKS[name]={x:785+count*135,y:62};
+    TARGET_OFFSETS[name]=.28+(count%4)*.15;
+  }
+  return DOCKS[name];
+}
+const NULL_RAIL_TOP=123;
+function referencePoint(name,id){
+  const n=nodes.get(id),dock=dockFor(name);
+  return n?{x:n.x+(structure==='tree'?36:WIDTH*(TARGET_OFFSETS[name]??.5)),y:n.y-1}:{x:dock.x,y:NULL_RAIL_TOP};
+}
+function renderReferences(){
+  if(structure==='stack')return;
+  ui.references.replaceChildren();ui.nullRail.replaceChildren();
+  const actual={ [structure==='tree'?'root':'head']:structure==='tree'?rootId:head,...references};
+  Object.keys(actual).forEach(dockFor);
+  // A newly declared local must be visible DURING its first null→node move.
+  if(override?.from.startsWith('var:')) {
+    const pending=override.from.slice(4);
+    if(!(pending in actual))actual[pending]=null;
+  }
+  // Null is the ABSENCE of a target object, not an object shared by variables.
+  // A single labelled rail communicates the concept; distinct landing slots
+  // keep independent null references visually separate.
+  const nullNames=Object.keys(actual).filter(name=>actual[name]==null);
+  if(override?.nullTarget){
+    const name=override.from.replace(/^(root|var):/,'');
+    if(!nullNames.includes(name)){dockFor(name);nullNames.push(name);}
+  }
+  if(nullNames.length){
+    const railWidth=Math.max(690,...nullNames.map(name=>dockFor(name).x+35));
+    ui.nullRail.append(svg('rect',{x:28,y:NULL_RAIL_TOP,width:railWidth-28,height:25,rx:9,class:'null-rail'}));
+    const caption=svg('text',{x:railWidth+14,y:NULL_RAIL_TOP+17,class:'null-rail-label'});
+    caption.textContent='null';ui.nullRail.append(caption);
+    for(const name of nullNames){
+      const x=DOCKS[name].x;
+      ui.nullRail.append(svg('line',{x1:x,y1:NULL_RAIL_TOP+4,x2:x,y2:NULL_RAIL_TOP+18,class:'null-slot'}));
+    }
+  }
+  for(const [name,id] of Object.entries(actual)){
+    const dock=dockFor(name);
+    const active=hotReference===name, label=svg('text',{x:dock.x,y:dock.y,class:`ref-label ${(name==='head'||name==='root')?'':'local'} ${active?'active':''}`});
+    label.textContent=name;ui.references.append(label);
+    const target=override?.from===`root:${name}`||override?.from===`var:${name}`
+      ?{x:override.x,y:override.y}:referencePoint(name,id);
+    const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root')?'':'local'} ${active?'hot':''}`);
+    drawArrow(arrow,{x:dock.x,y:dock.y+10},target,'reference');
+    ui.references.append(arrow);
+  }
+}
+function renderAll(){if(structure==='stack'){renderStack();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
+function layoutFor(snapshot){
+  if(structure==='tree')return treeLayout(snapshot);
+  const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
+  const targets=new Map(),seen=new Set();let cursor=snapshot.head,index=0;
+  while(cursor!==null&&byId.has(cursor)&&!seen.has(cursor)&&index<100){
+    seen.add(cursor);targets.set(cursor,{x:START_X+index*GAP,y:ROW,opacity:1,detached:false});
+    cursor=byId.get(cursor).next;index++;
+  }
+  let detachedIndex=0;
+  for(const item of snapshot.nodes){if(seen.has(item.id))continue;
+    const former=nodes.get(item.id);
+    // A newly allocated object must remain above the row until it has ever
+    // belonged to the list, even before the local `fresh` is assigned.
+    const pending=!former?.wasReachable;
+    targets.set(item.id,{x:former?.x??START_X+detachedIndex*140,
+      y:pending?156:431,opacity:pending?1:.37,detached:!pending});detachedIndex++;
+  }
+  // Never change the viewBox halfway through an operation: that would scale
+  // every node and arrow at once and look like an unexplained position jump.
+  return {targets,count:index,cycle:cursor!==null&&seen.has(cursor)};
+}
+function applySnapshot(snapshot,animate=false){
+  if(structure==='stack'){stackState={cells:[...snapshot.cells],top:snapshot.top};renderStack();return {targets:new Map(),count:snapshot.top+1,cycle:false};}
+  if(structure==='tree')rootId=snapshot.root;else head=snapshot.head;
+  for(const data of snapshot.nodes){const node=newNode(data,true);node.value=data.value;node.next=data.next??null;node.left=data.left??null;node.right=data.right??null;}
+  const {targets,count,cycle}=layoutFor(snapshot);
+  // Reachability is historical: a newly created detached node floats above
+  // the row; a node removed from the row may drift below it.
+  for(const data of snapshot.nodes){
+    if(targets.get(data.id)?.y===ROW)nodes.get(data.id).wasReachable=true;
+  }
+  if(!animate){for(const [id,t] of targets)Object.assign(nodes.get(id),t);renderAll();}
+  return {targets,count,cycle};
+}
+const easing=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const lerp=(a,b,t)=>a+(b-a)*t;
+function tween(milliseconds,update){
+  const generation=animationGeneration;
+  return new Promise((resolve,reject)=>{
+    const start=performance.now();
+    function frame(now){
+      if(generation!==animationGeneration){reject(CANCELLED);return;}
+      const speed=Number(ui.speed.value);
+      const progress=Math.min(1,(now-start)*(Number.isFinite(speed)?speed:1000)/milliseconds);
+      update(easing(progress));
+      if(progress>=1)resolve();else requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+}
+async function animateCreate(data){const node=newNode(data);const startY=node.y;ui.phase.textContent='NEW OBJECT';
+  ui.status.textContent=`Node #${node.id} created. It is not yet linked into the list.`;
+  await tween(430,t=>{node.y=lerp(startY,156,t);node.opacity=t;renderAll();});
+}
+async function animateReference(name,to){
+  const old=name==='head'?head:name==='root'?rootId:references[name];
+  const dock=dockFor(name);
+  const start=referencePoint(name,old);
+  const end=referencePoint(name,to);
+  hotReference=name;override={from:name==='head'?`root:${name}`:`var:${name}`,...start,nullTarget:to==null};
+  ui.phase.textContent=(name==='head'||name==='root')?'ROOT POINTER':'LOCAL POINTER';
+  ui.status.textContent=`${name}: ${old==null?'null':'#'+old} → ${to==null?'null':'#'+to}. Nodes remain stationary.`;
+  await tween(570,t=>{override={from:override.from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t),nullTarget:to==null};renderReferences();});
+  if(name==='head')head=to;else if(name==='root')rootId=to;else references[name]=to;
+  override=null;hotReference=null;renderAll();
+}
+async function animateWrite(step){
+  if(step.from==='root:head'||step.from==='root:root'){await animateReference(step.from==='root:head'?'head':'root',step.to);return;}
+  const parsed=/^node:(\d+)\.(next|left|right)$/.exec(step.from);
+  if(!parsed)throw Error(`Unrecognized pointer origin ${step.from}`);
+  const node=nodes.get(Number(parsed[1]));if(!node)throw Error('Missing pointer source.');
+  const field=parsed[2];
+  if(node[field]!==step.oldTo)throw Error(`Pointer mismatch: ${step.from} was ${node[field]}, trace expected ${step.oldTo}`);
+  const nullPoint={x:node.x+WIDTH+26,y:node.y+HEIGHT/2};
+  const start=structure==='tree'?treeTargetPoint(step.oldTo,field,treeCentre(node)):pointFor(step.oldTo,nullPoint);
+  const end=structure==='tree'?treeTargetPoint(step.to,field,treeCentre(node)):pointFor(step.to,nullPoint);
+  override={from:step.from,...start};hotLink=step.from;hotNode=node.id;
+  ui.phase.textContent='POINTER CHANGE';ui.phase.classList.add('hot');
+  ui.status.textContent=`${step.from}: ${step.oldTo==null?'null':'#'+step.oldTo} → ${step.to==null?'null':'#'+step.to}. The layout is unchanged.`;
+  await tween(700,t=>{override={from:step.from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t)};
+    if(structure==='tree')treeEdgeMotion=Math.sin(Math.PI*t);
+    renderEdges();});
+  node[field]=step.to;override=null;treeEdgeMotion=0;renderAll();
+}
+async function animateSettle(snapshot){
+  // The pointer has already moved. ONLY NOW calculate new node slots.
+  const {targets,count,cycle}=applySnapshot(snapshot,true);
+  const starts=new Map([...nodes].map(([id,n])=>[id,{x:n.x,y:n.y,opacity:n.opacity}]));
+  ui.phase.textContent='SETTLING';ui.phase.classList.remove('hot');
+  ui.status.textContent='Pointer change complete. The reachable list now rearranges smoothly.';
+  await tween(850,t=>{
+    for(const [id,target] of targets){const node=nodes.get(id),start=starts.get(id);
+      node.x=lerp(start.x,target.x,t);node.y=lerp(start.y,target.y,t);
+      node.opacity=lerp(start.opacity,target.opacity,t);node.detached=target.detached;}
+    if(structure==='tree')treeEdgeMotion=Math.sin(Math.PI*t);
+    renderAll();
+  });
+  treeEdgeMotion=0;hotNode=null;hotLink=null;renderAll();
+  ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
+}
+function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
+  head=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded Dart execution.';
+  ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
+  ui.code.querySelector('.code-line.active')?.classList.remove('active');
+}
+function makeFrames(raw, mode='conceptual'){
+  const result=[];
+  let pendingLine=null;
+  for(let i=1;i<raw.length;i++){
+    const s=raw[i];
+    if(s.kind==='line'){
+      pendingLine=s.line;
+      if(mode==='detailed')result.push({...s});
+      continue;
+    }
+    if(s.kind==='retire'&&raw[i+1]?.kind==='snapshot'){result.push({...s,kind:'retireAndSettle',snapshot:raw[++i],line:s.line??pendingLine});pendingLine=null;continue;}
+    if(s.kind==='snapshot'){
+      result.push({kind:'snapshot',snapshot:s,line:pendingLine});
+      pendingLine=null;
+      continue;
+    }
+    if(s.kind==='localsClear')continue;
+    if((s.kind==='pointerWrite'||s.kind==='cellWrite'||s.kind==='indexWrite')&&raw[i+1]?.kind==='snapshot'){
+      result.push({...s,kind:s.kind==='pointerWrite'?'writeAndSettle':'memoryWriteAndSettle',snapshot:raw[++i],line:s.line??pendingLine});
+    } else result.push({...s,line:s.line??pendingLine});
+    pendingLine=null;
+  }
+  return result;
+}
+function instant(frame){
+  if(frame.line!=null)showLine(frame.line);
+  if(structure==='stack'){instantStack(frame);return;}
+  switch(frame.kind){
+    case 'line':break;
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.textContent=frame.description;break;
+    case 'createNode':{const n=newNode(frame.node);n.opacity=1;n.y=156;break;}
+    case 'variableWrite':references[frame.name]=frame.to;break;
+    case 'visit':hotNode=frame.id;break;
+    case 'compare':hotNode=frame.id;break;
+    case 'writeAndSettle':{
+      if(frame.from==='root:head')head=frame.to;
+      else if(frame.from==='root:root')rootId=frame.to;
+      else{const match=/^node:(\d+)\.(next|left|right)$/.exec(frame.from);if(match&&nodes.has(Number(match[1])))nodes.get(Number(match[1]))[match[2]]=frame.to;}
+      applySnapshot(frame.snapshot);break;
+    }
+    case 'snapshot':applySnapshot(frame.snapshot);break;
+    case 'retireAndSettle':retireNodes(frame.ids);applySnapshot(frame.snapshot);break;
+    case 'operationEnd':references={};hotNode=null;lastResult=frame.result;ui.result.textContent=lastResult;ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;showLine(null);break;
+  }
+  renderAll();
+}
+function restore(index){clearView();applySnapshot(traceInitial);
+  for(let i=0;i<index;i++)instant(frames[i]);stepIndex=index;
+  ui.phase.textContent=index?'REVISIT':'READY';ui.phase.classList.remove('hot');
+  ui.status.textContent=index?'Previous recorded state restored.':'The list is ready. Step forward to inspect the execution.';
+  sync();
+}
+let traceInitial=null;
+async function animate(frame){
+  if(frame.line!=null)showLine(frame.line);
+  if(structure==='stack'){await animateStack(frame);return;}
+  switch(frame.kind){
+    case 'line':ui.phase.textContent='SOURCE LINE';break;
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;ui.returnValue.textContent='';
+      ui.description.textContent=frame.description;lastResult='Running…';ui.result.textContent=lastResult;
+      hotNode=null;ui.phase.textContent='METHOD CALL';ui.phase.classList.remove('hot');renderAll();break;
+    case 'visit':hotNode=frame.id;ui.phase.textContent='VISIT';
+      ui.status.textContent=`Visiting node #${frame.id} (value ${nodes.get(frame.id)?.value??'?'})`;
+      renderAll();await tween(190,()=>{});break;
+    case 'compare':hotNode=frame.id;ui.phase.textContent='COMPARE';
+      ui.status.textContent=`${nodes.get(frame.id)?.value??'?'} ${frame.equal?'=':'≠'} ${frame.target}`;
+      renderAll();break;
+    case 'variableWrite':await animateReference(frame.name,frame.to);break;
+    case 'createNode':await animateCreate(frame.node);break;
+    case 'writeAndSettle':await animateWrite(frame);await animateSettle(frame.snapshot);break;
+    case 'snapshot':await animateSettle(frame.snapshot);break;
+    case 'retireAndSettle':await animateRetire(frame.ids,frame.snapshot);break;
+    case 'operationEnd':references={};hotNode=null;ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
+      lastResult=frame.result;ui.result.textContent=lastResult;ui.status.textContent=frame.result;showLine(null);renderAll();break;
+    default:throw Error('Unknown event '+frame.kind);
+  }
+}
+function sync(){
+  ui.next.disabled=!frames.length||stepIndex>=frames.length;
+  ui.back.disabled=stepIndex===0;
+  ui.first.disabled=stepIndex===0;
+  ui.last.disabled=!frames.length||stepIndex===frames.length;
+  ui.stepLabel.textContent=`Step ${stepIndex} / ${frames.length}`;
+  ui.seek.max=String(frames.length);
+  ui.seek.value=String(stepIndex);
+}
+// The logical trace position is updated immediately. A second navigation input
+// invalidates the old requestAnimationFrame tween and restores the requested
+// snapshot without waiting for the original movement to finish.
+function jumpTo(index){
+  animationGeneration++;
+  animating=false;
+  restore(Math.max(0,Math.min(frames.length,index)));
+}
+function updatePlaybackButtons(){
+  for(const button of ui.playbackModes){
+    const selected=button.dataset.playbackMode===playbackMode;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+  }
+}
+function stopPlayback(){
+  playbackToken++;
+  playbackMode='step';
+  updatePlaybackButtons();
+}
+async function playTrace(token){
+  while(playbackMode==='play'&&token===playbackToken&&stepIndex<frames.length){
+    const oldIndex=stepIndex;
+    await forward();
+    if(playbackMode!=='play'||token!==playbackToken||stepIndex<=oldIndex)return;
+    // Give users time to understand each mutation; source-only events are quicker.
+    const delay=frames[oldIndex]?.kind==='line'?140:260;
+    await new Promise(resolve=>setTimeout(resolve,delay/Math.max(.1,Number(ui.speed.value)||1)));
+  }
+}
+function choosePlaybackMode(mode){
+  if(!['step','play','result'].includes(mode))return;
+  playbackToken++;
+  playbackMode=mode;
+  updatePlaybackButtons();
+  if(mode==='step'){
+    if(animating)jumpTo(stepIndex);
+  }else if(mode==='result'){
+    jumpTo(frames.length);
+  }else if(frames.length){
+    if(animating)jumpTo(stepIndex);
+    if(stepIndex===frames.length)jumpTo(0);
+    void playTrace(playbackToken);
+  }
+}
+ui.playbackModes.forEach(button=>button.addEventListener('click',()=>choosePlaybackMode(button.dataset.playbackMode)));
+function navigate(action){stopPlayback();return action();}
+
+async function forward(){
+  if(!frames.length||stepIndex>=frames.length)return;
+  const target=stepIndex+1;
+  if(animating||ui.speed.value==='instant'){
+    jumpTo(target);
+    return;
+  }
+  animationGeneration++;
+  const generation=animationGeneration;
+  stepIndex=target;
+  animating=true;
+  sync();
+  try{
+    await animate(frames[target-1]);
+  }catch(error){
+    if(error!==CANCELLED){
+      ui.cmdStatus.textContent=`Trace error: ${error.message}`;
+      ui.cmdStatus.classList.add('error');console.error(error);
+      if(generation===animationGeneration)jumpTo(target);
+    }
+  }finally{
+    if(generation===animationGeneration){animating=false;sync();}
+  }
+}
+// A normal backward step plays the inverse visual change. For a structural
+// write, restore the old geometry FIRST, then retarget the pointer back.
+// Repeated navigation cancels the tween and jumps immediately, so rapid
+// stepping never waits for an unfinished animation.
+async function backward(){
+  if(stepIndex<=0)return;
+  const target=stepIndex-1;
+  if(animating||ui.speed.value==='instant'){jumpTo(target);return;}
+  animationGeneration++;
+  const generation=animationGeneration;
+  animating=true;
+  const frame=frames[target];
+  const currentIndex=stepIndex;
+  // Sample the exact preceding state without presenting intermediate frames.
+  // Both restores happen in one JS task, before the browser has painted.
+  restore(target);
+  const previous=new Map([...nodes].map(([id,n])=>[id,{...n}]));
+  const oldReference=frame.kind==='variableWrite'?references[frame.name]:null;
+  restore(currentIndex);
+  if(frame.kind==='retireAndSettle'){
+    for(const id of frame.ids){
+      const old=previous.get(id);
+      if(!old||nodes.has(id))continue;
+      const n=newNode(old,true);
+      Object.assign(n,old,{y:old.y+45,opacity:0,detached:true});
+    }
+    renderAll();
+  }
+  stepIndex=target;sync();
+  try{
+    if(frame.kind==='writeAndSettle'||frame.kind==='snapshot'||frame.kind==='retireAndSettle'||frame.kind==='memoryWriteAndSettle'){
+      ui.phase.textContent='REWIND · SETTLING';
+      const starts=new Map([...nodes].map(([id,n])=>[id,{x:n.x,y:n.y,opacity:n.opacity}]));
+      await tween(650,t=>{
+        for(const [id,n] of nodes){const a=starts.get(id),b=previous.get(id);
+          if(!b)continue;
+          n.x=lerp(a.x,b.x,t);n.y=lerp(a.y,b.y,t);
+          n.opacity=lerp(a.opacity,b.opacity,t);
+        }
+        if(structure==='tree')treeEdgeMotion=Math.sin(Math.PI*t);
+        renderAll();
+      });
+      treeEdgeMotion=0;renderAll();
+      if(frame.kind==='retireAndSettle'){
+        ui.phase.textContent='REWIND · RESTORING OBJECT';
+        ui.status.textContent='Restoring an earlier, still-referenced object.';
+      }
+      if(frame.kind==='writeAndSettle'){
+        ui.phase.textContent='REWIND · POINTER';
+        await animateWrite({from:frame.from,oldTo:frame.to,to:frame.oldTo});
+      }
+    } else if(frame.kind==='variableWrite'){
+      await animateReference(frame.name,oldReference??null);
+    } else if(frame.kind==='createNode'){
+      const node=nodes.get(frame.node.id);
+      if(node){const startY=node.y,startOpacity=node.opacity;
+        ui.phase.textContent='REWIND · OBJECT';
+        await tween(380,t=>{node.y=lerp(startY,startY-42,t);node.opacity=lerp(startOpacity,0,t);renderAll();});
+      }
+    }
+    if(generation===animationGeneration)restore(target);
+  }catch(error){
+    if(error!==CANCELLED){console.error(error);ui.cmdStatus.textContent=`Reverse trace error: ${error.message}`;
+      ui.cmdStatus.classList.add('error');if(generation===animationGeneration)restore(target);}
+  }finally{if(generation===animationGeneration){animating=false;sync();}}
+}
+function nextOperation(){
+  const next=frames.findIndex((f,i)=>i>=stepIndex&&f.kind==='operationStart');
+  jumpTo(next>=0?next+1:frames.length);
+}
+function previousOperation(){
+  let previous=0;
+  for(let i=0;i<Math.max(0,stepIndex-1);i++){
+    if(frames[i].kind==='operationStart')previous=i+1;
+  }
+  jumpTo(previous);
+}
+ui.next.addEventListener('click',()=>navigate(forward));
+ui.back.addEventListener('click',()=>navigate(backward));
+ui.first.addEventListener('click',()=>navigate(()=>jumpTo(0)));
+ui.last.addEventListener('click',()=>navigate(()=>jumpTo(frames.length)));
+ui.seek.addEventListener('input',()=>navigate(()=>jumpTo(Number(ui.seek.value))));
+ui.traceMode.addEventListener('change',()=>{
+  animationGeneration++;animating=false;
+  frames=makeFrames(rawSteps,ui.traceMode.value);
+  restore(0);
+  if(playbackMode==='result')jumpTo(frames.length);
+  else if(playbackMode==='play')void playTrace(++playbackToken);
+  ui.cmdStatus.textContent=`${ui.traceMode.value==='detailed'?'Detailed':'Key-event'} trace selected. Use ← / → or drag the timeline.`;
+});
+document.addEventListener('keydown',event=>{
+  if(event.altKey||event.ctrlKey||event.metaKey)return;
+  // Buttons (especially Run and suggestion buttons) must not swallow arrows.
+  // Only actual text editing and native selectors retain their own shortcuts.
+  if(event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement||event.target instanceof HTMLSelectElement||event.target?.isContentEditable)return;
+  if(event.key==='ArrowRight'){event.preventDefault();navigate(()=>event.shiftKey?nextOperation():forward());}
+  else if(event.key==='ArrowLeft'){event.preventDefault();navigate(()=>event.shiftKey?previousOperation():backward());}
+  else if(event.key==='Home'){event.preventDefault();navigate(()=>jumpTo(0));}
+  else if(event.key==='End'){event.preventDefault();navigate(()=>jumpTo(frames.length));}
+  else if(event.key===' '){event.preventDefault();choosePlaybackMode(playbackMode==='play'?'step':'play');}
+});
+// Method signatures are supplied by the Dart AST-based generator; no method
+// names or argument counts are hardcoded in the browser.
+let discovered = new Map();
+function selectedDescriptor(){return discovered.get(ui.method.value)??null;}
+function renderArguments(){
+  const descriptor=selectedDescriptor();if(!descriptor)return;
+  const params=descriptor.params??[];
+  ui.singleArg.style.display=params.length===1?'flex':'none';
+  ui.multiArgs.replaceChildren();
+  if(params.length===1){
+    const p=params[0];ui.argLabel.textContent=`${p.name} · ${p.type}`;
+    ui.values.value=p.type==='int'?'25':p.type==='double'?'2.5':p.type==='bool'?'true':'example';
+    ui.values.placeholder=p.type==='int'?'25 or 10, 20, 30':p.name;
+  } else {
+    params.forEach((p,i)=>{
+      const wrapper=document.createElement('span');wrapper.className='argument-field';
+      const label=document.createElement('label');label.textContent=`${p.name} · ${p.type}`;
+      const input=document.createElement('input');input.dataset.argument=String(i);
+      input.setAttribute('aria-label',`${p.name} (${p.type})`);
+      input.value=p.type==='int'?'0':p.type==='double'?'0.0':p.type==='bool'?'false':'';
+      wrapper.append(label,input);ui.multiArgs.append(wrapper);
+    });
+  }
+}
+function updateMethodCatalog(catalog){
+  if(!Array.isArray(catalog))return;
+  const selected=ui.method.value;
+  discovered=new Map(catalog.map(m=>[m.name,m]));
+  ui.method.replaceChildren();
+  for(const method of catalog){
+    const option=document.createElement('option');option.value=method.name;
+    option.textContent=`${method.name}(${(method.params??[]).map(p=>`${p.type} ${p.name}`).join(', ')})`;
+    ui.method.append(option);
+  }
+  ui.method.value=discovered.has(selected)?selected:(catalog[0]?.name??'');
+  ui.invoke.disabled=!catalog.length;renderArguments();
+  renderSuggestions();
+}
+function parseArgument(value,type){
+  const text=value.trim();
+  if(type==='String')return value;
+  if(type==='bool'){if(text==='true')return true;if(text==='false')return false;throw Error('Enter true or false.');}
+  if(type==='int'){if(!/^-?\d+$/.test(text))throw Error('Enter a whole number.');
+    const n=Number(text);if(!Number.isSafeInteger(n)||Math.abs(n)>999)throw Error('Use an integer between -999 and 999.');return n;}
+  if(type==='double'){const n=Number(text);if(!text||!Number.isFinite(n))throw Error('Enter a decimal number.');return n;}
+  throw Error(`Unsupported argument type: ${type}`);
+}
+ui.method.addEventListener('change',renderArguments);
+function acceptTrace(data){
+  if(!data.source?.lines||!Array.isArray(data.steps)||data.steps[0]?.kind!=='snapshot')throw Error('Invalid Dart trace.');
+  animationGeneration++;animating=false;
+  if(data.structure&&data.structure!==structure){structure=data.structure;ui.structure.value=structure;}
+  if(data.methods)updateMethodCatalog(data.methods);
+  source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
+  frames=makeFrames(rawSteps,ui.traceMode.value);
+  const maxVisible=Math.max(1,...rawSteps.filter(s=>s.kind==='snapshot').map(s=>s.nodes?.length??0));
+  const possibleRefs=Math.max(0, ...rawSteps.filter(s=>s.kind==='variableWrite').map(s=>s.name).filter(name=>!(name in DOCKS)).map((_,i)=>i+1));
+  ui.scene.setAttribute('viewBox',structure==='tree'?'0 0 1250 620':structure==='stack'?'0 0 1100 510':`0 0 ${Math.max(1100,START_X+maxVisible*GAP+55,800+possibleRefs*135)} 510`);
+  playbackToken++;
+  renderSource(source);restore(0);
+  if(playbackMode==='result')jumpTo(frames.length);
+  else if(playbackMode==='play')void playTrace(playbackToken);
+  savedValues=[...data.values];savedCapacity=data.capacity??8;savedSessionId=data.sessionId??null;renderSuggestions();
+  if(focusAfterCommand){focusAfterCommand=false;ui.next.focus({preventScroll:true});}
+  ui.connection.textContent='Dart connected';ui.cmdStatus.classList.remove('error');
+  ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready · ${structure} · [${data.values.join(', ')}]. Use ← / →.`:
+    'List reset. Choose an operation above.';
+}
+function send(payload){
+  if(!socket||socket.readyState!==WebSocket.OPEN){ui.cmdStatus.textContent='Dart server is not connected.';return;}
+  // Even if the user is halfway through an animation, allow another command.
+  animationGeneration++;animating=false;playbackToken++;
+  if(frames.length)restore(stepIndex);
+  focusAfterCommand=true;
+  socket.send(JSON.stringify(payload));ui.cmdStatus.textContent='Dart is executing…';
+}
+ui.form.addEventListener('submit',event=>{
+  event.preventDefault();
+  const method=selectedDescriptor();
+  if(!method){ui.cmdStatus.textContent='Waiting for Dart method discovery…';return;}
+  const params=method.params??[];
+  try{
+    if(params.length===1 && params[0].type==='int'){
+      const raw=ui.values.value.trim();
+      const values=raw.split(',').map(part=>parseArgument(part,'int'));
+      if(!values.length||values.length>12)throw Error('Use 1–12 values.');
+      send({action:'run',method:method.name,values});
+    }else{
+      const raw=params.length===1?[ui.values.value]:
+        [...ui.multiArgs.querySelectorAll('input')].map(input=>input.value);
+      if(raw.length!==params.length)throw Error('Missing argument.');
+      send({action:'run',method:method.name,arguments:raw.map((v,i)=>parseArgument(v,params[i].type))});
+    }
+  }catch(error){ui.cmdStatus.textContent=error.message;ui.cmdStatus.classList.add('error');}
+});
+// Suggestions are generated from each method signature and the live Dart list.
+// They invoke the SAME generic dispatcher as the custom argument form.
+const PREFERRED_NUMBERS=[5,7,13,20,25,30,42,99,0,-3];
+function missingNumbers(present,count=3){
+  const out=[];
+  for(const value of PREFERRED_NUMBERS){
+    if(!present.includes(value)&&!out.includes(value))out.push(value);
+    if(out.length===count)break;
+  }
+  for(let value=1;out.length<count&&value<=999;value++){
+    if(!present.includes(value)&&!out.includes(value))out.push(value);
+  }
+  return out;
+}
+function dedupeCalls(calls){
+  const seen=new Set();
+  return calls.filter(call=>{
+    const key=JSON.stringify(call.args);
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+  });
+}
+function suggestedCalls(method, values){
+  const params=method.params??[];
+  const present=[...new Set(values.filter(value=>Number.isSafeInteger(value)&&Math.abs(value)<=999))];
+  const absent=missingNumbers(present);
+  const call=(args,hint)=>({args,hint});
+  // All public, callable methods appear as rows. Only offer safe, typed
+  // suggestions; never guess complex user-defined object constructors.
+  if(!params.length)return [call([], 'No arguments')];
+  if(params.length===1){
+    const type=params[0].type;
+    if(type==='int'){
+      const candidates=[];
+      if(['remove','contains','find','search','delete','has','get','indexOf'].some(s=>method.name.toLowerCase().includes(s.toLowerCase()))){
+        for(const value of present.slice(0,3))candidates.push(call([value],'Exists in list'));
+        for(const value of absent.slice(0,3))candidates.push(call([value],'Not in list'));
+      } else {
+        for(const value of absent.slice(0,3))candidates.push(call([value],'Not in list'));
+        for(const value of present.slice(0,2))candidates.push(call([value],'Already in list'));
+      }
+      return dedupeCalls(candidates).slice(0,5);
+    }
+    if(type==='bool')return [call([true],'true'),call([false],'false')];
+    if(type==='String')return [call(['hello'],'Example'),call([''],'Empty string')];
+    if(type==='double')return [call([1.5],'Example'),call([0],'Zero')];
+  }
+  // Multi-argument methods get executable examples when all arguments are
+  // supported scalar values. Index parameters use the current list length.
+  const defaults=params.map(p=>p.type==='int' ? (/(index|position|offset)/i.test(p.name)?0:absent[0]) :
+    p.type==='double'?1.5:p.type==='bool'?true:p.type==='String'?'hello':null);
+  if(defaults.includes(null))return [];
+  const calls=[call(defaults,'Example')];
+  const intIndex=params.findIndex(p=>p.type==='int'&& !/(index|position|offset)/i.test(p.name));
+  const slotIndex=params.findIndex(p=>p.type==='int'&& /(index|position|offset)/i.test(p.name));
+  if(slotIndex>=0){
+    const end=[...defaults];end[slotIndex]=values.length;
+    calls.push(call(end,'At end'));
+  }
+  if(intIndex>=0){
+    const existing=[...defaults];existing[intIndex]=present[0]??absent[1];
+    calls.push(call(existing,present.length?'Value already present':'Another value'));
+  }
+  return dedupeCalls(calls).slice(0,4);
+}
+function callLabel(method,args){
+  const formatted=args.map((value,i)=>{
+    if(method.params?.[i]?.type==='String')return JSON.stringify(value);
+    return String(value);
+  });
+  return `${method.name}(${formatted.join(', ')})`;
+}
+function renderSuggestions(){
+  if(!ui.suggestions)return;
+  ui.suggestions.replaceChildren();
+  const values=Array.isArray(savedValues)?savedValues:[];
+  if(!discovered.size){
+    const p=document.createElement('p');p.className='suggestions-empty';p.textContent='Waiting for Dart method discovery…';ui.suggestions.append(p);return;
+  }
+  let methodIndex=0;
+  for(const method of discovered.values()){
+    const colorIndex=methodIndex++%6;
+    const row=document.createElement('div');row.className='suggestion-row';
+    const title=document.createElement('div');title.className='suggestion-method';
+    const name=document.createElement('strong');name.textContent=method.name;
+    const signature=document.createElement('small');signature.textContent=`(${(method.params??[]).map(p=>`${p.type} ${p.name}`).join(', ')})`;
+    title.append(name,signature);
+    const group=document.createElement('div');group.className='suggestion-buttons';
+    for(const suggestion of suggestedCalls(method,values)){
+      const button=document.createElement('button');button.type='button';button.className='call-suggestion';
+      button.textContent=callLabel(method,suggestion.args);
+      button.dataset.methodColor=String(colorIndex);
+      const formatArg=(arg,i)=>{
+        const text=method.params?.[i]?.type==='String'?JSON.stringify(arg):String(arg);
+        const safe=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const existing=typeof arg==='number'&&values.includes(arg);
+        return `<span class="argument ${existing?'present':''}">${safe}</span>`;
+      };
+      button.innerHTML=`<span class="call-name">${method.name}</span>(${suggestion.args.map(formatArg).join(', ')})`;
+      button.title=suggestion.hint;
+      button.setAttribute('aria-label',`${button.textContent} — ${suggestion.hint}`);
+      button.dataset.scenario=suggestion.hint;
+      button.disabled=(['insert','append','prepend','push','enqueue'].includes(method.name)&&values.length>=12);
+      button.addEventListener('click',()=>send({action:'run',method:method.name,arguments:suggestion.args}));
+      group.append(button);
+    }
+    if(!group.children.length){const empty=document.createElement('span');empty.className='suggestions-empty';empty.textContent='Use the custom argument form for this signature.';group.append(empty);}
+    row.append(title,group);ui.suggestions.append(row);
+  }
+}
+
+ui.reset.addEventListener('click',()=>send({action:'reset'}));
+// The browser connection is not the Dart process. Workspace proxies may close
+// idle WebSockets even while Dart keeps listening. Reconnect without discarding
+// the student's saved list, trace, or current playback position.
+function connect(){
+  if(stopped)return;
+  const protocol=location.protocol==='https:'?'wss:':'ws:';
+  ui.connection.textContent=reconnectAttempt?'Reconnecting to Dart…':'Connecting to Dart…';
+  const ws=new WebSocket(`${protocol}//${location.host}/ws`);
+  socket=ws;
+  ws.addEventListener('open',()=>{
+    reconnectAttempt=0;initializedCatalog=false;
+    ui.connection.textContent='Dart server connected';
+    clearInterval(heartbeat);
+    // Application-level heartbeats survive proxies that drop idle WS traffic.
+    heartbeat=setInterval(()=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({action:'ping'}));},15000);
+  });
+  ws.addEventListener('message',msg=>{
+    try{
+      const data=JSON.parse(msg.data);
+      if(data.type==='pong')return;
+      if(data.type==='catalog'){receiveCatalog(data);return;}
+      if(data.type==='building'||data.type==='sourceChanged'){
+        ui.cmdStatus.textContent=data.message+' Previous trace may be out of date.';
+        ui.connection.textContent='Preparing student runner…';return;
+      }
+      if(data.type==='error'){
+        focusAfterCommand=false;ui.cmdStatus.textContent=data.message;ui.cmdStatus.classList.add('error');return;
+      }
+      if(data.type==='hello'){
+        const initial=data.trace;
+        if(data.student)selectedStudent=data.student;rememberChoice();
+        if(savedValues===null){acceptTrace(initial);return;}
+        if(savedSessionId===(initial.sessionId??null) && JSON.stringify(savedValues)===JSON.stringify(initial.values)){
+          ui.connection.textContent='Dart connected';return;
+        }
+        acceptTrace(initial);
+        ui.cmdStatus.textContent='Dart session restarted; current list has been reset.';
+        return;
+      }
+      if(data.type==='trace')acceptTrace(data);
+    }catch(error){ui.cmdStatus.textContent=`Invalid response: ${error.message}`;
+      ui.cmdStatus.classList.add('error');console.error(error);}
+  });
+  ws.addEventListener('close',event=>{
+    if(socket!==ws)return;
+    clearInterval(heartbeat);heartbeat=null;
+    socket=null;
+    if(stopped)return;
+    ui.connection.textContent='Connection lost · reconnecting…';
+    console.warn('Dart WebSocket closed',event.code,event.reason||'');
+    const delay=Math.min(5000,400*Math.pow(1.8,reconnectAttempt++));
+    clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,delay);
+  });
+  ws.addEventListener('error',()=>{
+    if(socket===ws)ui.connection.textContent='Connection interrupted…';
+    // The `close` handler performs the actual reconnection.
+  });
+}
+window.addEventListener('beforeunload',()=>{stopped=true;clearTimeout(reconnectTimer);clearInterval(heartbeat);});
+connect();
+sync();
+updatePlaybackButtons();
+
+// v1.0: structure-specific renderers consume the same operation/source timeline.
+// A tree changes left/right pointers; a fixed array changes indexed cells.
+function treeLayout(snapshot){
+  const byId=new Map(snapshot.nodes.map(n=>[n.id,n]));
+  const targets=new Map(),seen=new Set();
+  // Inorder slots keep even extremely unbalanced trees readable without a
+  // force layout; y follows depth and is capped only by the node count limit.
+  let index=0,maxDepth=0;
+  function walk(id,depth){
+    if(id==null||seen.has(id)||!byId.has(id)||depth>20)return;
+    seen.add(id);const n=byId.get(id);
+    walk(n.left,depth+1);
+    targets.set(id,{x:100+index*105,y:155+depth*80,opacity:1,detached:false});
+    index++;maxDepth=Math.max(maxDepth,depth);
+    walk(n.right,depth+1);
+  }
+  walk(snapshot.root,0);
+  let orphan=0;
+  for(const item of snapshot.nodes){
+    if(targets.has(item.id))continue;
+    const previous=nodes.get(item.id),pending=!previous?.wasReachable;
+    targets.set(item.id,{x:previous?.x??100+orphan*90,y:pending?90:530,opacity:pending?1:.32,detached:!pending});orphan++;
+  }
+  return {targets,count:index,cycle:false};
+}
+// Tree edges connect the node centres, clipped to their circular outlines.
+// A relaxed tree always has straight edges; a modest Bezier bend is used ONLY
+// during pointer changes and node settling, then fades back to a line.
+const TREE_RADIUS=36;
+let treeEdgeMotion=0;
+function treeCentre(node){return {x:node.x+TREE_RADIUS,y:node.y+TREE_RADIUS};}
+function drawTreeEdge(group,fromCentre,toCentre,targetRadius=TREE_RADIUS,side='left'){
+  const dx=toCentre.x-fromCentre.x,dy=toCentre.y-fromCentre.y;
+  const length=Math.hypot(dx,dy);
+  if(length<.001){group.setAttribute('visibility','hidden');return;}
+  const ux=dx/length,uy=dy/length;
+  const start={x:fromCentre.x+ux*(TREE_RADIUS+1),y:fromCentre.y+uy*(TREE_RADIUS+1)};
+  const tip={x:toCentre.x-ux*(targetRadius+1),y:toCentre.y-uy*(targetRadius+1)};
+  const span=Math.hypot(tip.x-start.x,tip.y-start.y);
+  if(span<14){group.setAttribute('visibility','hidden');return;}
+  group.setAttribute('visibility','visible');
+  const headLength=Math.min(11,span*.4);
+  const base={x:tip.x-ux*headLength,y:tip.y-uy*headLength};
+  const left={x:base.x-uy*5.2,y:base.y+ux*5.2};
+  const right={x:base.x+uy*5.2,y:base.y-ux*5.2};
+  const bend=Math.min(28,span*.17)*treeEdgeMotion*(side==='left'?-1:1);
+  const c1={x:start.x+(base.x-start.x)*.36-uy*bend,
+            y:start.y+(base.y-start.y)*.36+ux*bend};
+  // Keep the endpoint tangent collinear with the centre-to-centre vector so
+  // the filled triangular tip lands precisely on the target's circular rim.
+  const c2={x:base.x-ux*Math.min(20,span*.2),y:base.y-uy*Math.min(20,span*.2)};
+  const shaft=treeEdgeMotion<.001
+    ?`M ${fmt(start.x)} ${fmt(start.y)} L ${fmt(base.x)} ${fmt(base.y)}`
+    :`M ${fmt(start.x)} ${fmt(start.y)} C ${fmt(c1.x)} ${fmt(c1.y)}, ${fmt(c2.x)} ${fmt(c2.y)}, ${fmt(base.x)} ${fmt(base.y)}`;
+  group.querySelector('.arrow-shaft').setAttribute('d',shaft);
+  group.querySelector('.arrow-tip').setAttribute('points',
+    `${fmt(tip.x)},${fmt(tip.y)} ${fmt(left.x)},${fmt(left.y)} ${fmt(right.x)},${fmt(right.y)}`);
+}
+function treeTargetPoint(id,field,source){
+  if(id!=null && nodes.has(id)){
+    const c=treeCentre(nodes.get(id));
+    const dx=c.x-source.x,dy=c.y-source.y,d=Math.hypot(dx,dy)||1;
+    return {x:c.x-dx/d*(TREE_RADIUS+1),y:c.y-dy/d*(TREE_RADIUS+1)};
+  }
+  return {x:source.x+(field==='left'?-95:95),y:source.y+95};
+}
+function renderTreeEdges(){
+  const active=new Set();
+  for(const node of nodes.values()){
+    for(const field of ['left','right']){
+      const key=`${node.id}:${field}`,name=`node:${node.id}.${field}`;
+      const event=override?.from===name?override:null;
+      const source=treeCentre(node);
+      const to=event?.x!=null?{x:event.x,y:event.y}:
+        (node[field]!=null&&nodes.has(node[field])?treeCentre(nodes.get(node[field])):null);
+      if(!to)continue;
+      active.add(key);
+      let edge=links.get(key);if(!edge){edge=makeArrow('edge');ui.edges.append(edge);links.set(key,edge);}
+      drawTreeEdge(edge,source,to,event?0:TREE_RADIUS,field);
+      edge.setAttribute('opacity',Math.min(1,node.opacity*(nodes.get(node[field])?.opacity??1)).toFixed(3));
+      edge.classList.toggle('hot',hotLink===name);
+    }
+  }
+  for(const [key,edge] of links)if(!active.has(key)){edge.remove();links.delete(key);}
+}
+function retireNodes(ids){
+  for(const id of ids){nodes.delete(id);nodeViews.get(id)?.remove();nodeViews.delete(id);}
+  renderAll();
+}
+async function animateRetire(ids,snapshot){
+  references={}; // The method has returned: local variables are out of scope.
+  ui.phase.textContent='UNREACHABLE';ui.status.textContent='No remaining references: detached objects fade from the diagram.';
+  const beginning=ids.map(id=>({id,node:nodes.get(id),y:nodes.get(id)?.y??0,opacity:nodes.get(id)?.opacity??0}));
+  await tween(520,t=>{
+    for(const {node,y,opacity} of beginning){if(!node)continue;node.y=lerp(y,y+45,t);node.opacity=lerp(opacity,0,t);node.detached=true;}
+    renderAll();
+  });
+  retireNodes(ids);applySnapshot(snapshot);
+}
+function renderStack(){
+  ui.stackView.replaceChildren();
+  const cells=stackState.cells??[];
+  const w=94,start=120,y=235;
+  const index=svg('text',{x:64,y:180,class:'stack-label'});index.textContent=`top = ${stackState.top}`;ui.stackView.append(index);
+  for(let i=0;i<cells.length;i++){
+    const x=start+i*w;
+    const rect=svg('rect',{x,y,width:80,height:65,rx:8,class:i===stackState.top?'memory-cell selected':'memory-cell'});
+    const text=svg('text',{x:x+40,y:y+38,class:'memory-value'});
+    text.textContent=cells[i]===null?'·':String(cells[i]);
+    const label=svg('text',{x:x+40,y:y+82,class:'memory-index'});label.textContent=`[${i}]`;
+    ui.stackView.append(rect,text,label);
+    if(i===stackState.top){
+      const arrow=makeArrow('ref-arrow');drawArrow(arrow,{x:x+40,y:171},{x:x+40,y:y-3},'reference');
+      ui.stackView.append(arrow);
+    }
+  }
+}
+function instantStack(frame){
+  if(frame.line!=null)showLine(frame.line);
+  switch(frame.kind){
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.result.textContent='Running…';break;
+    case 'memoryWriteAndSettle':case 'snapshot':
+      stackState={cells:[...frame.snapshot.cells],top:frame.snapshot.top};break;
+    case 'operationEnd':ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+      ui.result.textContent=frame.result;showLine(null);break;
+  }
+  renderStack();
+}
+async function animateStack(frame){
+  if(frame.kind==='memoryWriteAndSettle'){
+    ui.phase.textContent=frame.from?'MEMORY':'ARRAY WRITE';
+    ui.status.textContent=frame.index!=null?`memory[${frame.index}]: ${String(frame.oldValue)} → ${String(frame.value)}`:
+      `top: ${frame.oldValue} → ${frame.value}`;
+    // Fixed memory cells never move: only cell contents and top index change.
+    stackState={cells:[...frame.snapshot.cells],top:frame.snapshot.top};renderStack();
+    await tween(420,()=>{});return;
+  }
+  instantStack(frame);
+  if(frame.kind==='operationEnd')ui.phase.textContent='DONE';
+}
+
+ui.retry.addEventListener('click',()=>{savedValues=null;selectImplementation();});
+ui.student.addEventListener('change',()=>{
+  selectedStudent=ui.student.value;
+  updateStructures();
+  animationGeneration++;animating=false;playbackToken++;frames=[];rawSteps=[];savedValues=null;
+  clearView();sync();selectImplementation();
+});
+ui.structure.addEventListener('change',()=>{
+  structure=ui.structure.value;
+  animationGeneration++;animating=false;playbackToken++;frames=[];rawSteps=[];savedValues=null;
+  clearView();sync();ui.cmdStatus.textContent='Switching structure…';
+  selectImplementation();
+});
+function commandParts(text){
+  const match=/^\s*([A-Za-z_]\w*)\s*\((.*)\)\s*;?\s*$/.exec(text);
+  if(!match)throw Error('Enter a method call, e.g. contains(7) or push(5).');
+  const descriptor=discovered.get(match[1]);
+  if(!descriptor)throw Error(`Method ${match[1]} is not available for this structure.`);
+  const raw=match[2].trim();
+  const values=raw?JSON.parse(`[${raw}]`):[];
+  const params=descriptor.params??[];
+  if(values.length!==params.length)throw Error(`Expected ${params.length} arguments.`);
+  const arguments_=values.map((value,i)=>{
+    if(params[i].type==='int'&&(!Number.isSafeInteger(value)||Math.abs(value)>999))throw Error('Use integers from -999 to 999.');
+    if(params[i].type==='bool'&&typeof value!=='boolean')throw Error('Use true or false.');
+    if(params[i].type==='String'&&typeof value!=='string')throw Error('Use a quoted string.');
+    if(params[i].type==='double'&&(typeof value!=='number'||!Number.isFinite(value)))throw Error('Use a finite number.');
+    return value;
+  });
+  return {action:'run',method:match[1],arguments:arguments_};
+}
+ui.callForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  try{send(commandParts(ui.callInput.value));}catch(error){ui.cmdStatus.textContent=error.message;ui.cmdStatus.classList.add('error');}
+});
