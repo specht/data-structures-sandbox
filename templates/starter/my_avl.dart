@@ -1,6 +1,6 @@
 /*
-AVL-Baum: binärer Suchbaum mit Höhenausgleich.
-Aufgabe: Implementiere insert, contains und remove selbst.
+Height-balanced binary search tree (AVL).
+Implement the public operations below.
 */
 
 import '../../lib/tree_sandbox.dart';
@@ -9,43 +9,36 @@ class MyAVL {
   TreeNode? root;
 
   void insert(int value) {
-    // TODO: BST insertion, refresh heights and rebalance with rotations.
+    // TODO: Insert value if absent; preserve BST order and AVL balance.
   }
 
   bool contains(int value) {
-    // TODO: Search using the BST ordering.
+    // TODO: Return true if value is present; otherwise return false.
     return false;
   }
 
   bool remove(int value) {
-    // TODO: BST removal, refresh heights and rebalance after unlinking.
+    // TODO: Remove value if present; preserve AVL invariants and report success.
     return false;
   }
 }
 
 /*
-HILFE: TreeNode, Höhe und AVL-Bedingung
+REFERENCE: TreeNode and the AVL contract
 
-  TreeNode(value)         Erzeugt einen Knoten mit Integerwert.
-  node.value             Integer lesen oder setzen.
-  node.left / node.right  Kindverweise lesen oder mit = ändern.
-  node.height            Gespeicherte Höhe lesen oder mit = ändern.
-  root                    Dein Wurzelverweis (anfangs null).
+  TreeNode(value)         Create a node containing an int.
+  node.value             Read or write its int value.
+  node.left              Read the left child (TreeNode?; may be null).
+  node.right             Read the right child (TreeNode?; may be null).
+  node.left = child;     Set a nullable left reference (TreeNode?).
+  node.right = child;    Set a nullable right reference (TreeNode?).
+  node.height            Read or write stored height (int).
+  root                   Root reference (TreeNode?; initially null).
 
-  Beispiel für die Knoten-API (KEINE AVL-Implementierung):
-    final knot = TreeNode(42);
-    knot.height = 1;
-    knot.left = null;
-
-  Höhe eines leeren Teilbaums: 0; Höhe eines einzelnen Blattknotens: 1.
-  Balancefaktor: Höhe(linker Teilbaum) - Höhe(rechter Teilbaum).
-  Nach jeder öffentlichen Operation muss er an JEDEM Knoten -1, 0 oder 1
-  sein; gespeicherte Höhen müssen zur tatsächlichen Baumstruktur passen.
-  Suchbaumregel: alle Werte links kleiner, alle rechts größer; keine
-  doppelten Schlüssel. Korrigiere Ungleichgewichte durch Rotationen und
-  aktualisiere dabei die Kindverweise und Höhen. Du kannst private
-  Hilfsmethoden ergänzen; implementiere die öffentlichen Operationen selbst.
-  insert(value): falls neu, einfügen und AVL-Bedingung herstellen.
-  contains(value): entlang der Suchbaumregel suchen, Ergebnis bool.
-  remove(value): Wert entfernen und wieder ausbalancieren; Ergebnis bool.
+  A missing subtree has height 0; a leaf has height 1.
+  Balance factor = height(left subtree) - height(right subtree).
+  After every public operation, every node must have a correct stored
+  height and a balance factor in [-1, 1]. All left-subtree keys are smaller
+  and all right-subtree keys are greater; duplicate keys are ignored.
+  insert returns void. contains and remove return bool.
 */

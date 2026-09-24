@@ -1,6 +1,6 @@
 /*
-Warteschlange mit festem Ringpuffer (FIFO).
-Aufgabe: Implementiere enqueue, dequeue, peek, isEmpty und isFull.
+Fixed-capacity circular queue (FIFO).
+Implement the public operations below.
 */
 
 import '../../lib/queue_sandbox.dart';
@@ -15,53 +15,48 @@ class MyArrayQueue {
   set size(int value) => memory.size = value;
 
   bool enqueue(int value) {
-    // TODO: Return false when full; write at rear and advance modulo capacity.
+    // TODO: Add value at the end; return false without changing the queue if full.
     return false;
   }
 
   int? dequeue() {
-    // TODO: Return null when empty; clear front, advance, decrease size.
+    // TODO: Remove and return the oldest value, or null if the queue is empty.
     return null;
   }
 
   int? peek() {
-    // TODO: Inspect the front item, or return null when empty.
+    // TODO: Return the oldest value without removing it, or null if empty.
     return null;
   }
 
   bool isEmpty() {
-    // TODO: Prüfe selbst, ob die Queue leer ist.
+    // TODO: Return true exactly when the queue contains no elements.
     return false;
   }
 
   bool isFull() {
-    // TODO: Prüfe selbst, ob die Queue voll ist.
+    // TODO: Return true exactly when the queue has reached its capacity.
     return false;
   }
 }
 
 /*
-HILFE: QueueMemory und Ringpuffer
+REFERENCE: QueueMemory and the queue contract
 
-  memory = QueueMemory(8) hat acht feste Zellen mit Indizes 0 bis 7.
-  memory.length            Anzahl der Zellen (Kapazität).
-  memory[index]            Zelle lesen; Ergebnis int? (ggf. null).
-  memory[index] = value;   Integer schreiben.
-  memory[index] = null;    Entfernte Zelle leeren.
+  memory is QueueMemory(8): eight fixed cells indexed from 0 to 7.
+  memory.length           Cell count (int).
+  memory[index]           Read a cell (int?; null means an empty cell).
+  memory[index] = value;  Write an int to an existing cell.
+  memory[index] = null;   Clear an existing cell.
 
-  front, rear und size sind deine logischen Zustandsvariablen. Die
-  bereitgestellten get/set-Zugriffe leiten Zuweisungen an QueueMemory
-  weiter, damit die Visualisierung jede Änderung zeigen kann.
-  front: Index des nächsten zu entnehmenden Elements.
-  rear: Index der nächsten Schreibposition.
-  size: Anzahl der gespeicherten Elemente (anfangs 0).
-  Anfänglich sind front = 0 und rear = 0. Beim Umlauf darfst du mit
-  (index + 1) % memory.length rechnen. front == rear allein unterscheidet
-  einen leeren Ringpuffer NICHT von einem vollen.
+  front, rear, and size are int properties provided above. Their accessors
+  delegate to QueueMemory so the sandbox can observe changes.
+  front identifies the next element to remove; rear identifies the next
+  insertion position; size is the number of stored elements (initially 0).
+  front and rear initially equal 0 and may coincide both when empty and full.
+  This is a circular, fixed-capacity representation; cells do not move.
 
-  enqueue(value): false bei voll, sonst anhängen und true zurückgeben.
-  dequeue(): ältestes Element entfernen, bei leer null zurückgeben.
-  peek(): ältestes Element ohne Entfernen lesen, bei leer null.
-  isEmpty() / isFull(): prüfe beide Zustände selbst.
-  Die Zellen bleiben physisch am selben Index; kein List.add/removeAt.
+  enqueue returns false and leaves the queue unchanged if full; otherwise true.
+  dequeue and peek return int? (null if empty). peek does not remove a value.
+  isEmpty and isFull return bool. Duplicate values are permitted.
 */

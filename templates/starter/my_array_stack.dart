@@ -1,6 +1,6 @@
 /*
-Stack mit festem Array (LIFO).
-Aufgabe: Implementiere push, pop, peek und isEmpty selbst.
+Fixed-capacity array stack (LIFO).
+Implement the public operations below.
 */
 
 import '../../lib/stack_sandbox.dart';
@@ -11,48 +11,41 @@ class MyArrayStack {
   int top = -1;
 
   bool push(int value) {
-    // TODO: Check capacity, move top, write value into memory[top].
+    // TODO: Add value to the stack; return false without changing it if full.
     return false;
   }
 
   int? pop() {
-    // TODO: Return null when empty. Clear the old cell and move top down.
+    // TODO: Remove and return the top value, or null if the stack is empty.
     return null;
   }
 
   int? peek() {
-    // TODO: Return the current top value without removing it.
+    // TODO: Return the top value without removing it, or null if empty.
     return null;
   }
 
   bool isEmpty() {
-    // TODO: Prüfe selbst, ob der Stack leer ist.
+    // TODO: Return true exactly when the stack contains no elements.
     return false;
   }
 }
 
 /*
-HILFE: FixedMemory und die Stack-Schnittstelle
+REFERENCE: FixedMemory and the stack contract
 
-  memory ist ein FixedMemory(8): genau 8 feste Zellen (Indizes 0 bis 7).
-  memory.length                 Anzahl der Zellen (hier 8)
-  memory[index]                 Zelle lesen; Ergebnis ist int? (auch null)
-  memory[index] = value;        Integer in eine Zelle schreiben
-  memory[index] = null;         Zelle leeren
+  memory is FixedMemory(8): eight fixed cells indexed from 0 to 7.
+  memory.length           Cell count (int).
+  memory[index]           Read a cell (int?; null means an empty cell).
+  memory[index] = value;  Write an int to an existing cell.
+  memory[index] = null;   Clear an existing cell.
 
-  Beispiel für die Speicher-API (KEINE Stack-Implementierung):
-    int? gelesen = memory[0];
-    memory[0] = 42;
-    memory[0] = null;
+  top is an int maintained by this stack, not by FixedMemory.
+  Initially top == -1; otherwise it identifies the occupied top cell.
+  FixedMemory has no push, pop, add, removeLast, or top operation.
+  The sandbox observes changes to top and memory; use this storage only.
 
-  FixedMemory kennt weder push/pop noch top, add oder removeLast.
-  DU verwaltest das Feld top selbst: zu Beginn -1, sonst Index der
-  obersten belegten Zelle. Der Sandbox-Zeiger folgt deinen Zuweisungen.
-  Schreibe nur über memory[index]; nutze keine separate Dart-Liste.
-
-  push(value): true bei Erfolg, false bei vollem Stack; nichts überschreiben.
-  pop(): obersten Wert entfernen und zurückgeben; null bei leerem Stack.
-  peek(): obersten Wert lesen, ohne ihn zu entfernen; null bei leerem Stack.
-  isEmpty(): true genau dann, wenn der Stack leer ist.
-  Doppelte Werte sind erlaubt. Auch isEmpty gehört zu deiner Aufgabe.
+  push returns false and leaves the stack unchanged if full; otherwise true.
+  pop and peek return int? (null if empty). peek does not remove a value.
+  isEmpty returns bool. Duplicate values are permitted.
 */

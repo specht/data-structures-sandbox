@@ -1,6 +1,6 @@
 /*
-Hash-Set mit Verkettung bei Kollisionen.
-Aufgabe: Wähle eine Hashfunktion und implementiere alle Operationen.
+Integer hash set with separate chaining.
+Choose a hash function and implement the public operations below.
 */
 
 import '../../lib/hash_sandbox.dart';
@@ -15,64 +15,55 @@ class MyHashTable {
   }
 
   int _hash(int key, int capacity) {
-    // TODO: Return a deterministic index in 0 .. capacity - 1.
+    // TODO: Return a deterministic bucket index in 0..capacity - 1 for any int key.
     throw UnimplementedError('Implement the student hash function');
   }
 
   bool insert(int key) {
-    // TODO: Search the chosen bucket; insert only if the key is absent.
+    // TODO: Insert key if absent; return true if a key was added.
     return false;
   }
 
   bool contains(int key) {
-    // TODO: Search only the chosen bucket.
+    // TODO: Return true if key is present; otherwise return false.
     return false;
   }
 
   bool remove(int key) {
-    // TODO: Unlink the key if present, update size, return whether removed.
+    // TODO: Remove key if present; return true if a key was removed.
     return false;
   }
 
   bool isEmpty() {
-    // TODO: Prüfe selbst, ob die Tabelle leer ist.
+    // TODO: Return true exactly when the set contains no keys.
     return false;
   }
 
   double loadFactor() {
-    // TODO: Berechne den Belegungsfaktor selbst.
+    // TODO: Return the number of stored keys divided by the number of buckets.
     return 0.0;
   }
 }
 
 /*
-HILFE: HashBuckets und ListNode
+REFERENCE: HashBuckets, ListNode, and the hash-set contract
 
-  MyHashTable([bucketCount]) wählt die Anzahl der Buckets (Standard: 8).
-  buckets = HashBuckets(bucketCount, _hash) ist NUR der Speicheradapter;
-  deine Methoden und die Hashfunktion musst du selbst implementieren.
-  buckets.length           Anzahl der Buckets (mindestens 1).
-  buckets.indexFor(key)     Ruft DEINE _hash(key, capacity) auf und prüft,
-                            ob der Ergebnisindex im gültigen Bereich liegt.
-  buckets[index]            Kopf einer Kette lesen (ListNode? oder null).
-  buckets[index] = node;    Kopf einer Kette ändern (auch null möglich).
-  ListNode(value)           Erzeugt einen Knoten mit Integerwert.
-  node.value / node.next    Wert bzw. Nachfolger lesen.
-  node.next = other;        Nachfolger setzen (auch null möglich).
+  MyHashTable([bucketCount]) selects the bucket count (default 8).
+  buckets is HashBuckets(bucketCount, _hash), an observable storage adapter.
+  buckets.length          Bucket count (int; at least 1).
+  buckets.indexFor(key)    Calls _hash(key, capacity) and validates its index.
+  buckets[index]           Read a bucket head (ListNode?; may be null).
+  buckets[index] = node;   Set a bucket head (ListNode?; may be null).
+  ListNode(value)          Create a node containing an int.
+  node.value              Read or write its int value.
+  node.next               Read a successor (ListNode?; may be null).
+  node.next = other;      Set a successor (ListNode?; may be null).
 
-  Beispiel für die Speicher-API (KEINE Hash-Tabellen-Implementierung):
-    ListNode? erster = buckets[0];
-    buckets[0] = ListNode(42);
+  _hash returns a deterministic index from 0 to capacity - 1 for any
+  int key, including negative keys. Collisions use linked bucket chains.
+  size is the total number of stored keys (int; initially 0).
+  This is a set: duplicate keys are not stored. Bucket count stays fixed.
 
-  _hash(key, capacity) muss für ALLE int-Schlüssel (auch negative) einen
-  deterministischen Index von 0 bis capacity - 1 zurückgeben. Wähle die
-  Hashfunktion selbst. Die Tabelle ist ein SET: keine doppelten Schlüssel.
-  Kollisionen: mehrere Knoten dürfen in EINER Bucket-Kette stehen.
-  size zählt alle Elemente über alle Buckets (anfangs 0).
-  insert(key): nur neuen Schlüssel aufnehmen; true bei Einfügen.
-  contains(key): nur die zugehörige Bucket-Kette durchsuchen.
-  remove(key): Schlüssel ggf. aus der Kette lösen, true bei Erfolg.
-  isEmpty(): selbst prüfen, ob die Tabelle leer ist.
-  loadFactor(): Anzahl Elemente / Anzahl Buckets als double zurückgeben.
-  Der Speicheradapter implementiert KEINE dieser Operationen für dich.
+  insert, contains, remove, and isEmpty return bool.
+  loadFactor returns double: stored key count divided by bucket count.
 */

@@ -1,6 +1,6 @@
 /*
-Min-Heap als vollständiger Binärbaum aus Knoten.
-Aufgabe: Implementiere insert, removeMin, peek und isEmpty.
+Node-based min-heap of integers.
+Implement the public operations below.
 */
 
 import '../../lib/tree_sandbox.dart';
@@ -10,48 +10,42 @@ class MyNodeHeap {
   int size = 0;
 
   void insert(int value) {
-    // TODO: Link a new node in the next complete-tree slot, then sift up.
+    // TODO: Insert value while preserving heap order and complete-tree shape.
   }
 
   int? removeMin() {
-    // TODO: Unlink the last node, replace root value, then sift down.
+    // TODO: Remove and return the minimum value, or null if the heap is empty.
     return null;
   }
 
   int? peek() {
-    // TODO: Lies das Minimum, ohne es zu entfernen; null bei leerem Heap.
+    // TODO: Return the minimum value without removing it, or null if empty.
     return null;
   }
 
   bool isEmpty() {
-    // TODO: Prüfe selbst, ob der Heap leer ist.
+    // TODO: Return true exactly when the heap contains no elements.
     return false;
   }
 }
 
 /*
-HILFE: TreeNode und knotenbasierter Min-Heap
+REFERENCE: TreeNode and the node-based min-heap contract
 
-  TreeNode(value)         Erzeugt einen Knoten mit Integerwert.
-  node.value             Lesen oder schreiben (node.value = zahl;).
-  node.left / node.right  Linkes und rechtes Kind (je TreeNode? oder null).
-  node.left = child;      Verweis ändern; analog node.right = child.
-  root                    Dein Verweis auf die Wurzel (anfangs null).
-  size                    Dein Zähler aller erreichbaren Knoten (anfangs 0).
+  TreeNode(value)         Create a node containing an int.
+  node.value             Read or write its int value.
+  node.left              Read the left child (TreeNode?; may be null).
+  node.right             Read the right child (TreeNode?; may be null).
+  node.left = child;     Set a nullable left reference (TreeNode?).
+  node.right = child;    Set a nullable right reference (TreeNode?).
+  root                   Root reference (TreeNode?; initially null).
+  size                   Number of reachable nodes (int; initially 0).
 
-  Beispiel für die Knoten-API (KEINE Heap-Implementierung):
-    final knot = TreeNode(42);
-    knot.left = null;
-    int gelesen = knot.value;
+  The heap must be a complete binary tree: levels fill left to right.
+  Every parent value must be <= its children's values; node identities
+  remain stable as values are reordered. Duplicate values are permitted.
+  There is no array backing this representation.
 
-  Hier gibt es KEIN HeapMemory-Array. Die Knoten bilden einen vollständigen
-  Binärbaum: Jede Ebene wird von links nach rechts gefüllt. Für eine
-  gedankliche Nummerierung ab 1 hat Position i die Kinder 2*i und 2*i+1;
-  du musst die Verweise zu dieser Position selbst finden. Jeder Elternwert
-  muss <= beiden vorhandenen Kinderwerten sein. Vertausche ggf. WERTE,
-  nicht die Identität bereits verbundener Knoten.
-  insert(value): Knoten einfügen, Struktur und Heap-Ordnung erhalten.
-  removeMin(): Minimum entfernen, bei leer null zurückgeben.
-  peek(): Minimum ohne Entfernen lesen, bei leer null.
-  isEmpty(): Leerzustand selbst prüfen. Doppelte Werte sind erlaubt.
+  insert returns void. removeMin and peek return int? (null if empty).
+  peek leaves the heap unchanged. isEmpty returns bool.
 */

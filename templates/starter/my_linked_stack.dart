@@ -1,6 +1,6 @@
 /*
-Stack mit verketteten Knoten (LIFO).
-Aufgabe: Implementiere push, pop, peek und isEmpty selbst.
+Linked stack (LIFO).
+Implement the public operations below.
 */
 
 import '../../lib/sandbox.dart';
@@ -9,45 +9,37 @@ class MyLinkedStack {
   ListNode? head;
 
   bool push(int value) {
-    // TODO: Allocate ListNode(value), link it to head, update head.
+    // TODO: Add value to the stack and return true.
     return false;
   }
 
   int? pop() {
-    // TODO: Return null if empty; otherwise return and unlink the head value.
+    // TODO: Remove and return the top value, or null if the stack is empty.
     return null;
   }
 
   int? peek() {
-    // TODO: Inspect the head without unlinking it.
+    // TODO: Return the top value without removing it, or null if empty.
     return null;
   }
 
   bool isEmpty() {
-    // TODO: Prüfe selbst, ob der Stack leer ist.
+    // TODO: Return true exactly when the stack contains no elements.
     return false;
   }
 }
 
 /*
-HILFE: ListNode und die Stack-Schnittstelle
+REFERENCE: ListNode and the stack contract
 
-  ListNode(value)       Erzeugt einen neuen Knoten mit int-Wert.
-  node.value            Liest den Integer des Knotens.
-  node.next             Liest den nächsten Knoten (ListNode? oder null).
-  node.next = other;    Verändert die Verknüpfung (other: ListNode?).
-  head                  Dein Feld: Verweis auf den obersten Knoten, anfangs null.
+  ListNode(value)         Create a node containing an int.
+  node.value             Read or write its int value.
+  node.next              Read its successor (ListNode?; may be null).
+  node.next = other;     Set its successor (other is ListNode?; may be null).
+  head                   Top reference (ListNode?; initially null).
 
-  Beispiel für die Knoten-API (KEINE Stack-Implementierung):
-    final knot = ListNode(42);
-    knot.next = null;
-    int zahl = knot.value;
-
-  Es gibt keinen int top und keinen FixedMemory-Speicher bei dieser Variante.
-  Die Knoten bleiben erhalten, solange head sie über next erreicht.
-  push(value): neuen Knoten oben ablegen, true zurückgeben.
-  pop(): obersten Wert entfernen, bei leerem Stack null zurückgeben.
-  peek(): obersten Wert ohne Entfernen lesen, sonst null.
-  isEmpty(): true genau dann, wenn der Stack leer ist.
-  Doppelte Werte sind erlaubt. Auch isEmpty implementierst du selbst.
+  There is no FixedMemory or integer top in this representation.
+  The nodes reachable from head form the stack; duplicates are permitted.
+  push returns true. pop and peek return int? (null if empty).
+  peek does not remove a value. isEmpty returns bool.
 */

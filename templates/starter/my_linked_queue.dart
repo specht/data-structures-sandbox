@@ -1,6 +1,6 @@
 /*
-Warteschlange mit verketteten Knoten (FIFO).
-Aufgabe: Implementiere enqueue, dequeue, peek und isEmpty.
+Linked queue (FIFO).
+Implement the public operations below.
 */
 
 import '../../lib/sandbox.dart';
@@ -10,45 +10,39 @@ class MyLinkedQueue {
   ListNode? tail;
 
   bool enqueue(int value) {
-    // TODO: Append a new node. Update both references when initially empty.
+    // TODO: Add value at the end of the queue and return true.
     return false;
   }
 
   int? dequeue() {
-    // TODO: Remove head; make tail null as well if removing the last node.
+    // TODO: Remove and return the oldest value, or null if the queue is empty.
     return null;
   }
 
   int? peek() {
-    // TODO: Return null when empty; otherwise inspect head.
+    // TODO: Return the oldest value without removing it, or null if empty.
     return null;
   }
 
   bool isEmpty() {
-    // TODO: Prüfe selbst, ob die Queue leer ist.
+    // TODO: Return true exactly when the queue contains no elements.
     return false;
   }
 }
 
 /*
-HILFE: ListNode und FIFO-Warteschlange
+REFERENCE: ListNode and the queue contract
 
-  ListNode(value)       Erzeugt einen neuen Knoten mit int-Wert.
-  node.value            Liest den Integer des Knotens.
-  node.next             Liest den Nachfolger (ListNode? oder null).
-  node.next = other;    Setzt den Nachfolger (other: ListNode?).
-  head                  Dein Verweis auf das älteste Element.
-  tail                  Dein Verweis auf das neueste Element.
+  ListNode(value)         Create a node containing an int.
+  node.value             Read or write its int value.
+  node.next              Read its successor (ListNode?; may be null).
+  node.next = other;     Set its successor (other is ListNode?; may be null).
+  head                   Oldest node (ListNode?; initially null).
+  tail                   Newest node (ListNode?; initially null).
 
-  Beispiel für die Knoten-API (KEINE Queue-Implementierung):
-    final knot = ListNode(42);
-    knot.next = null;
-
-  Anfangs sind head und tail null. Nach dem Entfernen des letzten
-  Elements müssen BEIDE null sein; tail.next muss immer null sein.
-  enqueue(value): hinten einfügen, true zurückgeben.
-  dequeue(): ältestes Element entfernen, bei leer null.
-  peek(): ältestes Element ohne Entfernen lesen, bei leer null.
-  isEmpty(): den Leerzustand selbst prüfen.
-  Doppelte Werte sind erlaubt; es gibt keine feste Kapazität.
+  For an empty queue, both head and tail are null.
+  For a nonempty queue, tail.next is null. Duplicate values are permitted;
+  the queue has no fixed capacity.
+  enqueue returns true. dequeue and peek return int? (null if empty).
+  peek does not remove a value. isEmpty returns bool.
 */

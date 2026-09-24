@@ -1,6 +1,6 @@
 /*
-Min-Heap mit vergrößerbarem Array.
-Aufgabe: Implementiere insert, removeMin, peek und isEmpty.
+Array-based min-heap of integers.
+Implement the public operations below.
 */
 
 import '../../lib/heap_sandbox.dart';
@@ -9,48 +9,41 @@ class MyArrayHeap {
   final HeapMemory memory = HeapMemory();
 
   void insert(int value) {
-    // TODO: Append and sift the new value upward.
+    // TODO: Insert value while preserving the min-heap property.
   }
 
   int? removeMin() {
-    // TODO: Return null when empty; move last value to root and sift down.
+    // TODO: Remove and return the minimum value, or null if the heap is empty.
     return null;
   }
 
   int? peek() {
-    // TODO: Return smallest value without removing it, or null if empty.
+    // TODO: Return the minimum value without removing it, or null if empty.
     return null;
   }
 
   bool isEmpty() {
-    // TODO: Prüfe selbst, ob der Heap leer ist.
+    // TODO: Return true exactly when the heap contains no elements.
     return false;
   }
 }
 
 /*
-HILFE: HeapMemory und Min-Heap
+REFERENCE: HeapMemory and the min-heap contract
 
-  memory ist eine WACHSENDE Folge von int-Zellen (anfangs leer).
-  memory.length          Anzahl belegter Zellen.
-  memory[index]          int an einem bestehenden Index lesen.
-  memory[index] = value; int an einem bestehenden Index überschreiben.
-  memory.add(value);     Eine neue Zelle am Ende anhängen.
-  memory.removeLast();   Letzten Wert entfernen und zurückgeben (int).
-  memory.swap(a, b);     Werte zweier vorhandener Indizes vertauschen.
+  memory is a growable, initially empty sequence of int cells.
+  memory.length          Number of stored values (int).
+  memory[index]          Read an existing value (int; not nullable).
+  memory[index] = value; Replace a value at an existing index.
+  memory.add(value);     Append an int cell.
+  memory.removeLast();   Remove and return the last value (int).
+  memory.swap(a, b);     Exchange the values at two existing indices.
 
-  Beispiel für die Speicher-API (KEINE Heap-Implementierung):
-    memory.add(42);
-    int gelesen = memory[0];
-    memory[0] = 21;
+  Valid indices are 0..memory.length - 1. Assignment does not grow memory.
+  The minimum belongs at index 0. In the logical tree represented by this
+  array, index i has children 2*i + 1 and 2*i + 2 when they exist.
+  Every parent value must be <= its children's values.
 
-  Ein Schreibzugriff auf memory[memory.length] erweitert den Speicher
-  NICHT; verwende dafür add. Greife nie außerhalb 0..length-1 zu.
-  Der kleinste Wert gehört an Index 0; für Index i liegen die Kinder
-  bei 2*i+1 und 2*i+2, der Elternindex bei (i-1) ~/ 2.
-  Jeder Elternwert muss <= beiden vorhandenen Kinderwerten sein.
-  insert(value): Element aufnehmen und Min-Heap-Eigenschaft herstellen.
-  removeMin(): kleinstes Element entfernen, bei leer null zurückgeben.
-  peek(): Minimum ohne Entfernen lesen, bei leer null.
-  isEmpty(): Leerzustand selbst prüfen. Doppelte Werte sind erlaubt.
+  insert returns void. removeMin and peek return int? (null if empty).
+  peek leaves the heap unchanged. isEmpty returns bool; duplicates are allowed.
 */
