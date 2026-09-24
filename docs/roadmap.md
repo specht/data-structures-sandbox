@@ -13,7 +13,7 @@ model snapshot/invariants and a renderer that can animate the relevant memory.
    states. Physical cells stay fixed while logical FIFO order is highlighted.
    Worker checks returned values, occupied slots, bounds, and next-free index.
    Existing student implementations are never overwritten by an example.
-3. **AVL tree:** reuse `TreeNode` and binary-tree layout, but add `height`
+3. **AVL tree (adapter and example added; end-to-end Dart validation required):** reuse `TreeNode` and binary-tree layout, but add `height`
    writes, balance factors and invariants for every subtree. Animate pointer
    writes first and allow the settled layout to move the same node IDs through
    rotations. Invalid balance remains visible and is reported separately.

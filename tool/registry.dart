@@ -7,6 +7,7 @@ class StructureSpec {
 const structures = <StructureSpec>[
   StructureSpec('list','Singly linked list','my_linked_list.dart','MyLinkedList','linked','linked-list'),
   StructureSpec('tree','Binary search tree','my_bst.dart','MyBST','linked','binary-tree'),
+  StructureSpec('avl','AVL tree (self-balancing)','my_avl.dart','MyAVL','linked','binary-tree'),
   StructureSpec('stack','Fixed-array stack','my_array_stack.dart','MyArrayStack','array','fixed-memory'),
   StructureSpec('linked_stack','Linked stack (LIFO)','my_linked_stack.dart','MyLinkedStack','linked','linked-list'),
   StructureSpec('linked_queue','Linked queue (FIFO)','my_linked_queue.dart','MyLinkedQueue','linked','linked-list'),

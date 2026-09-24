@@ -218,3 +218,31 @@ playback. Run Fit again after making a tree much larger. Very large or
 strongly unbalanced trees can still become crowded, and execution remains
 subject to the worker deadline, the 4,000-event trace cap, and the response
 size budget.
+
+## AVL tree (roadmap item 3)
+
+The AVL adapter reuses the existing tree renderer with stable node IDs. It
+shows each node's **stored height** (`h`) and **calculated balance factor**
+(`b = left-subtree height − right-subtree height`). A red outline indicates a
+height mismatch or a subtree with `|b| > 1`. Red outlines in **intermediate
+rotation frames** are expected; the worker checks all subtree heights, balance,
+BST order, and shared/cyclic pointers **after each public operation** and
+reports the failures separately from the abstract set-value check.
+
+```
+./new-structure example avl  # only if structures/example/my_avl.dart is absent
+# or: cp -n templates/example/my_avl.dart structures/example/
+./run
+```
+
+Try `insert(30)`, `insert(20)`, `insert(10)` (LL rotation), then reset and
+try RR (`10,20,30`), LR (`30,10,20`), RL (`10,30,20`) and removal. Rotation
+helpers in the example are private methods: their observable pointer/height
+writes are recorded, while the current AST source-line stepping concentrates
+on public method bodies (helper source mapping remains future work).
+
+Run `dart test/avl_model.dart`, `dart test/smoke.dart`, and
+`node test/avl_view.test.js` in your Workspace.
+The worker smoke test needs the `example` AVL file in the separate
+`structures/` repository; it never creates or overwrites a student's work.
+The standalone model test runs directly against the bundled example.

@@ -14,7 +14,7 @@ function paintViewport(){
 function ensureViewport(kind){
   if(viewportKind!==kind){
     viewportKind=kind;
-    viewport={x:0,y:0,w:1100,h:kind==='tree'?620:510};
+    viewport={x:0,y:0,w:1100,h:(kind==='tree'||kind==='avl')?620:510};
   }
   paintViewport();
 }
@@ -27,12 +27,12 @@ function zoomScene(factor){
 function fitScene(){
   const visible=[...nodes.values()].filter(n=>n.opacity>.01);
   if(!visible.length){viewportKind=null;ensureViewport(structure);return;}
-  const right=structure==='tree'?72:WIDTH;
+  const right=isTree()?72:WIDTH;
   const x0=Math.min(...visible.map(n=>n.x))-115;
   const x1=Math.max(...visible.map(n=>n.x+right))+115;
   const y0=Math.min(...visible.map(n=>n.y))-160;
   const y1=Math.max(...visible.map(n=>n.y+HEIGHT))+115;
-  const ratio=(structure==='tree'?1100/620:1100/510);
+  const ratio=(isTree()?1100/620:1100/510);
   const w=Math.max(460,x1-x0,(y1-y0)*ratio);
   const h=w/ratio;
   viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
@@ -62,7 +62,8 @@ const svg = (name, attrs={}) => {
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
-const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
+function isTree(){return structure==='tree'||structure==='avl';}
+const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',avl:'AVL tree (self-balancing)',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -124,7 +125,12 @@ function syntaxColor(line, destination) {
   destination.append(document.createTextNode(line.slice(offset)||'\u00a0'));
 }
 function renderSource(src) {
-  ui.file.textContent=src.file;ui.code.replaceChildren();
+  // Source paths may be absolute, and --students may point anywhere on disk.
+  // The class folder is the student's repository root: show only the student's
+  // relative filename, never a local /home/... or /workspace/... path.
+  const fileName=String(src.file??'').replaceAll('\\','/').split('/').pop();
+  ui.file.textContent=selectedStudent?`${selectedStudent}/${fileName}`:fileName;
+  ui.code.replaceChildren();
   src.lines.forEach((line,i)=>{
     const row=document.createElement('div');row.className='code-line';row.dataset.line=String(i+1);
     const no=document.createElement('span');no.className='line-number';no.textContent=String(i+1).padStart(2);
@@ -146,8 +152,9 @@ function newNode(data, initial=false) {
   const marker=references.current??references.previous;
   const around=nodes.get(marker)??[...nodes.values()].at(-1);
   const node={id:data.id,value:data.value,next:data.next??null,left:data.left??null,right:data.right??null,
-    x:initial?(structure==='tree'?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2):
-      (around?.x??(structure==='tree'?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2))+55,
+    height:data.height??1,balance:null,avlInvalid:false,
+    x:initial?(isTree()?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2):
+      (around?.x??(isTree()?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2))+55,
     y:initial?ROW:135,
     opacity:initial?1:0,detached:false,wasReachable:false};nodes.set(node.id,node);
   const group=svg('g',{class:'node'});
@@ -157,8 +164,10 @@ function newNode(data, initial=false) {
   const value=svg('text',{class:'value',x:38,y:33});value.textContent=String(data.value);
   const id=svg('text',{class:'node-id',x:38,y:53});id.textContent='#'+data.id;
   const pointer=svg('text',{class:'pointer-label',x:92,y:37});
-  group.append(value,id,pointer);
-  if(structure==='tree'){
+  const avlInfo=svg('text',{class:'avl-info',x:36,y:61});
+  group.append(value,id,pointer,avlInfo);
+  if(isTree()){
+    if(structure==='avl'){value.setAttribute('y',27);id.setAttribute('y',44);}
     group.querySelector('.card').setAttribute('width',72);
     group.querySelector('.card').setAttribute('height',72);
     group.querySelector('.card').setAttribute('rx',36);
@@ -175,9 +184,12 @@ function renderNode(node){
   view.setAttribute('transform',`translate(${node.x.toFixed(2)} ${node.y.toFixed(2)})`);
   view.setAttribute('opacity',node.opacity.toFixed(3));
   view.classList.toggle('hot',hotNode===node.id);view.classList.toggle('detached',node.detached);
-  const nil=structure!=='tree'&&node.next==null && override?.from!==`node:${node.id}.next`;
+  view.classList.toggle('avl-invalid',structure==='avl'&&node.avlInvalid);
+  view.querySelector('.avl-info').textContent=structure==='avl'
+    ?`h${node.height} · b${node.balance==null?'?':node.balance>0?'+'+node.balance:node.balance}`:'';
+  const nil=!isTree()&&node.next==null && override?.from!==`node:${node.id}.next`;
   const pointer=view.querySelector('.pointer-label');
-  pointer.textContent=structure==='tree'?'':(nil?'null':'→');
+  pointer.textContent=isTree()?'':(nil?'null':'→');
   pointer.classList.toggle('is-null',nil);
 }
 function pointFor(id, fallback) {
@@ -223,7 +235,7 @@ function drawArrow(group,start,tip,kind='edge',backward=false){
     `${fmt(tip.x)},${fmt(tip.y)} ${fmt(left.x)},${fmt(left.y)} ${fmt(right.x)},${fmt(right.y)}`);
 }
 function renderEdges(){
-  if(structure==='tree'){renderTreeEdges();return;}
+  if(isTree()){renderTreeEdges();return;}
   if(structure==='stack'||structure==='array_queue')return;
   const active=new Set();
   for(const node of nodes.values()){
@@ -255,12 +267,12 @@ function dockFor(name){
 const NULL_RAIL_TOP=123;
 function referencePoint(name,id){
   const n=nodes.get(id),dock=dockFor(name);
-  return n?{x:n.x+(structure==='tree'?36:WIDTH*(TARGET_OFFSETS[name]??.5)),y:n.y-1}:{x:dock.x,y:NULL_RAIL_TOP};
+  return n?{x:n.x+(isTree()?36:WIDTH*(TARGET_OFFSETS[name]??.5)),y:n.y-1}:{x:dock.x,y:NULL_RAIL_TOP};
 }
 function renderReferences(){
   if(structure==='stack'||structure==='array_queue')return;
   ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  const actual={ [structure==='tree'?'root':'head']:structure==='tree'?rootId:head,
+  const actual={ [isTree()?'root':'head']:isTree()?rootId:head,
     ...(structure==='linked_queue'?{tail:tailId}:{}),...references};
   Object.keys(actual).forEach(dockFor);
   // A newly declared local must be visible DURING its first null→node move.
@@ -290,7 +302,7 @@ function renderReferences(){
     const dock=dockFor(name);
     // A tree root has a dedicated vertical pointer attached to its moving
     // node, rather than the fixed upper-left dock used for ordinary locals.
-    const rootNode=structure==='tree' && name==='root' && id!=null ? nodes.get(id) : null;
+    const rootNode=isTree() && name==='root' && id!=null ? nodes.get(id) : null;
     const anchor=rootNode?{x:rootNode.x+TREE_RADIUS,y:rootNode.y-65}:dock;
     const active=hotReference===name, label=svg('text',{x:anchor.x,y:anchor.y,class:`ref-label ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'active':''}`});
     label.textContent=name==='head'&&structure==='linked_stack'?'head (top)':name;ui.references.append(label);
@@ -304,7 +316,7 @@ function renderReferences(){
 }
 function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
 function layoutFor(snapshot){
-  if(structure==='tree')return treeLayout(snapshot);
+  if(isTree())return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
   const targets=new Map(),seen=new Set(),ordered=[];let cursor=snapshot.head,index=0;
   while(cursor!==null&&byId.has(cursor)&&!seen.has(cursor)&&index<100){
@@ -333,9 +345,16 @@ function layoutFor(snapshot){
 function applySnapshot(snapshot,animate=false){
   if(structure==='stack'){stackState={cells:[...snapshot.cells],top:snapshot.top};renderStack();return {targets:new Map(),count:snapshot.top+1,cycle:false};}
   if(structure==='array_queue'){queueState=queueSnapshot(snapshot);renderQueue();return {targets:new Map(),count:queueState.size,cycle:false};}
-  if(structure==='tree')rootId=snapshot.root;else head=snapshot.head;
+  if(isTree())rootId=snapshot.root;else head=snapshot.head;
   if(structure==='linked_queue')tailId=snapshot.tail??null;
-  for(const data of snapshot.nodes){const node=newNode(data,true);node.value=data.value;node.next=data.next??null;node.left=data.left??null;node.right=data.right??null;}
+  for(const data of snapshot.nodes){
+    const node=newNode(data,true);node.value=data.value;node.next=data.next??null;
+    node.left=data.left??null;node.right=data.right??null;
+    node.height=data.height??1;
+    const audit=snapshot.avl?.nodes?.[String(data.id)];
+    node.balance=audit?.balance??null;
+    node.avlInvalid=!!audit && (audit.heightOk===false||audit.balanceOk===false);
+  }
   const {targets,count,cycle}=layoutFor(snapshot);
   // Reachability is historical: a newly created detached node floats above
   // the row; a node removed from the row may drift below it.
@@ -385,13 +404,13 @@ async function animateWrite(step){
   const field=parsed[2];
   if(node[field]!==step.oldTo)throw Error(`Pointer mismatch: ${step.from} was ${node[field]}, trace expected ${step.oldTo}`);
   const nullPoint={x:node.x+WIDTH+26,y:node.y+HEIGHT/2};
-  const start=structure==='tree'?treeTargetPoint(step.oldTo,field,treeCentre(node)):pointFor(step.oldTo,nullPoint);
-  const end=structure==='tree'?treeTargetPoint(step.to,field,treeCentre(node)):pointFor(step.to,nullPoint);
+  const start=isTree()?treeTargetPoint(step.oldTo,field,treeCentre(node)):pointFor(step.oldTo,nullPoint);
+  const end=isTree()?treeTargetPoint(step.to,field,treeCentre(node)):pointFor(step.to,nullPoint);
   override={from:step.from,...start};hotLink=step.from;hotNode=node.id;
   ui.phase.textContent='POINTER CHANGE';ui.phase.classList.add('hot');
   ui.status.textContent=`${step.from}: ${step.oldTo==null?'null':'#'+step.oldTo} → ${step.to==null?'null':'#'+step.to}. The layout is unchanged.`;
   await tween(700,t=>{override={from:step.from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t)};
-    if(structure==='tree')treeEdgeMotion=Math.sin(Math.PI*t);
+    if(isTree())treeEdgeMotion=Math.sin(Math.PI*t);
     renderEdges();});
   node[field]=step.to;override=null;treeEdgeMotion=0;renderAll();
 }
@@ -405,7 +424,7 @@ async function animateSettle(snapshot){
     for(const [id,target] of targets){const node=nodes.get(id),start=starts.get(id);
       node.x=lerp(start.x,target.x,t);node.y=lerp(start.y,target.y,t);
       node.opacity=lerp(start.opacity,target.opacity,t);node.detached=target.detached;}
-    if(structure==='tree')treeEdgeMotion=Math.sin(Math.PI*t);
+    if(isTree())treeEdgeMotion=Math.sin(Math.PI*t);
     renderAll();
   });
   treeEdgeMotion=0;hotNode=null;hotLink=null;renderAll();
@@ -434,8 +453,8 @@ function makeFrames(raw, mode='conceptual'){
       continue;
     }
     if(s.kind==='localsClear')continue;
-    if((s.kind==='pointerWrite'||s.kind==='cellWrite'||s.kind==='indexWrite')&&raw[i+1]?.kind==='snapshot'){
-      result.push({...s,kind:s.kind==='pointerWrite'?'writeAndSettle':'memoryWriteAndSettle',snapshot:raw[++i],line:s.line??pendingLine});
+    if((s.kind==='pointerWrite'||s.kind==='cellWrite'||s.kind==='indexWrite'||s.kind==='heightWrite')&&raw[i+1]?.kind==='snapshot'){
+      result.push({...s,kind:s.kind==='pointerWrite'?'writeAndSettle':s.kind==='heightWrite'?'heightAndSettle':'memoryWriteAndSettle',snapshot:raw[++i],line:s.line??pendingLine});
     } else result.push({...s,line:s.line??pendingLine});
     pendingLine=null;
   }
@@ -459,6 +478,7 @@ function instant(frame){
       else{const match=/^node:(\d+)\.(next|left|right)$/.exec(frame.from);if(match&&nodes.has(Number(match[1])))nodes.get(Number(match[1]))[match[2]]=frame.to;}
       applySnapshot(frame.snapshot);break;
     }
+    case 'heightAndSettle':hotNode=frame.id;applySnapshot(frame.snapshot);break;
     case 'snapshot':applySnapshot(frame.snapshot);break;
     case 'retireAndSettle':retireNodes(frame.ids);applySnapshot(frame.snapshot);break;
     case 'operationEnd':references={};hotNode=null;lastResult=frame.result;ui.result.textContent=lastResult;ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;showLine(null);break;
@@ -490,6 +510,10 @@ async function animate(frame){
     case 'variableWrite':await animateReference(frame.name,frame.to);break;
     case 'createNode':await animateCreate(frame.node);break;
     case 'writeAndSettle':await animateWrite(frame);await animateSettle(frame.snapshot);break;
+    case 'heightAndSettle':
+      hotNode=frame.id;ui.phase.textContent='HEIGHT WRITE';
+      ui.status.textContent=`Node #${frame.id}: height ${frame.before} → ${frame.to}.`;
+      applySnapshot(frame.snapshot);renderAll();await tween(230,()=>{});break;
     case 'snapshot':await animateSettle(frame.snapshot);break;
     case 'retireAndSettle':await animateRetire(frame.ids,frame.snapshot);break;
     case 'operationEnd':references={};hotNode=null;ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
@@ -617,7 +641,7 @@ async function backward(){
           n.x=lerp(a.x,b.x,t);n.y=lerp(a.y,b.y,t);
           n.opacity=lerp(a.opacity,b.opacity,t);
         }
-        if(structure==='tree')treeEdgeMotion=Math.sin(Math.PI*t);
+        if(isTree())treeEdgeMotion=Math.sin(Math.PI*t);
         renderAll();
       });
       treeEdgeMotion=0;renderAll();
@@ -881,7 +905,8 @@ function renderSuggestions(){
       button.title=suggestion.hint;
       button.setAttribute('aria-label',`${button.textContent} — ${suggestion.hint}`);
       button.dataset.scenario=suggestion.hint;
-      button.disabled=(['insert','append','prepend','push','enqueue'].includes(method.name)&&values.length>=12);
+      // Batch size is not the data-structure capacity. Keep suggestions usable
+      // after 12 (or more) successful insertions into a persistent worker.
       button.addEventListener('click',()=>send({action:'run',method:method.name,arguments:suggestion.args}));
       group.append(button);
     }
@@ -959,29 +984,78 @@ updatePlaybackButtons();
 function treeLayout(snapshot){
   const byId=new Map(snapshot.nodes.map(n=>[n.id,n]));
   const targets=new Map(),seen=new Set();
-  // Anchor the root at canvas centre. A node's x position depends on its
-  // parent/path, not the total in-order rank: adding a leaf does not move the
-  // root or unrelated subtrees. An actual re-parenting still animates normally.
-  const centre=SCENE_WIDTH/2;
-  // Use an explicit stack: a long one-sided tree must not be dropped at depth
-  // 20, or overflow JavaScript recursion while a student experiments.
-  const pending=[{id:snapshot.root,depth:0,cx:centre}];
+  // A fixed halving offset eventually places cousins on top of each other:
+  // 220, 110, 55, 40, 40 ... is not enough for broad/deep AVL subtrees.
+  // Measure each subtree's left/right contour at every depth (in logical SVG
+  // units), then move siblings apart ONLY as much as required. This is a tidy
+  // tree layout: circles at the same depth never collide, even beyond the
+  // fixed scene width. Keep the root centred and retain stable node IDs.
+  const MIN_SIBLING_GAP=94; // 72px circle + 22px breathing room.
+  const BASE_CHILD_OFFSET=120;
+  const profiles=new Map();
+  const pending=[{id:snapshot.root,finished:false}];
+  const discovered=new Set();
   while(pending.length){
-    const {id,depth,cx}=pending.pop();
+    const {id,finished}=pending.pop();
+    if(id==null||!byId.has(id))continue;
+    if(!finished){
+      if(discovered.has(id))continue; // malformed cyclic/shared trees
+      discovered.add(id);
+      pending.push({id,finished:true});
+      const node=byId.get(id);
+      pending.push({id:node.right,finished:false});
+      pending.push({id:node.left,finished:false});
+      continue;
+    }
+    const node=byId.get(id),left=profiles.get(node.left),right=profiles.get(node.right);
+    let dxLeft=left?-BASE_CHILD_OFFSET:0;
+    let dxRight=right?BASE_CHILD_OFFSET:0;
+    if(left&&right){
+      // Each contour entry is a horizontal EXTENT, not an inorder index.
+      // Checking all common levels prevents descendants of different parent
+      // nodes from overlapping, even if their direct children have room.
+      let required=MIN_SIBLING_GAP;
+      const sharedDepth=Math.min(left.max.length,right.min.length);
+      for(let d=0;d<sharedDepth;d++){
+        required=Math.max(required,left.max[d]-right.min[d]+MIN_SIBLING_GAP);
+      }
+      const extra=Math.max(0,(required-(dxRight-dxLeft))/2);
+      dxLeft-=extra;dxRight+=extra;
+    }
+    const min=[0],max=[0];
+    for(const [child,dx] of [[left,dxLeft],[right,dxRight]]){
+      if(!child)continue;
+      for(let d=0;d<child.min.length;d++){
+        const level=d+1,lo=child.min[d]+dx,hi=child.max[d]+dx;
+        min[level]=min[level]===undefined?lo:Math.min(min[level],lo);
+        max[level]=max[level]===undefined?hi:Math.max(max[level],hi);
+      }
+    }
+    profiles.set(id,{min,max,dxLeft,dxRight});
+  }
+  const centre=SCENE_WIDTH/2;
+  const positions=[{id:snapshot.root,depth:0,cx:centre}];
+  while(positions.length){
+    const {id,depth,cx}=positions.pop();
     if(id==null||seen.has(id)||!byId.has(id))continue;
     seen.add(id);
     targets.set(id,{x:cx-TREE_RADIUS,y:155+depth*80,opacity:1,detached:false});
-    const node=byId.get(id);
-    const offset=Math.max(40,220/Math.pow(2,depth));
-    pending.push({id:node.right,depth:depth+1,cx:cx+offset});
-    pending.push({id:node.left,depth:depth+1,cx:cx-offset});
+    const node=byId.get(id),profile=profiles.get(id);
+    if(profile){
+      positions.push({id:node.right,depth:depth+1,cx:cx+profile.dxRight});
+      positions.push({id:node.left,depth:depth+1,cx:cx+profile.dxLeft});
+    }
   }
   let orphan=0;
   for(const item of snapshot.nodes){
     if(targets.has(item.id))continue;
     const previous=nodes.get(item.id),pending=!previous?.wasReachable;
-    targets.set(item.id,{x:previous?.x??centre-TREE_RADIUS+orphan*90,y:pending?90:530,opacity:pending?1:.32,detached:!pending});orphan++;
+    targets.set(item.id,{x:previous?.x??centre-TREE_RADIUS+orphan*90,
+      y:pending?90:530,opacity:pending?1:.32,detached:!pending});orphan++;
   }
+  // Intentionally no automatic viewBox changes: zooming every recorded
+  // pointer write makes an otherwise smooth rotation appear to jump. Students
+  // can use Fit and then zoom/pan to examine a large tree at readable size.
   return {targets,count:seen.size,cycle:false};
 }
 // Tree edges connect the node centres, clipped to their circular outlines.

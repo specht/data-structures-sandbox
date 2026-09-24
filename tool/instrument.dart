@@ -10,6 +10,7 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 const configs = <String, Map<String,String>>{
   'list': {'file':'my_linked_list','class':'MyLinkedList','recorder':'Recorder','node':'ListNode','root':'head'},
   'tree': {'file':'my_bst','class':'MyBST','recorder':'TreeRecorder','node':'TreeNode','root':'root'},
+  'avl': {'file':'my_avl','class':'MyAVL','recorder':'TreeRecorder','node':'TreeNode','root':'root'},
   'stack': {'file':'my_array_stack','class':'MyArrayStack','recorder':'StackRecorder','node':'','root':''},
   'linked_stack': {'file':'my_linked_stack','class':'MyLinkedStack','recorder':'Recorder','node':'ListNode','root':'head'},
   'linked_queue': {'file':'my_linked_queue','class':'MyLinkedQueue','recorder':'Recorder','node':'ListNode','root':'head','tail':'tail'},

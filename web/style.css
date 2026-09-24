@@ -61,6 +61,9 @@ body { background:radial-gradient(circle at 78% 0%,#172844 0%,transparent 45%),v
 .node.hot .divider { stroke:var(--gold); }
 .node.hot .value { fill:#ffedca; }
 .node.detached .card { stroke-dasharray:5 4; }
+.node .avl-info { fill:#b9dce6; font:10px ui-monospace,monospace; text-anchor:middle; }
+.node.avl-invalid .card { stroke:#ff837b; stroke-width:3; }
+.node.avl-invalid .avl-info { fill:#ffb1a8; font-weight:700; }
 .scene-status { position:absolute; bottom:15px; left:21px; right:21px; min-height:20px; font-size:12px; color:#acc1de; pointer-events:none; }
 .timeline { border-top:1px solid var(--border); padding:17px 22px 18px; background:#111d30; }
 .timeline-labels { display:flex; justify-content:space-between; gap:15px; font-size:12px; color:#99b2d3; }

@@ -108,4 +108,55 @@ assert.notEqual(zoomedView,originalView,'Zoom changes the viewport when requeste
 run('ensureViewport("tree")');
 assert.equal(ids.get('scene').getAttribute('viewBox'),zoomedView,
   'Repeated scene updates must preserve student-controlled zoom');
+// A broad AVL (and a deep skewed BST) must use sufficient *world-space*
+// geometry instead of compressing circles into a fixed 1100px-wide picture.
+function assertSeparated(snapshot,minimum){
+  const layout=run(`treeLayout(${JSON.stringify(snapshot)})`);
+  const byLevel=new Map();
+  for(const t of layout.targets.values()){
+    if(t.detached)continue;
+    if(!byLevel.has(t.y))byLevel.set(t.y,[]);
+    byLevel.get(t.y).push(t.x);
+  }
+  for(const [level,positions] of byLevel){
+    positions.sort((a,b)=>a-b);
+    for(let i=1;i<positions.length;i++){
+      assert.ok(positions[i]-positions[i-1]>=minimum,
+        `Overlapping nodes at y=${level}: ${positions[i-1]}, ${positions[i]}`);
+    }
+  }
+  return layout;
+}
+const balanced=(count)=>{
+  const records=[];
+  function add(lo,hi){
+    if(lo>hi)return null;
+    const mid=Math.floor((lo+hi)/2),id=mid+1;
+    const left=add(lo,mid-1),right=add(mid+1,hi);
+    records.push({id,value:id,left,right});
+    return id;
+  }
+  const root=add(0,count-1);
+  return {root,nodes:records};
+};
+const wide=balanced(127);
+const wideLayout=assertSeparated(wide,93.99);
+assert.equal(wideLayout.count,127);
+assert.equal(wideLayout.targets.get(wide.root).x+run('TREE_RADIUS'),run('SCENE_WIDTH/2'));
+assertSeparated({root:1,nodes:Array.from({length:80},(_,i)=>({id:i+1,value:i+1,
+  left:null,right:i===79?null:i+2}))},93.99);
+// Existing balanced siblings don't move when a new leaf is placed in a
+// different subtree that has enough reserved room.
+const before=assertSeparated(balanced(15),93.99);
+const afterNodes=balanced(15).nodes;
+const leaf=afterNodes.find(n=>n.value===15);
+leaf.right=16;afterNodes.push({id:16,value:16,left:null,right:null});
+const after=assertSeparated({root:8,nodes:afterNodes},93.99);
+assert.equal(before.targets.get(1).x,after.targets.get(1).x);
+// The path shown in the source pane must be relative to the student repo.
+run(`selectedStudent='example';renderSource({file:'/home/teacher/project/structures/example/my_avl.dart',
+  lines:['class MyAVL {}']});`);
+assert.equal(document.getElementById('filename').textContent,'example/my_avl.dart');
+run(`selectedStudent='alice';renderSource({file:'/custom/repo/alice/my_bst.dart',lines:[]});`);
+assert.equal(document.getElementById('filename').textContent,'alice/my_bst.dart');
 console.log('PASS: Tree edges are centre-clipped, straight at rest, curved while moving.');

@@ -128,6 +128,14 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   assert.ok(suggestionsFor('contains').some(button=>button.textContent==='contains(7)' && button.dataset.scenario==='Not in list'));
   assert.ok(suggestionsFor('remove').some(button=>button.textContent==='remove(13)' && button.dataset.scenario==='Exists in list'));
   assert.ok(suggestionsFor('remove').some(button=>button.textContent==='remove(7)' && button.dataset.scenario==='Not in list'));
+  // A 12-call *request* limit must never disable the 13th insertion into an
+  // existing data structure. The same worker remains alive across requests.
+  run(`structure='tree';savedValues=Array.from({length:12},(_,i)=>i+1);renderSuggestions();`);
+  const another=suggestionsFor('insert').find(button=>button.textContent==='insert(13)');
+  assert.ok(another && !another.disabled,'13th insertion must remain available');
+  another.onclick();
+  assert.equal(Socket.current.sent.at(-1).method,'insert');
+  assert.deepEqual(Array.from(Socket.current.sent.at(-1).arguments),[13]);
   // A detached node still appears during remove, but once no root/local
   // reference keeps it alive it must fade/retire and never reappear next call.
   const without13={kind:'snapshot',head:1,nodes:[{id:1,value:7,next:null}]};

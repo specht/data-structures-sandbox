@@ -12,7 +12,7 @@ Future<void> main() async {
   if(!found.any((s)=>s['id']=='example')) {
     throw StateError('Missing example student; run ./run once first.');
   }
-  for(final kind in ['list','tree','stack','linked_stack','linked_queue','array_queue']){
+  for(final kind in ['list','tree','avl','stack','linked_stack','linked_queue','array_queue']){
     final worker=await prepare('example',kind,'structures');
     final cached=await prepare('example',kind,'structures');
     if(worker!=cached)throw StateError('Cache did not reuse $kind worker: $worker vs $cached');
@@ -39,6 +39,23 @@ Future<void> main() async {
       }
       final values=(trace['values'] as List).cast<int>();
       if(!values.contains(25)) throw StateError('$kind did not store the inserted value');
+      if(kind=='avl'){
+        // A second call must use the same worker and perform an LL rotation.
+        for(final value in [15,5]){
+          process.stdin.writeln(jsonEncode({'action':'run','method':'insert','arguments':[value]}));
+          await process.stdin.flush();
+          final reply=await next();
+          if(reply['type']!='trace' || (reply['steps'] as List).last['ok']!=true){
+            throw StateError('AVL worker rejected insert($value): $reply');
+          }
+          final snap=(reply['steps'] as List).lastWhere((s)=>s['kind']=='snapshot') as Map;
+          final audit=snap['avl'] as Map;
+          if(audit['acyclic']!=true||audit['ordered']!=true||audit['heights']!=true||audit['balanced']!=true){
+            throw StateError('AVL reference model found invalid structure: $audit');
+          }
+        }
+        stdout.writeln('PASS: AVL · 25,15,5 rotation via generated worker');
+      }
       if (kind == 'tree') {
         // Exercise the actual persistent worker, not merely the JS layout.
         // The 12-call batch limit is independent of the total tree size.

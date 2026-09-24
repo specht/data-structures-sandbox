@@ -169,6 +169,7 @@ Future<String> _build(
     final token = switch (spec.id) {
       'list' => 'LIST',
       'tree' => 'TREE',
+      'avl' => 'AVL',
       'stack' => 'STACK',
       'linked_stack' => 'LINKED_STACK',
       'linked_queue' => 'LINKED_QUEUE',
