@@ -151,5 +151,55 @@ run('override=null;renderAll();');
     {id:1,value:25,next:2},{id:2,value:6,next:null}
   ]}})`);
   assert.equal(run('tailId'),2,'Seek/replay must restore the queue tail from snapshots');
+  run(`clearView();structure='array_queue';applySnapshot({
+    cells:[null,null,17,3,9,8,4,101],front:2,rear:0,size:6
+  });`);
+  const arrayView=document.getElementById('stack-view');
+  const queueCells=arrayView.querySelectorAll('.memory-cell');
+  assert.equal(queueCells.length,8,'Queue displays all physical cells');
+  assert.equal((Number(queueCells[0].getAttribute('x'))+
+    Number(queueCells.at(-1).getAttribute('x'))+80)/2,run('SCENE_WIDTH/2'),
+    'Queue remains centred during wraparound');
+  assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 6 / 8');
+  assert.equal(arrayView.querySelectorAll('.queue-order').length,6,
+    'Only occupied logical elements get an order badge');
+  const queueFront=arrayView.querySelector('.queue-front');
+  const queueRear=arrayView.querySelector('.queue-rear');
+  // Query both arrow and label directly: the cells also carry these classes.
+  const frontArrow=arrayView.children.find(c=>c.classList.contains('ref-arrow')&&c.classList.contains('queue-front'));
+  const rearArrow=arrayView.children.find(c=>c.classList.contains('ref-arrow')&&c.classList.contains('queue-rear'));
+  assert.ok(frontArrow && rearArrow,'Front and rear are independently visible');
+  assert.equal(point(frontArrow)[0],Number(queueCells[2].getAttribute('x'))+40);
+  assert.equal(point(rearArrow)[0],Number(queueCells[0].getAttribute('x'))+40);
+  assert.equal(queueFront.tagName,'rect');assert.equal(queueRear.tagName,'rect');
+  assert.equal(frontArrow.querySelector('.arrow-shaft').getAttribute('d').includes(' L '),true);
+  assert.equal(rearArrow.querySelector('.arrow-shaft').getAttribute('d').includes(' L '),true);
+  const [frontTipY,rearTipY]=[point(frontArrow)[1],point(rearArrow)[1]];
+  assert.equal(frontTipY,232);assert.equal(rearTipY,303);
+  run(`applySnapshot({cells:[1,2,3,4,5,6,7,8],front:2,rear:2,size:8});`);
+  assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 8 / 8 · FULL');
+  assert.equal(arrayView.children.find(c=>c.classList.contains('ref-arrow')&&c.classList.contains('queue-front'))!=null,true);
+  assert.equal(arrayView.children.find(c=>c.classList.contains('ref-arrow')&&c.classList.contains('queue-rear'))!=null,true,
+    'Full front == rear must retain TWO separate marker arrows');
+  run(`applySnapshot({cells:Array(8).fill(null),front:2,rear:2,size:0});`);
+  assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 0 / 8 · EMPTY');
+  assert.equal(arrayView.querySelectorAll('.queue-order').length,0);
+  // Seeking backward and forward restores every marker and every physical slot.
+  run(`clearView();structure='array_queue';
+    traceInitial={kind:'snapshot',cells:[null,null,null,null],front:0,rear:0,size:0};
+    frames=[{kind:'memoryWriteAndSettle',index:0,value:13,snapshot:{kind:'snapshot',cells:[13,null,null,null],front:0,rear:0,size:0}},
+      {kind:'memoryWriteAndSettle',name:'rear',value:1,snapshot:{kind:'snapshot',cells:[13,null,null,null],front:0,rear:1,size:0}},
+      {kind:'memoryWriteAndSettle',name:'size',value:1,snapshot:{kind:'snapshot',cells:[13,null,null,null],front:0,rear:1,size:1}}];
+    jumpTo(3);`);
+  assert.equal(run('queueState.size'),1);
+  assert.equal(run('queueState.rear'),1);
+  assert.equal(run('queueState.cells[0]'),13);
+  run('jumpTo(0)');
+  assert.equal(run('queueState.size'),0);
+  assert.equal(run('queueState.rear'),0);
+  assert.equal(run('queueState.cells[0]'),null);
+  run('jumpTo(3)');
+  assert.equal(run('queueState.cells[0]'),13);
+  console.log('PASS: array queue fixed cells, distinct markers, full/empty, wraparound and replay.');
   console.log('PASS: arrow geometry, linked queue head/tail playback, stack top, centred nodes.');
 })().catch(error => { console.error(error); process.exitCode=1; });

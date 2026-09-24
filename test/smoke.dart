@@ -12,7 +12,7 @@ Future<void> main() async {
   if(!found.any((s)=>s['id']=='example')) {
     throw StateError('Missing example student; run ./run once first.');
   }
-  for(final kind in ['list','tree','stack','linked_stack','linked_queue']){
+  for(final kind in ['list','tree','stack','linked_stack','linked_queue','array_queue']){
     final worker=await prepare('example',kind,'structures');
     final cached=await prepare('example',kind,'structures');
     if(worker!=cached)throw StateError('Cache did not reuse $kind worker: $worker vs $cached');
@@ -29,7 +29,7 @@ Future<void> main() async {
       }
       final hello=await next();
       if(hello['type']!='hello') throw StateError('Expected hello for $kind: $hello');
-      final method=kind=='linked_queue'?'enqueue':(kind=='stack'||kind=='linked_stack')?'push':'insert';
+      final method=(kind=='linked_queue'||kind=='array_queue')?'enqueue':(kind=='stack'||kind=='linked_stack')?'push':'insert';
       process.stdin.writeln(jsonEncode({'action':'run','method':method,'arguments':[25]}));
       await process.stdin.flush();
       final trace=await next();
@@ -53,6 +53,88 @@ Future<void> main() async {
           }
         }
         stdout.writeln('PASS: tree · persistent worker accepts more than 12 nodes');
+      }
+      if (kind == 'array_queue') {
+        // Every operation uses the SAME worker: wraparound, duplicate values,
+        // full != empty when front == rear, and reusing all cells after drain.
+        Future<Map<String, dynamic>> call(String name, [List<Object?> args = const []]) async {
+          process.stdin.writeln(jsonEncode({'action':'run','method':name,'arguments':args}));
+          await process.stdin.flush();
+          final reply=await next();
+          if(reply['type']!='trace') throw StateError('$name: $reply');
+          if((reply['steps'] as List).last['ok']!=true) {
+            throw StateError('$name reference/physical invariant failed: $reply');
+          }
+          return reply;
+        }
+        Map snapshot(Map reply) => (reply['steps'] as List).lastWhere((s)=>s['kind']=='snapshot') as Map;
+        for (final n in [6,25,17,3,9,8,4]) await call('enqueue',[n]);
+        var reply=await call('isFull');
+        if((reply['steps'] as List).last['value']!=true) throw StateError('Queue should be full');
+        var state=snapshot(reply);
+        if(state['front']!=0||state['rear']!=0||state['size']!=8) {
+          throw StateError('Full queue should have front == rear and size == capacity: $state');
+        }
+        reply=await call('enqueue',[99]);
+        if((reply['steps'] as List).last['value']!=false ||
+            (reply['values'] as List).length!=8) throw StateError('Full enqueue must be rejected');
+        reply=await call('peek');
+        if((reply['steps'] as List).last['value']!=25) throw StateError('peek is not FIFO');
+        for (final n in [25,6,25]) {
+          reply=await call('dequeue');
+          if((reply['steps'] as List).last['value']!=n) throw StateError('Expected dequeue $n');
+        }
+        for (final n in [101,102,103]) await call('enqueue',[n]);
+        reply=await call('isFull');
+        state=snapshot(reply);
+        if(state['front']!=3||state['rear']!=3||state['size']!=8 ||
+            (reply['values'] as List).join(',')!='17,3,9,8,4,101,102,103') {
+          throw StateError('Wrapped queue lost physical indices or FIFO order: $reply');
+        }
+        for (final n in [17,3,9,8,4,101,102,103]) {
+          reply=await call('dequeue');
+          if((reply['steps'] as List).last['value']!=n) throw StateError('Expected dequeue $n');
+        }
+        reply=await call('isEmpty');
+        state=snapshot(reply);
+        if((reply['steps'] as List).last['value']!=true ||
+            state['front']!=state['rear']||state['size']!=0 ||
+            !(state['cells'] as List).every((v)=>v==null)) {
+          throw StateError('Drained queue must be empty with reusable storage: $reply');
+        }
+        await call('enqueue',[77]);
+        reply=await call('dequeue');
+        if((reply['steps'] as List).last['value']!=77) throw StateError('Queue not reusable');
+        reply=await call('dequeue');
+        if((reply['steps'] as List).last['value']!=null) throw StateError('Empty dequeue must return null');
+        // Deterministic mixed FIFO workload with an independent reference list.
+        final expected=<int>[];
+        var seed=19;
+        for(var i=0;i<72;i++){
+          seed=(seed*1103515245+12345)&0x7fffffff;
+          final action=seed%5;
+          final int value=100+i;
+          Object? expectedResult;
+          if(action<=1){
+            expectedResult=expected.length<8;
+            if(expectedResult==true) expected.add(value);
+            reply=await call('enqueue',[value]);
+          }else if(action==2){
+            expectedResult=expected.isEmpty?null:expected.removeAt(0);
+            reply=await call('dequeue');
+          }else if(action==3){
+            expectedResult=expected.isEmpty?null:expected.first;
+            reply=await call('peek');
+          }else{
+            expectedResult=expected.length==8;
+            reply=await call('isFull');
+          }
+          if((reply['steps'] as List).last['value']!=expectedResult ||
+              (reply['values'] as List).join(',')!=expected.join(',')) {
+            throw StateError('Randomized FIFO mismatch at operation $i: $reply');
+          }
+        }
+        stdout.writeln('PASS: array_queue · FIFO · duplicates · wraparound · full/empty · reuse · physical invariants');
       }
       if (kind == 'linked_stack') {
         // A linked stack is LIFO, unlike the sorted linked-list example.

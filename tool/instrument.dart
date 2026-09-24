@@ -13,6 +13,7 @@ const configs = <String, Map<String,String>>{
   'stack': {'file':'my_array_stack','class':'MyArrayStack','recorder':'StackRecorder','node':'','root':''},
   'linked_stack': {'file':'my_linked_stack','class':'MyLinkedStack','recorder':'Recorder','node':'ListNode','root':'head'},
   'linked_queue': {'file':'my_linked_queue','class':'MyLinkedQueue','recorder':'Recorder','node':'ListNode','root':'head','tail':'tail'},
+  'array_queue': {'file':'my_array_queue','class':'MyArrayQueue','recorder':'QueueRecorder','node':'','root':''},
 };
 late Map<String,String> config;
 late String sourcePath;
@@ -262,7 +263,7 @@ void generate(String kind) {
   // ../../lib imports no longer resolve from the private staging directory.
   // Only the supported sandbox API imports are rewritten; other relative
   // imports must be resolved explicitly rather than silently miscompiled.
-  for (final lib in ['sandbox','tree_sandbox','stack_sandbox']) {
+  for (final lib in ['sandbox','tree_sandbox','stack_sandbox','queue_sandbox']) {
     for (final quote in ["'", '"']) {
       transformed = transformed.replaceAll(
         'import $quote../../lib/$lib.dart$quote;',

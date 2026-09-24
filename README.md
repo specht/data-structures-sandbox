@@ -16,7 +16,7 @@ open the Workspace's port-forwarded URL. Use `./run --port 8082` when 8081 is oc
 The first launch installs the `analyzer` package; later launches reuse it.
 
 If `structures/` does not exist, `./run` creates a **separate local Git repository**
-containing a working `example/` implementation for each of the three supported
+containing a working `example/` implementation for each of the supported
 structure types. The outer app `.gitignore` excludes `structures/` entirely.
 To use your existing class repository instead, remove or move the local sample
 `structures/` directory and clone the class repository **exactly** at that path:
@@ -39,7 +39,10 @@ structures/                         # its own Git repository
 ├── example/
 │   ├── my_linked_list.dart          # list: MyLinkedList
 │   ├── my_bst.dart                  # tree: MyBST
-│   └── my_array_stack.dart          # stack: MyArrayStack
+│   ├── my_array_stack.dart          # stack: MyArrayStack
+│   ├── my_linked_stack.dart         # linked_stack: MyLinkedStack
+│   ├── my_linked_queue.dart         # linked_queue: MyLinkedQueue
+│   └── my_array_queue.dart          # array_queue: MyArrayQueue
 ├── alice/
 │   ├── my_linked_list.dart
 │   └── my_array_stack.dart
@@ -61,14 +64,34 @@ Use **Step**, **Play**, or **Show result**, and arrow keys to navigate the trace
 ### What's implemented now
 
 The current visual adapters work for a sorted singly linked list, a regular
-unbalanced binary search tree, and a **fixed-memory stack with eight cells**.
+unbalanced binary search tree, a **fixed-memory stack with eight cells**,
+linked stacks and queues, and a **circular fixed-array queue with eight cells**.
 Dynamic method discovery works for synchronous public methods with supported
 scalar parameters. `append(int value)` is picked up without editing the app.
 
 **This is an infrastructure milestone, not the finished multi-structure course
-platform.** Queues, linked stacks, AVL balancing, array/node heaps, hash tables,
-Graph and custom object support need additional adapters and tests. See
+platform.** AVL balancing, array/node heaps, hash tables, graphs and custom
+object support need additional adapters and tests. See
 `docs/architecture.md` and `docs/roadmap.md` before extending the registry.
+
+## Circular array queue (roadmap stage 2)
+
+Run `./new-structure example array_queue` if you already have a local
+`structures/example` folder, or copy `templates/example/my_array_queue.dart`
+into a student's separate repository. This is a new **template**, not a change
+to an existing student's code. A fresh `./run` initialization includes it.
+
+The queue uses eight **stationary** observable cells, with `front` pointing to
+its next dequeue slot, `rear` to the next enqueue position (once space is available), and `size` distinguishing
+full from empty even when both indices coincide. `enqueue(int)` returns false
+when full; `dequeue()` and `peek()` return null when empty. The visualizer
+shows front above, rear below, logical FIFO order numbered over occupied
+cells, and intermediate writes during step-by-step playback. Check wraparound
+by filling the queue, dequeuing three elements, then enqueuing three more.
+
+Run `dart test/smoke.dart` and the Node.js geometry/navigation tests before
+introducing the example to students. The original student repository and the
+existing worker cache remain separate and unchanged.
 
 ## Failure handling and limits
 
@@ -117,7 +140,7 @@ Create a fresh student implementation without overwriting existing work:
 ./new-structure alice stack
 ```
 
-Only the three implemented adapters are offered by this helper so far.
+All currently implemented adapters are supported by this helper.
 
 ## Worker cache (patch after v1.2)
 

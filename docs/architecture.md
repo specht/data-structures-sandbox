@@ -11,7 +11,7 @@ panel remain shared.
 | Linked list | `ListNode(id,value,next)` + `head` | `createNode`, `pointerWrite`, local reference | Horizontal reachable chain; orphans fade at method end |
 | BST / AVL | `TreeNode(id,value,left,right)` + `root` | left/right/root writes and value writes | Hierarchical inorder layout; settle *after* pointer moves |
 | Array stack | fixed indexed `FixedMemory` + `top` | `cellWrite`, `indexWrite` | Fixed cell row, top marker, no node pointers |
-| Circular array queue (future) | fixed memory + front/rear/size | cell and index writes | Fixed cells with two independent markers |
+| Circular array queue | `QueueMemory` + front/rear/size | `cellWrite`, `indexWrite` | Fixed cells; front and rear arrows on opposite sides; numbered logical FIFO order |
 | Array heap (future) | fixed/dynamic array + length | cell writes and swaps | Synchronized array cells and binary tree projection by indices |
 | Hash table (future) | buckets + collision chains | indexed writes + node/reference writes | Bucket columns with linked chains |
 | General graphs (future) | registered nodes/edges | edge updates | Stable geometric layout; graph traversal overlay |

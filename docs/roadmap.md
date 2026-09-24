@@ -8,9 +8,11 @@ model snapshot/invariants and a renderer that can animate the relevant memory.
 1. **Linked stack and linked queue:** reuse `ListNode`, track the list's owning
    `head`/`tail` and the abstract `push`/`pop`, `enqueue`/`dequeue` contracts.
    Avoid assuming sorted values: these abstractions have different semantics.
-2. **Fixed-array queue:** use observable cells and distinct `front`, `rear`,
-   `size` markers. Support circular buffers and distinguish full from empty.
-   Keep array cells physically stationary while highlighting logical order.
+2. **Fixed-array queue (implemented):** observable cells and independent
+   `front`, `rear`, `size` markers; circular wraparound with distinct full/empty
+   states. Physical cells stay fixed while logical FIFO order is highlighted.
+   Worker checks returned values, occupied slots, bounds, and next-free index.
+   Existing student implementations are never overwritten by an example.
 3. **AVL tree:** reuse `TreeNode` and binary-tree layout, but add `height`
    writes, balance factors and invariants for every subtree. Animate pointer
    writes first and allow the settled layout to move the same node IDs through

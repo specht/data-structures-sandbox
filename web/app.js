@@ -62,7 +62,7 @@ const svg = (name, attrs={}) => {
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
-const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',stack:'Array stack',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
+const STRUCTURE_LABELS={list:'Linked list',tree:'Binary search tree',stack:'Array stack',array_queue:'Circular array queue (FIFO)',linked_stack:'Linked stack (LIFO)',linked_queue:'Linked queue (FIFO)'};
 let selectedStudent='example',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -109,16 +109,16 @@ let playbackMode='step', playbackToken=0;
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
-let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
+let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
 const nodes = new Map(), nodeViews = new Map(), links = new Map();
 
 function syntaxColor(line, destination) {
-  const tokens = /(\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:class|int|bool|void|final|return|while|if|else|true|false|null|set|get|this)\b|\b(?:ListNode|TreeNode|FixedMemory|MyBST|MyArrayStack|MyLinkedList|Recorder)\b|\b-?\d+\b)/g;
+  const tokens = /(\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:class|int|bool|void|final|return|while|if|else|true|false|null|set|get|this)\b|\b(?:ListNode|TreeNode|FixedMemory|QueueMemory|MyBST|MyArrayStack|MyArrayQueue|MyLinkedList|Recorder|QueueRecorder)\b|\b-?\d+\b)/g;
   let offset=0;
   for (const m of line.matchAll(tokens)) {
     if(m.index>offset) destination.append(document.createTextNode(line.slice(offset,m.index)));
     const token=m[0], span=document.createElement('span');
-    span.className=token.startsWith('//')?'syntax-comment':token.startsWith('"')||token.startsWith("'")?'syntax-string':/^-?\d+$/.test(token)?'syntax-number':/^(ListNode|TreeNode|FixedMemory|MyBST|MyArrayStack|MyLinkedList|Recorder)$/.test(token)?'syntax-type':'syntax-keyword';
+    span.className=token.startsWith('//')?'syntax-comment':token.startsWith('"')||token.startsWith("'")?'syntax-string':/^-?\d+$/.test(token)?'syntax-number':/^(ListNode|TreeNode|FixedMemory|QueueMemory|MyBST|MyArrayStack|MyArrayQueue|MyLinkedList|Recorder|QueueRecorder)$/.test(token)?'syntax-type':'syntax-keyword';
     span.textContent=token;destination.append(span);offset=m.index+token.length;
   }
   destination.append(document.createTextNode(line.slice(offset)||'\u00a0'));
@@ -224,7 +224,7 @@ function drawArrow(group,start,tip,kind='edge',backward=false){
 }
 function renderEdges(){
   if(structure==='tree'){renderTreeEdges();return;}
-  if(structure==='stack')return;
+  if(structure==='stack'||structure==='array_queue')return;
   const active=new Set();
   for(const node of nodes.values()){
     const from=`node:${node.id}.next`;
@@ -258,7 +258,7 @@ function referencePoint(name,id){
   return n?{x:n.x+(structure==='tree'?36:WIDTH*(TARGET_OFFSETS[name]??.5)),y:n.y-1}:{x:dock.x,y:NULL_RAIL_TOP};
 }
 function renderReferences(){
-  if(structure==='stack')return;
+  if(structure==='stack'||structure==='array_queue')return;
   ui.references.replaceChildren();ui.nullRail.replaceChildren();
   const actual={ [structure==='tree'?'root':'head']:structure==='tree'?rootId:head,
     ...(structure==='linked_queue'?{tail:tailId}:{}),...references};
@@ -302,7 +302,7 @@ function renderReferences(){
     ui.references.append(arrow);
   }
 }
-function renderAll(){if(structure==='stack'){renderStack();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
+function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
 function layoutFor(snapshot){
   if(structure==='tree')return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
@@ -332,6 +332,7 @@ function layoutFor(snapshot){
 }
 function applySnapshot(snapshot,animate=false){
   if(structure==='stack'){stackState={cells:[...snapshot.cells],top:snapshot.top};renderStack();return {targets:new Map(),count:snapshot.top+1,cycle:false};}
+  if(structure==='array_queue'){queueState=queueSnapshot(snapshot);renderQueue();return {targets:new Map(),count:queueState.size,cycle:false};}
   if(structure==='tree')rootId=snapshot.root;else head=snapshot.head;
   if(structure==='linked_queue')tailId=snapshot.tail??null;
   for(const data of snapshot.nodes){const node=newNode(data,true);node.value=data.value;node.next=data.next??null;node.left=data.left??null;node.right=data.right??null;}
@@ -411,7 +412,7 @@ async function animateSettle(snapshot){
   ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
 }
 function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded Dart execution.';
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
@@ -443,6 +444,7 @@ function makeFrames(raw, mode='conceptual'){
 function instant(frame){
   if(frame.line!=null)showLine(frame.line);
   if(structure==='stack'){instantStack(frame);return;}
+  if(structure==='array_queue'){instantQueue(frame);return;}
   switch(frame.kind){
     case 'line':break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.textContent=frame.description;break;
@@ -473,6 +475,7 @@ let traceInitial=null;
 async function animate(frame){
   if(frame.line!=null)showLine(frame.line);
   if(structure==='stack'){await animateStack(frame);return;}
+  if(structure==='array_queue'){await animateQueue(frame);return;}
   switch(frame.kind){
     case 'line':ui.phase.textContent='SOURCE LINE';break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;ui.returnValue.textContent='';
@@ -806,8 +809,8 @@ function suggestedCalls(method, values){
     if(type==='int'){
       const candidates=[];
       if((structure==='linked_stack' && method.name==='push') ||
-          (structure==='linked_queue' && method.name==='enqueue')){
-        for(const value of absent.slice(0,4))candidates.push(call([value],structure==='linked_queue'?'Enqueue at rear':'Push onto top'));
+          ((structure==='linked_queue'||structure==='array_queue') && method.name==='enqueue')){
+        for(const value of absent.slice(0,4))candidates.push(call([value],structure==='linked_stack'?'Push onto top':'Enqueue at rear'));
         return candidates;
       }
       if(['remove','contains','find','search','delete','has','get','indexOf'].some(s=>method.name.toLowerCase().includes(s.toLowerCase()))){
@@ -1078,6 +1081,82 @@ function renderStack(){
       ui.stackView.append(arrow);
     }
   }
+}
+// Circular queue: memory cells NEVER move. The front marker points at the
+// next element to remove; rear points at the next cell to write. Their labels
+// and arrows occupy different sides even when both indices are equal.
+function queueSnapshot(snapshot){
+  return {cells:[...(snapshot.cells??[])],front:snapshot.front??0,
+    rear:snapshot.rear??0,size:snapshot.size??0};
+}
+function renderQueue(){
+  ui.stackView.replaceChildren();
+  const {cells,front,rear,size}=queueState;
+  if(!cells.length)return;
+  const w=94, y=235, start=(SCENE_WIDTH-((cells.length-1)*w+80))/2;
+  const valid=size>=0 && size<=cells.length && front>=0 && front<cells.length &&
+    rear>=0 && rear<cells.length;
+  const status=svg('text',{x:SCENE_WIDTH/2,y:100,class:'queue-size','text-anchor':'middle'});
+  status.textContent=`size = ${size} / ${cells.length}${!valid?' · INVALID':size===0?' · EMPTY':size===cells.length?' · FULL':''}`;
+  ui.stackView.append(status);
+  for(let i=0;i<cells.length;i++){
+    const x=start+i*w;
+    // A wrapped queue uses physical indices, not a sliding logical row.
+    const distance=valid?(i-front+cells.length)%cells.length:-1;
+    const occupied=distance>=0 && distance<size;
+    const classes=['memory-cell'];
+    if(occupied)classes.push('queue-occupied');
+    if(occupied&&i===front)classes.push('queue-front');
+    if(i===rear)classes.push('queue-rear');
+    const rect=svg('rect',{x,y,width:80,height:65,rx:8,class:classes.join(' ')});
+    const value=svg('text',{x:x+40,y:y+38,class:'memory-value'});
+    value.textContent=cells[i]===null?'·':String(cells[i]);
+    const index=svg('text',{x:x+40,y:y+82,class:'memory-index'});
+    index.textContent=`[${i}]`;
+    ui.stackView.append(rect,value,index);
+    if(occupied){
+      const ordinal=svg('text',{x:x+40,y:220,class:'queue-order','text-anchor':'middle'});
+      ordinal.textContent=String(distance+1);
+      ui.stackView.append(ordinal);
+    }
+  }
+  function indicator(name,position,above){
+    if(!Number.isInteger(position)||position<0||position>=cells.length)return;
+    const x=start+position*w+40;
+    const label=svg('text',{x,y:above?164:385,
+      class:`queue-indicator ${name}`,'text-anchor':'middle'});
+    label.textContent=`${name} = ${position}`;
+    const arrow=makeArrow(`ref-arrow queue-${name}`);
+    drawArrow(arrow,above?{x,y:174}:{x,y:365},
+      above?{x,y:y-3}:{x,y:y+65+3},'straight');
+    ui.stackView.append(label,arrow);
+  }
+  indicator('front',front,true);
+  indicator('rear',rear,false);
+}
+function instantQueue(frame){
+  if(frame.line!=null)showLine(frame.line);
+  switch(frame.kind){
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;
+      ui.returnValue.textContent='';ui.result.textContent='Running…';break;
+    case 'memoryWriteAndSettle':case 'snapshot':queueState=queueSnapshot(frame.snapshot);break;
+    case 'operationEnd':ui.returnValue.textContent=frame.returnedVoid?'✓ completed':`⟶ ${String(frame.value)}`;
+      ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';ui.result.textContent=frame.result;showLine(null);break;
+  }
+  renderQueue();
+}
+async function animateQueue(frame){
+  if(frame.kind==='memoryWriteAndSettle'){
+    ui.phase.textContent='CIRCULAR QUEUE WRITE';
+    ui.status.textContent=frame.index!=null?
+      `memory[${frame.index}]: ${String(frame.oldValue)} → ${String(frame.value)}`:
+      `${frame.name}: ${frame.oldValue} → ${frame.value}`;
+    // Render the exact recorded intermediate marker and cell state. No moving
+    // array cells, no relayout, including during wraparound or backward seek.
+    queueState=queueSnapshot(frame.snapshot);renderQueue();
+    await tween(420,()=>{});return;
+  }
+  instantQueue(frame);
 }
 function instantStack(frame){
   if(frame.line!=null)showLine(frame.line);

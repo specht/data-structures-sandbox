@@ -179,6 +179,16 @@ button.subtle { margin-left:auto; background:#262c3d; }
 .stack-label{fill:#b1d6ff;font:700 20px ui-monospace,monospace}
 .memory-cell{fill:#203852;stroke:#648ab7;stroke-width:2}
 .memory-cell.selected{fill:#5e4628;stroke:#f6c16b;stroke-width:3}
+/* Queue markers belong to different sides of fixed-position cells. */
+.queue-size{fill:#d5e8ff;font:700 22px ui-monospace,monospace}
+.queue-indicator{font:700 18px ui-monospace,monospace;fill:#a8daf8}
+.queue-indicator.rear{fill:#f7d08b}
+.queue-order{fill:#8ce8c6;font:700 14px ui-monospace,monospace}
+.memory-cell.queue-occupied{fill:#244a4b;stroke:#6ac8ac}
+.memory-cell.queue-front{stroke:#a8daf8;stroke-width:3}
+.memory-cell.queue-rear{stroke:#f7d08b;stroke-width:3}
+.queue-front .arrow-shaft,.queue-front .arrow-tip{stroke:#a8daf8;fill:#a8daf8}
+.queue-rear .arrow-shaft,.queue-rear .arrow-tip{stroke:#f7d08b;fill:#f7d08b}
 .memory-value{fill:#f2f6ff;font:700 24px ui-monospace,monospace;text-anchor:middle}
 .memory-index{fill:#8aacca;font:14px ui-monospace,monospace;text-anchor:middle}
 @media(min-width:1100px) and (min-height:720px){

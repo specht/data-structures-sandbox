@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:data_structure_sandbox_browser/sandbox.dart' as list_api;
 import 'package:data_structure_sandbox_browser/tree_sandbox.dart' as tree_api;
 import 'package:data_structure_sandbox_browser/stack_sandbox.dart' as stack_api;
+import 'package:data_structure_sandbox_browser/queue_sandbox.dart' as queue_api;
 import 'generated/@@ID@@/my_linked_list.dart' as list_student;
 import 'generated/@@ID@@/list_methods.dart' as list_methods;
 import 'generated/@@ID@@/my_bst.dart' as tree_student;
@@ -14,18 +15,21 @@ import 'generated/@@ID@@/my_linked_stack.dart' as linked_stack_student;
 import 'generated/@@ID@@/linked_stack_methods.dart' as linked_stack_methods;
 import 'generated/@@ID@@/my_linked_queue.dart' as linked_queue_student;
 import 'generated/@@ID@@/linked_queue_methods.dart' as linked_queue_methods;
+import 'generated/@@ID@@/my_array_queue.dart' as array_queue_student;
+import 'generated/@@ID@@/array_queue_methods.dart' as array_queue_methods;
 
 // Batching is bounded for trace/readability; a structure is not capped at 12 nodes.
 // A runaway student program is still bounded by the event log, host deadline and
 // WebSocket message-size limit, not by its number of nodes.
 const maxOperations = 12, maxValue = 999;
-const kinds = ['list','tree','stack','linked_stack','linked_queue'];
+const kinds = ['list','tree','stack','linked_stack','linked_queue','array_queue'];
 const paths = {
   'list': '@@LIST_PATH@@',
   'tree': '@@TREE_PATH@@',
   'stack': '@@STACK_PATH@@',
   'linked_stack': '@@LINKED_STACK_PATH@@',
   'linked_queue': '@@LINKED_QUEUE_PATH@@',
+  'array_queue': '@@ARRAY_QUEUE_PATH@@',
 };
 
 class BrowserSession {
@@ -43,6 +47,7 @@ class BrowserSession {
       'stack' => stack_methods.discoveredMethodsJson,
       'linked_stack' => linked_stack_methods.discoveredMethodsJson,
       'linked_queue' => linked_queue_methods.discoveredMethodsJson,
+      'array_queue' => array_queue_methods.discoveredMethodsJson,
       _ => list_methods.discoveredMethodsJson,
     }) as List).map((entry)=>Map<String,dynamic>.from(entry as Map)).toList();
     reset();
@@ -53,6 +58,7 @@ class BrowserSession {
     switch(kind){
       case 'tree': tree_api.TreeRecorder.resetIds(); instance=tree_student.MyBST(); break;
       case 'stack': instance=stack_student.MyArrayStack(); break;
+      case 'array_queue': instance=array_queue_student.MyArrayQueue(); break;
       case 'linked_stack': list_api.Recorder.resetIds(); instance=linked_stack_student.MyLinkedStack(); break;
       case 'linked_queue': list_api.Recorder.resetIds(); instance=linked_queue_student.MyLinkedQueue(); break;
       default: list_api.Recorder.resetIds(); instance=list_student.MyLinkedList();
@@ -65,6 +71,8 @@ class BrowserSession {
     'stack' => stack_api.StackRecorder(lines)
       ..memory = (() => (instance as stack_student.MyArrayStack).memory)
       ..top = (() => (instance as stack_student.MyArrayStack).top),
+    'array_queue' => queue_api.QueueRecorder(lines)
+      ..memory = (() => (instance as array_queue_student.MyArrayQueue).memory),
     'linked_stack' => list_api.Recorder(lines)
       ..root = (() => (instance as linked_stack_student.MyLinkedStack).head),
     'linked_queue' => list_api.Recorder(lines)
@@ -83,7 +91,11 @@ class BrowserSession {
     'type':'trace','structure':kind,'sessionId':'$kind:$sessionId',
     'source':{'file':paths[kind], 'lines':lines},
     'steps':steps,'values':[...reference], 'methods':methods,
-    'capacity':kind=='stack' ? (instance as stack_student.MyArrayStack).memory.length : null,
+    'capacity':switch(kind) {
+      'stack' => (instance as stack_student.MyArrayStack).memory.length,
+      'array_queue' => (instance as array_queue_student.MyArrayQueue).memory.length,
+      _ => null,
+    },
   };
 
   Map<String,dynamic> descriptor(String name) => methods.firstWhere(
@@ -119,6 +131,7 @@ class BrowserSession {
   Object? invoke(String name,List<Object?> args) => switch(kind){
     'tree' => tree_methods.invokeDiscovered(instance as tree_student.MyBST,name,args),
     'stack' => stack_methods.invokeDiscovered(instance as stack_student.MyArrayStack,name,args),
+    'array_queue' => array_queue_methods.invokeDiscovered(instance as array_queue_student.MyArrayQueue,name,args),
     'linked_stack' => linked_stack_methods.invokeDiscovered(instance as linked_stack_student.MyLinkedStack,name,args),
     'linked_queue' => linked_queue_methods.invokeDiscovered(instance as linked_queue_student.MyLinkedQueue,name,args),
     _ => list_methods.invokeDiscovered(instance as list_student.MyLinkedList,name,args),
@@ -126,6 +139,19 @@ class BrowserSession {
 
   List<int> actualValues() {
     final values=<int>[];
+    if(kind=='array_queue') {
+      final q=instance as array_queue_student.MyArrayQueue;
+      final n=q.memory.length;
+      // An invalid student index/size is reported by queueStorageValid();
+      // never crash the worker while trying to display its logical values.
+      if(n<=0 || q.front<0 || q.front>=n || q.size<0 || q.size>n) return [10000000];
+      for(var i=0;i<q.size;i++) {
+        final v=q.memory[(q.front+i)%n];
+        if(v==null) return [10000000];
+        values.add(v);
+      }
+      return values;
+    }
     if(kind=='stack') {
       final s=instance as stack_student.MyArrayStack;
       for(var i=0;i<=s.top && i<s.memory.length;i++) { final v=s.memory[i]; if(v!=null)values.add(v); }
@@ -180,6 +206,23 @@ class BrowserSession {
         default:stack..clear()..addAll(actualValues());return true;
       }
     }
+    if(kind=='array_queue'){
+      final q=instance as array_queue_student.MyArrayQueue;
+      final values=reference;
+      switch(name){
+        case 'enqueue' when value!=null:
+          final expected=values.length<q.memory.length;
+          if(expected) values.add(value);
+          return returned==expected;
+        case 'dequeue':
+          final expected=values.isEmpty?null:values.removeAt(0);
+          return returned==expected;
+        case 'peek':return returned==(values.isEmpty?null:values.first);
+        case 'isEmpty':return returned==values.isEmpty;
+        case 'isFull':return returned==(values.length==q.memory.length);
+        default:values..clear()..addAll(actualValues());return true;
+      }
+    }
     if(kind=='linked_stack'){
       switch(name){
         case 'push' when value!=null:
@@ -222,6 +265,22 @@ class BrowserSession {
     }
   }
 
+  // Physical FIFO invariants: indices are in range; the size identifies
+  // exactly the occupied circular slots; rear points to the next free slot.
+  // In the full and empty cases front == rear, but size is different.
+  bool queueStorageValid(){
+    if(kind!='array_queue')return true;
+    final q=instance as array_queue_student.MyArrayQueue;
+    final m=q.memory, n=m.length;
+    if(n<=0 || q.front<0 || q.front>=n || q.rear<0 || q.rear>=n ||
+        q.size<0 || q.size>n || q.rear!=(q.front+q.size)%n) return false;
+    for(var i=0;i<n;i++){
+      final occupied=((i-q.front+n)%n)<q.size;
+      if(occupied != (m[i]!=null)) return false;
+    }
+    return true;
+  }
+
   bool queuePointersValid(){
     if(kind!='linked_queue')return true;
     final q=instance as linked_queue_student.MyLinkedQueue;
@@ -252,20 +311,23 @@ class BrowserSession {
         switch(kind){
           case 'tree':tree_api.TreeRecorder.active=r as tree_api.TreeRecorder;break;
           case 'stack':stack_api.StackRecorder.active=r as stack_api.StackRecorder;break;
+          case 'array_queue':queue_api.QueueRecorder.active=r as queue_api.QueueRecorder;break;
           default:list_api.Recorder.active=r as list_api.Recorder;
         }
         result=invoke(name,args);
       } finally {
-        list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;
+        list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;queue_api.QueueRecorder.active=null;
       }
       final actual=actualValues();
       final standard=(kind=='stack'||kind=='linked_stack') ? {'push','pop','peek','isEmpty'} :
+        kind=='array_queue' ? {'enqueue','dequeue','peek','isEmpty','isFull'} :
         kind=='linked_queue' ? {'enqueue','dequeue','peek','isEmpty'} :
         kind=='tree' ? {'insert','contains','remove'} : {'insert','append','contains','remove'};
       final canVerify=standard.contains(name) &&
-        (name=='pop'||name=='dequeue'||name=='peek'||name=='isEmpty'||(args.length==1&&args.single is int));
+        (name=='pop'||name=='dequeue'||name=='peek'||name=='isEmpty'||name=='isFull'||(args.length==1&&args.single is int));
       final checked=updateReference(name,args,result);
-      final ok=checked && actual.join(',')==reference.join(',') && queuePointersValid();
+      final ok=checked && actual.join(',')==reference.join(',') &&
+        queuePointersValid() && queueStorageValid();
       r.steps.add(r.snapshot());
       final descriptorReturn=descriptor(name)['returns']=='void';
       final label='$name(${args.join(', ')})';
