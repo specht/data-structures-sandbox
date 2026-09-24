@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
 import 'registry.dart';
+import 'specialize_worker.dart';
 
 // All names are validated before becoming parts of generated paths.
 final _safeName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$');
@@ -73,9 +74,8 @@ String _fingerprint(File source, String student, String kind) {
     File('tool/worker_template.txt'),
     File('tool/instrument.dart'),
     File('tool/registry.dart'),
+    File('tool/specialize_worker.dart'),
     ...Directory('lib').listSync(recursive: true).whereType<File>()
-        .where((file) => file.path.endsWith('.dart')),
-    ...Directory('templates/example').listSync().whereType<File>()
         .where((file) => file.path.endsWith('.dart')),
   ]..sort((a, b) => a.path.compareTo(b.path));
   final bytes = BytesBuilder(copy: false);
@@ -83,7 +83,7 @@ String _fingerprint(File source, String student, String kind) {
     bytes.add(utf8.encode(part));
     bytes.addByte(0);
   }
-  add('worker-cache-v1');
+  add('worker-cache-v2-single-kind');
   add(Platform.version);
   add(source.absolute.path); // Also identifies distinct repositories.
   add(student);
@@ -181,32 +181,21 @@ Future<String> _build(
 
   final instrumented = await Process.run(
     Platform.resolvedExecutable,
-    ['run', 'tool/instrument.dart', 'all', '--override-kind', kind,
+    ['run', 'tool/instrument.dart', kind,
       '--source', source.path, '--out', generated.path],
   );
   if (instrumented.exitCode != 0) {
     throw FormatException('Could not instrument ${source.path}:\n'
         '${instrumented.stdout}${instrumented.stderr}');
   }
-  var text = File('tool/worker_template.txt').readAsStringSync()
-      .replaceAll('@@ID@@', id).replaceAll('@@KIND@@', kind);
-  for (final spec in structures) {
-    final token = switch (spec.id) {
-      'list' => 'LIST',
-      'tree' => 'TREE',
-      'avl' => 'AVL',
-      'stack' => 'STACK',
-      'linked_stack' => 'LINKED_STACK',
-      'linked_queue' => 'LINKED_QUEUE',
-      'array_queue' => 'ARRAY_QUEUE',
-      'array_heap' => 'ARRAY_HEAP',
-      'node_heap' => 'NODE_HEAP',
-      'hash' => 'HASH',
-      _ => throw StateError('Unknown structure for worker path: ${spec.id}'),
-    };
-    text = text.replaceAll('@@${token}_PATH@@',
-      spec.id == kind ? source.path : 'templates/example/${spec.filename}');
-  }
+  // The browser has one structure selected at a time. Keep the shared trace
+  // engine, but import and compile only this student's selected implementation.
+  final text = specializeWorkerTemplate(
+    File('tool/worker_template.txt').readAsStringSync(),
+    selected: specFor(kind),
+    id: id,
+    sourcePath: source.path,
+  );
   dartWorker.writeAsStringSync(text);
 
   // Compile once, and run the .dill on future selections/startups. This is a
