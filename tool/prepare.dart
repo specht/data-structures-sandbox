@@ -15,6 +15,15 @@ final _safeName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$');
 // share one preparation, but each still gets its own live worker and state.
 final _building = <String, Future<String>>{};
 
+// Enable with SANDBOX_PROFILE=1 ./run. Wall-clock times include subprocess
+// startup and I/O; no student code or source contents are written to this log.
+bool get buildProfiling => Platform.environment['SANDBOX_PROFILE'] == '1';
+void buildProfile(String selection, String stage, Duration duration) {
+  if (!buildProfiling) return;
+  final millis = (duration.inMicroseconds / 1000).toStringAsFixed(1);
+  stdout.writeln('[profile] $selection | $stage: $millis ms');
+}
+
 Future<String> prepare(String student, String kind, String repoPath) async {
   if (!_safeName.hasMatch(student)) {
     throw const FormatException('Invalid student directory');
@@ -28,15 +37,25 @@ Future<String> prepare(String student, String kind, String repoPath) async {
 
   // Never key on timestamps: saving unchanged contents should reuse the same
   // validated worker, even across ./run restarts and browser sessions.
+  final total = Stopwatch()..start();
+  final fingerprint = Stopwatch()..start();
   final key = _fingerprint(source, student, kind);
+  buildProfile('$student/$kind', 'fingerprint', fingerprint.elapsed);
   final id = '${student}_${kind}_${key.substring(0, 24)}';
   final existing = _building[id];
-  if (existing != null) return existing;
+  if (existing != null) {
+    try {
+      return await existing;
+    } finally {
+      buildProfile('$student/$kind', 'prepare (shared build)', total.elapsed);
+    }
+  }
   final future = _build(student, kind, source, id, key);
   _building[id] = future;
   try {
     return await future;
   } finally {
+    buildProfile('$student/$kind', 'prepare total', total.elapsed);
     if (identical(_building[id], future)) _building.remove(id);
   }
 }
@@ -150,6 +169,9 @@ Future<String> _build(
   final dartWorker = File('tool/generated_worker_$id.dart');
   final kernel = File('tool/generated_worker_$id.dill');
   final ready = File('${generated.path}/ready.json');
+  final total = Stopwatch()..start();
+  final cache = Stopwatch()..start();
+  final subject = '$student/$kind';
 
   if (ready.existsSync() && dartWorker.existsSync()) {
     try {
@@ -157,10 +179,12 @@ Future<String> _build(
       if (record is Map && record['key'] == key) {
         if (record['kernel'] == true && kernel.existsSync()) {
           stdout.writeln('[cache] $student/$kind: using precompiled worker');
+          buildProfile(subject, 'cache hit', cache.elapsed);
           return kernel.path;
         }
         if (record['kernel'] == false) {
           stdout.writeln('[cache] $student/$kind: using validated Dart worker');
+          buildProfile(subject, 'cache hit', cache.elapsed);
           return dartWorker.path;
         }
       }
@@ -169,27 +193,34 @@ Future<String> _build(
     }
   }
 
+  buildProfile(subject, 'cache miss', cache.elapsed);
+
   // Each content revision has its own path: running workers never see their
   // source overwritten, and an in-flight older build cannot replace a newer
   // revision's files.
   stdout.writeln('[build] $student/$kind: preparing changed sources');
+  final setup = Stopwatch()..start();
   ready.deleteSyncIfExists();
   if (generated.existsSync()) generated.deleteSync(recursive: true);
   generated.createSync(recursive: true);
   dartWorker.deleteSyncIfExists();
   kernel.deleteSyncIfExists();
+  buildProfile(subject, 'staging', setup.elapsed);
 
+  final instrumentation = Stopwatch()..start();
   final instrumented = await Process.run(
     Platform.resolvedExecutable,
     ['run', 'tool/instrument.dart', kind,
       '--source', source.path, '--out', generated.path],
   );
+  buildProfile(subject, 'instrument (dart run)', instrumentation.elapsed);
   if (instrumented.exitCode != 0) {
     throw FormatException('Could not instrument ${source.path}:\n'
         '${instrumented.stdout}${instrumented.stderr}');
   }
   // The browser has one structure selected at a time. Keep the shared trace
   // engine, but import and compile only this student's selected implementation.
+  final generation = Stopwatch()..start();
   final text = specializeWorkerTemplate(
     File('tool/worker_template.txt').readAsStringSync(),
     selected: specFor(kind),
@@ -197,15 +228,19 @@ Future<String> _build(
     sourcePath: source.path,
   );
   dartWorker.writeAsStringSync(text);
+  buildProfile(subject, 'worker generation', generation.elapsed);
 
   // Compile once, and run the .dill on future selections/startups. This is a
   // kernel snapshot, not a shared process: every client gets a fresh isolated
   // worker. Kernel caching is skipped only on SDKs without this compiler mode.
+  final compilation = Stopwatch()..start();
   final compiled = await Process.run(Platform.resolvedExecutable,
     ['compile', 'kernel', dartWorker.path, '-o', kernel.path]);
+  buildProfile(subject, 'compile kernel', compilation.elapsed);
   if (compiled.exitCode == 0 && kernel.existsSync()) {
     ready.writeAsStringSync(jsonEncode({'key': key, 'kernel': true}));
     stdout.writeln('[cache] $student/$kind: compiled and cached kernel');
+    buildProfile(subject, 'build total', total.elapsed);
     return kernel.path;
   }
 
@@ -218,13 +253,16 @@ Future<String> _build(
     throw FormatException('Dart compilation diagnostics for $student/$kind:\n$output');
   }
   stderr.writeln('[cache] Kernel compiler unavailable; using checked Dart source.');
+  final analysis = Stopwatch()..start();
   final checked = await Process.run(Platform.resolvedExecutable,
       ['analyze', dartWorker.path]);
+  buildProfile(subject, 'fallback analyze', analysis.elapsed);
   if (checked.exitCode != 0) {
     throw FormatException('Dart compilation diagnostics for $student/$kind:\n'
         '${checked.stdout}${checked.stderr}');
   }
   ready.writeAsStringSync(jsonEncode({'key': key, 'kernel': false}));
+  buildProfile(subject, 'build total', total.elapsed);
   return dartWorker.path;
 }
 

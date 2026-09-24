@@ -151,15 +151,20 @@ class Client {
   void error(Object e){send({'type':'error','message':e.toString().replaceFirst('FormatException: ','').replaceFirst('Bad state: ','')});}
   void markChanged(){
     if(refreshing || student==null || kind==null)return;
+    final detected = Stopwatch()..start();
     final next=stamp(student!,kind!);
     if(next==currentStamp)return;
+    buildProfile('$student/$kind', 'watcher stamp', detected.elapsed);
     currentStamp=next;
     refreshing=true;
     worker?.kill();worker=null;
     send({'type':'sourceChanged','message':'Student source changed; checking Dart…'});
-    unawaited(select(student!,kind!).whenComplete(()=>refreshing=false));
+    unawaited(select(student!,kind!, detectedAt:detected)
+      .whenComplete(()=>refreshing=false));
   }
-  Future<void> select(String selected,String structure) async {
+  Future<void> select(String selected,String structure,{Stopwatch? detectedAt}) async {
+    final selection = Stopwatch()..start();
+    final subject = '$selected/$structure';
     final epoch=++selectionEpoch;
     cancelValidation();
     preparedPath=null;
@@ -169,17 +174,25 @@ class Client {
       }
       worker?.kill();worker=null;
       student=selected;kind=structure;currentStamp=stamp(selected,structure);
+      final probe=Stopwatch()..start();
       final recompiling=workerNeedsBuild(selected,structure,repoPath);
+      buildProfile(subject, 'cache probe', probe.elapsed);
       send({'type':'building','recompiling':recompiling,
         'message':recompiling?'Compiling $selected / $structure…':
           'Starting cached $selected / $structure…'});
+      final preparing=Stopwatch()..start();
       final path=await prepare(selected,structure,repoPath);
+      buildProfile(subject, 'prepare await', preparing.elapsed);
       // If a later selection overtook this compilation, do not start its worker.
       if(closed || epoch!=selectionEpoch || currentStamp!=stamp(selected,structure))return;
+      final launching=Stopwatch()..start();
       final process=await Process.start(Platform.resolvedExecutable,[path],
         workingDirectory:Directory.current.path);
+      buildProfile(subject, 'worker process start', launching.elapsed);
       final newWorker=StudentWorker(process);
+      final helloTimer=Stopwatch()..start();
       final hello=await newWorker.next(startupTimeout);
+      buildProfile(subject, 'worker hello', helloTimer.elapsed);
       if(closed || epoch!=selectionEpoch){newWorker.kill();return;}
       if(hello['type']!='hello')throw StateError('Student runner failed to initialize: $hello');
       worker=newWorker;
@@ -192,6 +205,10 @@ class Client {
         stderr.writeln('[sandbox] Failed to prepare $selected/$structure:\n$e');
         worker?.kill();worker=null;error(e);
       }
+    }finally{
+      buildProfile(subject, 'selection to ready (or exit)', selection.elapsed);
+      if(detectedAt!=null)
+        buildProfile(subject, 'detected change to ready (or exit)', detectedAt.elapsed);
     }
   }
   Future<void> validate() async {
