@@ -199,6 +199,12 @@
   revert.title = 'Discard unsaved edits and restore the last saved source';
   revert.setAttribute('aria-label', 'Revert unsaved edits');
 
+  function setEmpty(on) {
+    container.classList.toggle('source-empty', on);
+    // Let CodeMirror update its layout instead of hiding the gutter with CSS.
+    editor.setOption('lineNumbers', !on);
+  }
+
   function write(text) {
     suppressChange = true;
     editor.setValue(text);
@@ -339,7 +345,7 @@
       revision = message.revision;
       original = message.content;
       sourceOutdated = false;
-      container.classList.remove('source-empty');
+      setEmpty(false);
       highlight(null);
       write(original);
       writable(true);
@@ -404,7 +410,7 @@
     // Rebuilding the worker must not replace an unsaved draft or reset the caret.
     // Read the actual file separately to establish an authoritative revision.
     if (selection === locationKey() && (revision !== null || loading)) return;
-    container.classList.remove('source-empty');
+    setEmpty(false);
     highlight(null);
     write(src.lines.join('\n'));
     editor.scrollTo(null, 0);
@@ -416,7 +422,7 @@
       resetSelection();
       selection = key;
       write('Loading selected source…');
-      container.classList.remove('source-empty');
+      setEmpty(false);
     }
     if (revision === null) requestSource();
     else updateButtons();

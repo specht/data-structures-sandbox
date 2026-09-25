@@ -421,7 +421,6 @@ button,select{font-family:"Open Sans",ui-sans-serif,system-ui,sans-serif}
 .source-editor .cm-comment{color:#8ca4c1}
 .source-editor .cm-operator{color:#e8efff}
 .source-editor:not(.is-editing) .CodeMirror-cursor{display:none!important}
-.source-editor.source-empty .CodeMirror-gutters{display:none}
 .source-editor.source-empty .CodeMirror-lines{padding:18px 22px}
 .source-editor.source-empty .CodeMirror-line{white-space:pre-wrap;color:#b8cbe4;line-height:1.65}
 .source-editor.is-editing{box-shadow:inset 0 0 0 1px #4a83c2}
