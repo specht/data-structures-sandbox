@@ -2,16 +2,16 @@
 // These specify public behavior only; the existing worker checks actual storage.
 class ValidationCall {
   final String method;
-  final int? value;
-  const ValidationCall(this.method, [this.value]);
+  final int? value, second;
+  const ValidationCall(this.method, [this.value, this.second]);
 
   Map<String, Object?> toRequest() => {
     'action': 'run',
     'method': method,
-    'arguments': [if (value != null) value],
+    'arguments': [if (value != null) value, if (second != null) second],
   };
 
-  String get label => '$method(${value == null ? '' : value})';
+  String get label => '$method(${[if(value!=null)value,if(second!=null)second].join(', ')})';
 }
 
 class ValidationCase {
@@ -20,7 +20,7 @@ class ValidationCase {
   const ValidationCase(this.name, this.calls);
 }
 
-ValidationCall c(String method, [int? value]) => ValidationCall(method, value);
+ValidationCall c(String method, [int? value, int? second]) => ValidationCall(method, value, second);
 
 List<ValidationCase> validationCases(String kind) {
   if (kind == 'stack' || kind == 'linked_stack') {
@@ -54,10 +54,44 @@ List<ValidationCase> validationCases(String kind) {
     }
     return cases;
   }
-  if (kind == 'list') return [
-    ValidationCase('Empty list', [c('contains', 3), c('remove', 3)]),
+  if (kind == 'unsorted_array_list' || kind == 'unsorted_linked_list') return [
+    ValidationCase('Empty list and invalid indices', [c('length'), c('get',0),
+      c('get',-1), c('removeAt',0), c('insert',-1,4), c('insert',1,4), c('length')]),
+    ValidationCase('Insert at beginning, middle and end', [c('insert',0,5),
+      c('insert',1,9), c('insert',1,7), c('length'), c('get',0), c('get',1),
+      c('get',2), c('contains',7), c('contains',8), c('removeAt',1),
+      c('get',1), c('length')]),
+    ValidationCase('Duplicates and empty/refill', [c('insert',0,3),
+      c('insert',1,3), c('removeAt',0), c('contains',3), c('removeAt',0),
+      c('contains',3), c('insert',0,-5), c('get',0)]),
+    ValidationCase('Remove first, last and invalid', [c('insert',0,10),
+      c('insert',1,20), c('insert',2,30), c('removeAt',2), c('removeAt',0),
+      c('get',0), c('removeAt',5), c('removeAt',-1), c('length')]),
+    if(kind=='unsorted_array_list') ValidationCase('Full capacity and reuse', [
+      for(var i=0;i<8;i++)c('insert',i,i+1), c('length'), c('insert',4,99),
+      c('get',7), c('removeAt',3), c('insert',3,99), c('length'), c('get',3)]),
+    if(kind=='unsorted_linked_list') ValidationCase('Nodes beyond array capacity', [
+      for(var i=0;i<11;i++)c('insert',i,i+1), c('length'),
+      c('get',10), c('removeAt',10), c('length')]),
+  ];
+  if(kind=='sorted_array_list') return [
+    ValidationCase('Empty sorted list', [c('length'), c('contains',4), c('remove',4)]),
+    ValidationCase('Unordered input, sorted result', [c('insert',8), c('insert',2),
+      c('insert',5), c('insert',-3), c('contains',5), c('contains',7), c('length')]),
+    ValidationCase('Duplicates and one-at-a-time removal', [c('insert',4),
+      c('insert',4), c('insert',4), c('remove',4), c('contains',4),
+      c('remove',4), c('remove',4), c('remove',4), c('length')]),
+    ValidationCase('Remove first, middle and last', [c('insert',3),
+      c('insert',1), c('insert',7), c('insert',5), c('remove',1),
+      c('remove',5), c('remove',7), c('contains',3), c('length')]),
+    ValidationCase('Full capacity and reuse', [for(var i=8;i>0;i--)c('insert',i),
+      c('insert',9), c('length'), c('remove',4), c('insert',4),
+      c('contains',4), c('length')]),
+  ];
+  if (kind == 'sorted_linked_list') return [
+    ValidationCase('Empty list', [c('length'),c('contains', 3), c('remove', 3)]),
     ValidationCase('Sorted insertion', [c('insert', 8), c('insert', 2), c('insert', 5), c('contains', 2), c('contains', 8), c('contains', 7)]),
-    ValidationCase('Duplicates', [c('insert', 4), c('insert', 4), c('insert', 4), c('remove', 4), c('contains', 4), c('remove', 4), c('remove', 4), c('contains', 4)]),
+    ValidationCase('Duplicates', [c('insert', 4), c('insert', 4), c('insert', 4), c('length'), c('remove', 4), c('contains', 4), c('remove', 4), c('remove', 4), c('contains', 4)]),
     ValidationCase('Remove missing, first and last', [c('insert', 3), c('insert', 1), c('insert', 7), c('remove', 9), c('remove', 1), c('remove', 7), c('remove', 3), c('remove', 3)]),
     ValidationCase('Mixed positive and negative keys', [c('insert', 0), c('insert', -9), c('insert', 9), c('insert', -2), c('remove', -9), c('contains', -2), c('remove', 0), c('contains', 9)]),
   ];

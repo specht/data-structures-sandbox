@@ -24,7 +24,7 @@ separate adapter rather than silently changing these invariants.
 
 ## Try it
 
-Run `./new-structure example heap array --example` after applying the patch. This adds
+Run `./new-structure example heap array --example`. This adds
 `structures/example/my_array_heap.dart` without overwriting existing student
 files. If the example directory belongs to a separate Git repo, commit there
 separately.

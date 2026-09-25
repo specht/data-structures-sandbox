@@ -10,7 +10,7 @@ import '../tool/student_validation.dart';
 
 Future<void> main() async {
   const kinds = ['stack', 'linked_stack', 'array_queue', 'linked_queue',
-    'list', 'tree', 'avl', 'array_heap', 'node_heap', 'hash'];
+    'sorted_linked_list', 'unsorted_array_list', 'unsorted_linked_list', 'sorted_array_list', 'tree', 'avl', 'array_heap', 'node_heap', 'hash'];
   final temporary = await Directory.systemTemp.createTemp('ds-specialized-workers-');
   try {
     final example = Directory('${temporary.path}/example');

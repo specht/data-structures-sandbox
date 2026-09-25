@@ -2,10 +2,10 @@ import '../../lib/sandbox.dart';
 
 // Sorted singly linked list. Change this file, not tool/generated/.
 // Public methods with simple arguments appear automatically in the browser.
-class MyLinkedList {
+class MySortedLinkedList {
   ListNode? head;
 
-  void insert(int value) {
+  bool insert(int value) {
     ListNode? current = head;
     ListNode? previous;
     while (current != null && current.value < value) {
@@ -19,6 +19,17 @@ class MyLinkedList {
     } else {
       previous.next = fresh;
     }
+    return true;
+  }
+
+  int length() {
+    var count = 0;
+    ListNode? current = head;
+    while (current != null) {
+      count++;
+      current = current.next;
+    }
+    return count;
   }
 
   bool contains(int value) {

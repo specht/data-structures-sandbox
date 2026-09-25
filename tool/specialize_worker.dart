@@ -2,7 +2,7 @@ import 'registry.dart';
 
 /// Make a standalone worker for one data structure from the shared trace engine.
 ///
-/// The template contains branch-specific accessors and validation for all ten
+/// The template contains branch-specific accessors and validation for all supported
 /// types, but only the selected branch can execute: main() fixes BrowserSession's
 /// kind. Unselected model casts are therefore dynamic and their imports can be
 /// removed. This avoids parsing, instrumenting and compiling nine examples on

@@ -1,38 +1,94 @@
-# Extending the sandbox beyond v1.2
+# Data Structure Sandbox · curriculum and development roadmap
 
-The public `StructureSpec` registry currently advertises only implementations
-with working adapters. Adding a filename to the registry alone does **not**
-make it visualizable. Each new structure requires an explicit execution adapter,
-model snapshot/invariants and a renderer that can animate the relevant memory.
+Updated 2026-09-25. This file records the ideas agreed for the sandbox and is
+the durable place to track future work; the structure registry and
+[contracts](contracts.md) remain authoritative for **currently executable**
+student exercises. Do not advertise a new structure until its starter, example,
+observable adapter, worker validation, renderer and tests work end to end.
 
-1. **Linked stack and linked queue:** reuse `ListNode`, track the list's owning
-   `head`/`tail` and the abstract `push`/`pop`, `enqueue`/`dequeue` contracts.
-   Avoid assuming sorted values: these abstractions have different semantics.
-2. **Fixed-array queue (implemented):** observable cells and independent
-   `front`, `rear`, `size` markers; circular wraparound with distinct full/empty
-   states. Physical cells stay fixed while logical FIFO order is highlighted.
-   Worker checks returned values, occupied slots, bounds, and next-free index.
-   Existing student implementations are never overwritten by an example.
-3. **AVL tree (adapter and example added; end-to-end Dart validation required):** reuse `TreeNode` and binary-tree layout, but add `height`
-   writes, balance factors and invariants for every subtree. Animate pointer
-   writes first and allow the settled layout to move the same node IDs through
-   rotations. Invalid balance remains visible and is reported separately.
-4. **Array heap (adapter and example added; Dart smoke test required):** synchronized array and tree projections of the **same**
-   indexed storage; pointer arrows are not appropriate for array indices.
-   Record reads/writes/swaps, check heap order and complete-tree property.
-5. **Node heap (adapter and example added; Dart smoke test required):** shares
-   min-heap contracts with the array heap but stores real TreeNode references.
-   Observe node creation, pointer writes and value swaps, with checks for a
-   complete shape, unique identities and parent <= child. See `docs/node-heap.md`.
-6. **Hash tables (separate chaining adapter and example added; Dart validation required):**
-   eight indexed buckets with observable collision chains. Audit bucket placement,
-   unique keys, reachable nodes and stored size; show load factor. See `docs/hash-table.md`.
-7. **Graphs:** an explicit vertex/edge adapter supporting adjacency lists or
-   matrices and separate traversal overlays; IDs and positions must remain
-   stable across snapshots.
+## Completed / available in the codebase
 
-Before any of these should be called classroom-ready: improve the AST instrumenter
-for generic local references and function-body patterns, add per-adapter
-reference-model tests and randomized scenarios, source-mapped diagnostics,
-worker reconstruction/journaling, and enforce OS-level resource isolation for
-shared deployments. Add protocol-version checks when expanding event types.
+- Stack: fixed array and linked nodes; queue: circular array and linked nodes.
+- Lists: unsorted array, unsorted linked nodes, sorted array and sorted
+  linked nodes, each with its own explicit ID and CLI selection. See [list exercises](list-exercises.md).
+- Integer-set BST and AVL; array and node-based min-heaps; integer hash set
+  with separate chaining and student-selected bucket count/hash function.
+- Student starters and complete reference examples; independent reference
+  models and physical-state checks; separate workers; browser editor and
+  playback of observable mutations. Read the [development guide](../DEVELOPMENT.md)
+  for the current test and deployment limitations.
+
+## Teaching order
+
+1. Indexed storage, unsorted arrays and unsorted linked nodes. Compare access,
+   insertion, removal and duplicate handling. Then teach array/linked stacks.
+2. Linked and circular queues, followed by sorted array/linked lists.
+3. General binary-tree vocabulary and traversal, ordinary BSTs, and the impact
+   of insertion order on tree height. AVL rotations can be an extension.
+4. **Priority queue** as an ADT, implemented using an unsorted array, a sorted
+   array and a binary heap. Compare operation costs and examine duplicates.
+5. Hash sets, collisions and load factor; contrast with sorted lists and BSTs.
+6. Directed graphs: adjacency lists/matrices, DFS and BFS using the previously
+   learned stacks and queues, reachability, cycles and disconnected components.
+7. Weighted graphs and Dijkstra, reusing priority queues; AVL deletion and
+   node-based heaps remain optional advanced comparisons.
+
+## Next: dedicated priority-queue unit
+
+A heap is one implementation of the priority-queue ADT, not the ADT itself.
+Keep the current integer min-heaps as introductory exercises. Define a new
+priority-queue contract with an explicit `(priority, payload)` entry and an
+optional insertion sequence to settle ties FIFO. The current integer heaps do
+not promise FIFO behavior for equal priorities. Offer unsorted-array,
+sorted-array and heap implementations with a shared `enqueue`, `peek` and
+`dequeue` contract. Display priority and payload separately and count comparisons
+and memory accesses. Use a concrete scheduling/print-job task. The current
+node-heap reference's repeated root-to-parent lookup can make insertion
+O(log² n), unlike the array heap's O(log n); document this if comparing costs.
+
+## Next: directed graphs
+
+Start with integer vertex IDs, directed unweighted edges, no duplicate edges,
+and deterministic neighbor iteration. Decide self-loop and missing-vertex
+behavior in the contract first. Implement observable adjacency-list storage and
+stable graph layout (small deterministic geometry and optional manual placement),
+then vertex/edge operations and invariant checks. Add BFS/DFS as traversal
+overlays showing current vertex, frontier, visited set, and traversal edges;
+return a reproducible visit order. Only then add adjacency matrices and compare
+O(V+E) with O(V²) storage. A later weighted-graph extension may implement
+Dijkstra using entries `(distance, vertex)` in the priority queue and discard
+outdated entries rather than requiring decrease-key initially. The graph
+renderer cannot simply reuse tree reachability/layout rules: cycles, multiple
+incoming edges and disconnected components are normal graph states.
+
+## Further candidates — not yet scheduled
+
+- An array-backed *dynamic-capacity* list, with visible reallocation, distinct
+  from the current eight-cell fixed-capacity teaching exercise.
+- Hash maps with separate keys and payloads, plus resizing/rehashing and
+  exploration of the load-factor trade-off. Current hash table is a fixed-bucket
+  integer **set**, not a general map.
+- A general binary tree without the BST ordering invariant; a deque;
+  disjoint-set/union-find for connected components and Kruskal; optional trie.
+- Comparison view: execute the same valid calls on two implementations, show
+  theoretical bounds and observed comparisons, traversals, shifts and allocation.
+  Passing functional tests does not establish asymptotic complexity.
+- Intermediate starter milestones (BST insertion before deletion; AVL single
+  rotations before complete AVL deletion; heap insert before removeMin),
+  source-mapped helper diagnostics, robustness of generic Dart instrumentation.
+- OS-level process, CPU/memory, filesystem and network isolation before running
+  arbitrary untrusted student code on a shared production server. A separate
+  worker and a timeout are reliability features, **not** a security boundary.
+
+## Release checklist for every new structure
+
+- Specify observable semantics, duplicate policy, empty/full/invalid-index
+  behavior, and allowable storage representation.
+- Add registry + CLI choice, unfinished starter + complete reference example,
+  instrumentable storage, trace snapshots and playback for forward/back steps.
+- Extend worker dispatch, reference model, physical invariant checks, model
+  scenarios and end-to-end tests; verify that student file paths remain isolated.
+- Test in a Dart-equipped workspace (`dart test/list_model.dart`,
+  `dart test/validation_integration.dart`, optional `dart test/smoke.dart`, and
+  `node test/*.test.js` individually). Do not treat source inspection as a test run.
+- Update contracts, student onboarding, storage API and this roadmap.

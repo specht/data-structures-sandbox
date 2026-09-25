@@ -8,8 +8,15 @@ import 'package:data_structure_sandbox_browser/queue_sandbox.dart' as queue_api;
 import 'package:data_structure_sandbox_browser/heap_sandbox.dart' as heap_api;
 import 'package:data_structure_sandbox_browser/node_heap_sandbox.dart' as node_heap_api;
 import 'package:data_structure_sandbox_browser/hash_sandbox.dart' as hash_api;
-import 'generated/@@ID@@/my_linked_list.dart' as list_student;
-import 'generated/@@ID@@/list_methods.dart' as list_methods;
+import 'package:data_structure_sandbox_browser/list_sandbox.dart' as list_memory_api;
+import 'generated/@@ID@@/my_sorted_linked_list.dart' as sorted_linked_list_student;
+import 'generated/@@ID@@/sorted_linked_list_methods.dart' as sorted_linked_list_methods;
+import 'generated/@@ID@@/my_unsorted_array_list.dart' as unsorted_array_list_student;
+import 'generated/@@ID@@/unsorted_array_list_methods.dart' as unsorted_array_list_methods;
+import 'generated/@@ID@@/my_unsorted_linked_list.dart' as unsorted_linked_list_student;
+import 'generated/@@ID@@/unsorted_linked_list_methods.dart' as unsorted_linked_list_methods;
+import 'generated/@@ID@@/my_sorted_array_list.dart' as sorted_array_list_student;
+import 'generated/@@ID@@/sorted_array_list_methods.dart' as sorted_array_list_methods;
 import 'generated/@@ID@@/my_bst.dart' as tree_student;
 import 'generated/@@ID@@/tree_methods.dart' as tree_methods;
 import 'generated/@@ID@@/my_avl.dart' as avl_student;
@@ -33,9 +40,12 @@ import 'generated/@@ID@@/hash_methods.dart' as hash_methods;
 // A runaway student program is still bounded by the event log, host deadline and
 // WebSocket message-size limit, not by its number of nodes.
 const maxOperations = 12, maxValue = 999;
-const kinds = ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap','hash'];
+const kinds = ['sorted_linked_list','unsorted_array_list','unsorted_linked_list','sorted_array_list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap','hash'];
 const paths = {
-  'list': '@@LIST_PATH@@',
+  'sorted_linked_list': '@@SORTED_LINKED_LIST_PATH@@',
+  'unsorted_array_list': '@@UNSORTED_ARRAY_LIST_PATH@@',
+  'unsorted_linked_list': '@@UNSORTED_LINKED_LIST_PATH@@',
+  'sorted_array_list': '@@SORTED_ARRAY_LIST_PATH@@',
   'tree': '@@TREE_PATH@@',
   'avl': '@@AVL_PATH@@',
   'stack': '@@STACK_PATH@@',
@@ -58,6 +68,9 @@ class BrowserSession {
   BrowserSession(this.kind) {
     lines = File(paths[kind]!).readAsLinesSync();
     methods = (jsonDecode(switch(kind) {
+      'unsorted_array_list' => unsorted_array_list_methods.discoveredMethodsJson,
+      'unsorted_linked_list' => unsorted_linked_list_methods.discoveredMethodsJson,
+      'sorted_array_list' => sorted_array_list_methods.discoveredMethodsJson,
       'tree' => tree_methods.discoveredMethodsJson,
       'avl' => avl_methods.discoveredMethodsJson,
       'stack' => stack_methods.discoveredMethodsJson,
@@ -67,7 +80,7 @@ class BrowserSession {
       'array_heap' => array_heap_methods.discoveredMethodsJson,
       'node_heap' => node_heap_methods.discoveredMethodsJson,
       'hash' => hash_methods.discoveredMethodsJson,
-      _ => list_methods.discoveredMethodsJson,
+      _ => sorted_linked_list_methods.discoveredMethodsJson,
     }) as List).map((entry)=>Map<String,dynamic>.from(entry as Map)).toList();
     reset();
   }
@@ -75,6 +88,9 @@ class BrowserSession {
   void reset() {
     reference.clear();
     switch(kind){
+      case 'unsorted_array_list': instance=unsorted_array_list_student.MyUnsortedArrayList(); break;
+      case 'unsorted_linked_list': list_api.Recorder.resetIds(); instance=unsorted_linked_list_student.MyUnsortedLinkedList(); break;
+      case 'sorted_array_list': instance=sorted_array_list_student.MySortedArrayList(); break;
       case 'tree': tree_api.TreeRecorder.resetIds(); instance=tree_student.MyBST(); break;
       case 'avl': tree_api.TreeRecorder.resetIds(); instance=avl_student.MyAVL(); break;
       case 'node_heap': tree_api.TreeRecorder.resetIds(); instance=node_heap_student.MyNodeHeap(); break;
@@ -84,11 +100,17 @@ class BrowserSession {
       case 'array_heap': instance=array_heap_student.MyArrayHeap(); break;
       case 'linked_stack': list_api.Recorder.resetIds(); instance=linked_stack_student.MyLinkedStack(); break;
       case 'linked_queue': list_api.Recorder.resetIds(); instance=linked_queue_student.MyLinkedQueue(); break;
-      default: list_api.Recorder.resetIds(); instance=list_student.MyLinkedList();
+      default: list_api.Recorder.resetIds(); instance=sorted_linked_list_student.MySortedLinkedList();
     }
   }
 
   dynamic recorder() => switch(kind) {
+    'unsorted_array_list' => list_memory_api.ListRecorder(lines)
+      ..memory = (() => (instance as unsorted_array_list_student.MyUnsortedArrayList).memory),
+    'sorted_array_list' => list_memory_api.ListRecorder(lines)
+      ..memory = (() => (instance as sorted_array_list_student.MySortedArrayList).memory),
+    'unsorted_linked_list' => list_api.Recorder(lines)
+      ..root = (() => (instance as unsorted_linked_list_student.MyUnsortedLinkedList).head),
     'tree' => tree_api.TreeRecorder(lines)
       ..root = (() => (instance as tree_student.MyBST).root),
     'avl' => tree_api.TreeRecorder(lines)
@@ -113,7 +135,7 @@ class BrowserSession {
       ..root = (() => (instance as linked_queue_student.MyLinkedQueue).head)
       ..tail = (() => (instance as linked_queue_student.MyLinkedQueue).tail),
     _ => list_api.Recorder(lines)
-      ..root = (() => (instance as list_student.MyLinkedList).head),
+      ..root = (() => (instance as sorted_linked_list_student.MySortedLinkedList).head),
   };
 
   Map<String,Object?> initial() {
@@ -164,6 +186,9 @@ class BrowserSession {
   }
 
   Object? invoke(String name,List<Object?> args) => switch(kind){
+    'unsorted_array_list' => unsorted_array_list_methods.invokeDiscovered(instance as unsorted_array_list_student.MyUnsortedArrayList,name,args),
+    'unsorted_linked_list' => unsorted_linked_list_methods.invokeDiscovered(instance as unsorted_linked_list_student.MyUnsortedLinkedList,name,args),
+    'sorted_array_list' => sorted_array_list_methods.invokeDiscovered(instance as sorted_array_list_student.MySortedArrayList,name,args),
     'tree' => tree_methods.invokeDiscovered(instance as tree_student.MyBST,name,args),
     'avl' => avl_methods.invokeDiscovered(instance as avl_student.MyAVL,name,args),
     'node_heap' => node_heap_methods.invokeDiscovered(instance as node_heap_student.MyNodeHeap,name,args),
@@ -173,11 +198,23 @@ class BrowserSession {
     'array_heap' => array_heap_methods.invokeDiscovered(instance as array_heap_student.MyArrayHeap,name,args),
     'linked_stack' => linked_stack_methods.invokeDiscovered(instance as linked_stack_student.MyLinkedStack,name,args),
     'linked_queue' => linked_queue_methods.invokeDiscovered(instance as linked_queue_student.MyLinkedQueue,name,args),
-    _ => list_methods.invokeDiscovered(instance as list_student.MyLinkedList,name,args),
+    _ => sorted_linked_list_methods.invokeDiscovered(instance as sorted_linked_list_student.MySortedLinkedList,name,args),
   };
 
   List<int> actualValues() {
     final values=<int>[];
+    if(kind=='unsorted_array_list'||kind=='sorted_array_list'){
+      final memory=kind=='unsorted_array_list'
+        ? (instance as unsorted_array_list_student.MyUnsortedArrayList).memory
+        : (instance as sorted_array_list_student.MySortedArrayList).memory;
+      final cells=memory.copy();
+      if(memory.size<0 || memory.size>cells.length)return [10000000];
+      for(var i=0;i<memory.size;i++){
+        if(cells[i]==null)return [10000000];
+        values.add(cells[i]!);
+      }
+      return values;
+    }
     if(kind=='hash')return (hash_api.auditHash(
       (instance as hash_student.MyHashTable).buckets,
       (instance as hash_student.MyHashTable).size)['values'] as List).cast<int>();
@@ -235,7 +272,8 @@ class BrowserSession {
     var node=switch(kind){
       'linked_stack' => (instance as linked_stack_student.MyLinkedStack).head,
       'linked_queue' => (instance as linked_queue_student.MyLinkedQueue).head,
-      _ => (instance as list_student.MyLinkedList).head,
+      'unsorted_linked_list' => (instance as unsorted_linked_list_student.MyUnsortedLinkedList).head,
+      _ => (instance as sorted_linked_list_student.MySortedLinkedList).head,
     };
     while(node!=null && seen.add(node.id)){values.add(node.value);node=node.next;}
     if(node!=null)values.add(10000000);
@@ -244,6 +282,43 @@ class BrowserSession {
 
   bool updateReference(String name,List<Object?> args,Object? returned) {
     final value=args.length==1 && args[0] is int?args[0] as int:null;
+    if(kind=='unsorted_array_list'||kind=='unsorted_linked_list'||kind=='sorted_array_list'){
+      final positional=kind!='sorted_array_list';
+      final capacityLimited=kind!='unsorted_linked_list';
+      final index=positional && args.isNotEmpty ? args[0] as int : null;
+      final item=positional && args.length==2 ? args[1] as int : value;
+      switch(name){
+        case 'insert':
+          if(item==null)return false;
+          final allowed=(!capacityLimited || reference.length<8) &&
+            (!positional || (index!=null && index>=0 && index<=reference.length));
+          if(allowed){
+            if(positional){
+              reference.insert(index!,item);
+            }else{
+              var at=0;
+              while(at<reference.length && reference[at]<=item)at++;
+              reference.insert(at,item);
+            }
+          }
+          return returned==allowed;
+        case 'get':
+          if(index==null)return false;
+          return returned==(index>=0 && index<reference.length ? reference[index] : null);
+        case 'removeAt':
+          if(index==null)return false;
+          final expected=index>=0 && index<reference.length
+            ? reference.removeAt(index) : null;
+          return returned==expected;
+        case 'remove':
+          if(item==null)return false;
+          final expected=reference.remove(item);
+          return returned==expected;
+        case 'contains':return item!=null && returned==reference.contains(item);
+        case 'length':return returned==reference.length;
+        default:return false;
+      }
+    }
     if(kind=='hash'){
       final h=instance as hash_student.MyHashTable;
       switch(name){
@@ -340,15 +415,16 @@ class BrowserSession {
         default:reference..clear()..addAll(actualValues());return true;
       }
     }
+    if(kind=='sorted_linked_list' && name=='length')return returned==reference.length;
     if(value==null){reference..clear()..addAll(actualValues());return true;}
     final present=reference.contains(value);
     switch(name){
       case 'insert' when kind=='tree'||kind=='avl':
         if(!present){reference.add(value);reference.sort();}
         return true;
-      case 'insert' when kind=='list':
+      case 'insert' when kind=='sorted_linked_list':
         final index=reference.indexWhere((v)=>v>=value);
-        reference.insert(index<0?reference.length:index,value);return true;
+        reference.insert(index<0?reference.length:index,value);return returned==true;
       case 'contains':return returned==present;
       case 'remove':
         reference.remove(value);
@@ -364,6 +440,37 @@ class BrowserSession {
     if(s.top < -1 || s.top >= s.memory.length)return false;
     for(var i=0;i<s.memory.length;i++){
       if((i<=s.top)!=(s.memory[i]!=null))return false;
+    }
+    return true;
+  }
+
+  // Fixed list storage contains a contiguous occupied prefix and no hidden
+  // elements after logical size. A sorted list must also preserve its order.
+  bool listStorageValid(){
+    if(kind=='unsorted_linked_list'||kind=='sorted_linked_list'){
+      final seen=<int>{};
+      var node=kind=='unsorted_linked_list'
+        ? (instance as unsorted_linked_list_student.MyUnsortedLinkedList).head
+        : (instance as sorted_linked_list_student.MySortedLinkedList).head;
+      int? previous;
+      while(node!=null){
+        if(!seen.add(node.id))return false;
+        if(kind=='sorted_linked_list' && previous!=null && node.value<previous)return false;
+        previous=node.value;
+        node=node.next;
+      }
+      return true;
+    }
+    if(kind!='unsorted_array_list' && kind!='sorted_array_list')return true;
+    final memory=kind=='unsorted_array_list'
+      ? (instance as unsorted_array_list_student.MyUnsortedArrayList).memory
+      : (instance as sorted_array_list_student.MySortedArrayList).memory;
+    if(memory.size<0 || memory.size>memory.length)return false;
+    final cells=memory.copy();
+    for(var i=0;i<cells.length;i++){
+      if((i<memory.size)!=(cells[i]!=null))return false;
+      if(kind=='sorted_array_list' && i>0 && i<memory.size &&
+         cells[i-1]!>cells[i]!)return false;
     }
     return true;
   }
@@ -440,6 +547,8 @@ class BrowserSession {
       switch(kind){
         case 'tree':case 'avl':case 'node_heap':
           tree_api.TreeRecorder.active=trace as tree_api.TreeRecorder;break;
+        case 'unsorted_array_list':case 'sorted_array_list':
+          list_memory_api.ListRecorder.active=trace as list_memory_api.ListRecorder;break;
         case 'stack':stack_api.StackRecorder.active=trace as stack_api.StackRecorder;break;
         case 'array_queue':queue_api.QueueRecorder.active=trace as queue_api.QueueRecorder;break;
         case 'array_heap':heap_api.HeapRecorder.active=trace as heap_api.HeapRecorder;break;
@@ -453,6 +562,7 @@ class BrowserSession {
       stack_api.StackRecorder.active=null;
       queue_api.QueueRecorder.active=null;
       heap_api.HeapRecorder.active=null;
+      list_memory_api.ListRecorder.active=null;
     }
     final bool ok;
     if(kind=='hash' && name=='loadFactor'){
@@ -461,8 +571,11 @@ class BrowserSession {
     }else{
       ok=updateReference(name,args,returned);
     }
+    final listOk = listStorageValid() &&
+      (!{'unsorted_array_list','unsorted_linked_list','sorted_array_list','sorted_linked_list'}.contains(kind) ||
+       actualValues().join(',')==reference.join(','));
     return {
-      'type':'validationCall','ok':ok,
+      'type':'validationCall','ok':ok && listOk,
       if(!ok) 'message': kind=='hash'
         ? '$name(${args.join(', ')}) returned $returned; expected $expected.'
         : '$name(${args.join(', ')}) returned $returned; the public contract was not met.',
@@ -483,7 +596,9 @@ class BrowserSession {
       try {
         switch(kind){
           case 'tree':case 'avl':case 'node_heap':tree_api.TreeRecorder.active=r as tree_api.TreeRecorder;break;
-          case 'stack':stack_api.StackRecorder.active=r as stack_api.StackRecorder;break;
+          case 'unsorted_array_list':case 'sorted_array_list':
+          list_memory_api.ListRecorder.active=r as list_memory_api.ListRecorder;break;
+        case 'stack':stack_api.StackRecorder.active=r as stack_api.StackRecorder;break;
           case 'array_queue':queue_api.QueueRecorder.active=r as queue_api.QueueRecorder;break;
           case 'array_heap':heap_api.HeapRecorder.active=r as heap_api.HeapRecorder;break;
           case 'hash':list_api.Recorder.active=r as hash_api.HashRecorder;break;
@@ -491,7 +606,7 @@ class BrowserSession {
         }
         result=invoke(name,args);
       } finally {
-        list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;queue_api.QueueRecorder.active=null;heap_api.HeapRecorder.active=null;
+        list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;queue_api.QueueRecorder.active=null;heap_api.HeapRecorder.active=null;list_memory_api.ListRecorder.active=null;
       }
       final actual=actualValues();
       final standard=kind=='hash' ? {'insert','remove','contains','isEmpty','loadFactor'} :
@@ -499,9 +614,12 @@ class BrowserSession {
         (kind=='stack'||kind=='linked_stack') ? {'push','pop','peek','isEmpty'} :
         kind=='array_queue' ? {'enqueue','dequeue','peek','isEmpty','isFull'} :
         kind=='linked_queue' ? {'enqueue','dequeue','peek','isEmpty'} :
-        (kind=='tree'||kind=='avl') ? {'insert','contains','remove'} : {'insert','contains','remove'};
+        (kind=='tree'||kind=='avl') ? {'insert','contains','remove'} :
+        (kind=='unsorted_array_list'||kind=='unsorted_linked_list') ? {'insert','get','removeAt','contains','length'} :
+        (kind=='sorted_array_list'||kind=='sorted_linked_list') ? {'insert','contains','remove','length'} :
+        {'insert','contains','remove'};
       final canVerify=standard.contains(name) &&
-        (name=='pop'||name=='dequeue'||name=='removeMin'||name=='peek'||name=='isEmpty'||name=='isFull'||(args.length==1&&args.single is int));
+        (name=='pop'||name=='dequeue'||name=='removeMin'||name=='peek'||name=='isEmpty'||name=='isFull'||(args.length==1&&args.single is int)||(args.length==2&&args.every((arg)=>arg is int))||name=='length');
       final checked=updateReference(name,args,result);
       // Report structural AVL violations independently of abstract set values.
       // Intermediate rotation snapshots may temporarily be unbalanced: only
@@ -535,12 +653,12 @@ class BrowserSession {
       final ok=checked && orderedActual.join(',')==(kind=='hash'?(List<int>.of(reference)..sort()):reference).join(',') &&
         hashFaults.isEmpty &&
         nodeHeapFaults.isEmpty &&
-        stackStorageValid() && heapStorageValid() &&
+        listStorageValid() && stackStorageValid() && heapStorageValid() &&
         queuePointersValid() && queueStorageValid() && faults.isEmpty;
       r.steps.add(r.snapshot());
       final descriptorReturn=descriptor(name)['returns']=='void';
       final label='$name(${args.join(', ')})';
-      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}${kind=='stack' && !stackStorageValid()?' (stack cells or top index)':''}${kind=='array_heap' && !heapStorageValid()?' (min-heap order)':''}${nodeHeapFaults.isEmpty?'':' (node heap: ${nodeHeapFaults.join(', ')})'}${hashFaults.isEmpty?'':' (hash: ${hashFaults.join(', ')})'}':canVerify?'checked':'not automatically verified'}';
+      final message='$label ${descriptorReturn?'completed':'⇒ $result'} · ${!ok?'CHECK FAILED${faults.isEmpty?'':' (AVL: ${faults.join(', ')})'}${!listStorageValid()?' (list storage, length or order)':''}${kind=='stack' && !stackStorageValid()?' (stack cells or top index)':''}${kind=='array_heap' && !heapStorageValid()?' (min-heap order)':''}${nodeHeapFaults.isEmpty?'':' (node heap: ${nodeHeapFaults.join(', ')})'}${hashFaults.isEmpty?'':' (hash: ${hashFaults.join(', ')})'}':canVerify?'checked':'not automatically verified'}';
       r.end(result,ok,returnedVoid:descriptorReturn,message:message);
       if(!ok)break;
     }

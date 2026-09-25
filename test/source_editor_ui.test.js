@@ -110,11 +110,11 @@ assert.equal(cm.getValue(), 'class A { int x=3; }');
 assert.equal(cm.readOnly, false);
 cm.setValue('class A { int x=4; }');
 assert.equal(editor.beforeSelection(), true);
-vm.runInContext("structure='list'", ctx);
+vm.runInContext("structure='sorted_linked_list'", ctx);
 editor.ready();
 assert.equal(requests.at(-1).action, 'readSource');
-editor.receive({type: 'sourceFile', student: 'alice', structure: 'list',
-  revision: 'list1', content: 'class MyLinkedList {}'});
+editor.receive({type: 'sourceFile', student: 'alice', structure: 'sorted_linked_list',
+  revision: 'list1', content: 'class MySortedLinkedList {}'});
 assert.equal(cm.readOnly, false);
 editor.clear();
 assert.equal(cm.readOnly, 'nocursor');

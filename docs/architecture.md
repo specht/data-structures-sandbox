@@ -9,11 +9,12 @@ panel remain shared.
 | Structure | Observable storage | Mutation events | Layout |
 | --- | --- | --- | --- |
 | Linked list | `ListNode(id,value,next)` + `head` | `createNode`, `pointerWrite`, local reference | Horizontal reachable chain; orphans fade at method end |
+| Array lists (sorted / unsorted) | `ListMemory` fixed cells + student-controlled `size` | `cellWrite`, `indexWrite` | Fixed indexed cells, occupied prefix and visible shifts |
 | BST / AVL | `TreeNode(id,value,left,right)` + `root` | left/right/root writes and value writes | Hierarchical inorder layout; settle *after* pointer moves |
 | Array stack | fixed indexed `FixedMemory` + `top` | `cellWrite`, `indexWrite` | Fixed cell row, top marker, no node pointers |
 | Circular array queue | `QueueMemory` + front/rear/size | `cellWrite`, `indexWrite` | Fixed cells; front and rear arrows on opposite sides; numbered logical FIFO order |
 | Array min-heap | dynamic contiguous `HeapMemory` + length | `heapRead`, `heapWrite`, `heapAppend`, `heapRemove`, `heapSwap` | One immutable snapshot drives synchronized physical array and index-derived tree projection |
-| Hash table (future) | buckets + collision chains | indexed writes + node/reference writes | Bucket columns with linked chains |
+| Hash table | buckets + collision chains | indexed writes + node/reference writes | Bucket columns with linked chains |
 | General graphs (future) | registered nodes/edges | edge updates | Stable geometric layout; graph traversal overlay |
 
 A tree's pointer events do not assume the result is balanced. An AVL extension

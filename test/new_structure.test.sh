@@ -10,6 +10,7 @@ cd "$work"
 ./new-structure > choices.txt
 grep -q 'stack       array | nodes' choices.txt
 grep -q 'queue       circular | nodes' choices.txt
+grep -q 'list        unsorted-array | unsorted-nodes | sorted-array | sorted-nodes' choices.txt
 if grep -q -- '--example' choices.txt; then echo 'Student help advertises the reference solution!' >&2; exit 1; fi
 ./new-structure --help > help.txt
 if grep -q -- '--example' help.txt; then echo '--help advertises the reference solution!' >&2; exit 1; fi
@@ -23,6 +24,15 @@ cmp templates/example/my_linked_stack.dart structures/bob/my_linked_stack.dart
 cmp templates/starter/my_linked_queue.dart structures/carol/my_linked_queue.dart
 ./new-structure dave tree avl
 cmp templates/starter/my_avl.dart structures/dave/my_avl.dart
+./new-structure eve list unsorted-array
+cmp templates/starter/my_unsorted_array_list.dart structures/eve/my_unsorted_array_list.dart
+./new-structure eve list unsorted-nodes
+cmp templates/starter/my_unsorted_linked_list.dart structures/eve/my_unsorted_linked_list.dart
+./new-structure eve list sorted-array
+cmp templates/starter/my_sorted_array_list.dart structures/eve/my_sorted_array_list.dart
+./new-structure eve list sorted-nodes
+cmp templates/starter/my_sorted_linked_list.dart structures/eve/my_sorted_linked_list.dart
+if ./new-structure frank list >/dev/null 2>&1; then echo 'Bare list must require an explicit variant!' >&2; exit 1; fi
 if ./new-structure alice stack >/dev/null 2>&1; then echo 'Overwrote existing file!' >&2; exit 1; fi
 if ./new-structure alice stack mystery >/dev/null 2>&1; then echo 'Accepted invalid variant!' >&2; exit 1; fi
 if ./new-structure alice stack --starter >/dev/null 2>&1; then echo 'Accepted obsolete flag!' >&2; exit 1; fi

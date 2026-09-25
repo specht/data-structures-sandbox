@@ -331,7 +331,8 @@ ui.speed.addEventListener('input',()=>{
 });
 ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
-const STRUCTURE_LABELS={hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
+function isArrayList(){return structure==='unsorted_array_list'||structure==='sorted_array_list';}
+const STRUCTURE_LABELS={unsorted_unsorted_array_list:'List (unsorted, array)',unsorted_unsorted_linked_list:'List (unsorted, singly linked)',sorted_array_list:'List (sorted, array)',hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',sorted_linked_list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
 let selectedStudent='',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -359,7 +360,7 @@ function receiveCatalog(data){
   if(!initializedCatalog){
     const saved=savedPreference();
     selectedStudent=saved?.student??data.default?.student??'example';
-    structure=saved?.structure??data.default?.structure??'list';
+    structure=saved?.structure??data.default?.structure??'unsorted_array_list';
   }
   if(!studentCatalog.some(s=>s.id===selectedStudent)) selectedStudent=studentCatalog[0]?.id??'';
   ui.student.replaceChildren();
@@ -390,16 +391,16 @@ let playbackMode=['step','play','result'].includes(playbackPreferences.mode)?pla
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
-let head = null, tailId = null, rootId = null, structure='list', stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, heapState={cells:[],heapOrder:true},heapHot=[],hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8},hashHotBucket=null,hashHotNode=null, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
+let head = null, tailId = null, rootId = null, structure='unsorted_array_list', arrayListState={cells:Array(8).fill(null),size:0},arrayListHot=null, stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, heapState={cells:[],heapOrder:true},heapHot=[],hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8},hashHotBucket=null,hashHotNode=null, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
 const nodes = new Map(), nodeViews = new Map(), links = new Map();
 
 function syntaxColor(line, destination) {
-  const tokens = /(\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:class|int|bool|void|final|return|while|if|else|true|false|null|set|get|this)\b|\b(?:ListNode|TreeNode|FixedMemory|QueueMemory|MyBST|MyArrayStack|MyArrayQueue|MyLinkedList|Recorder|QueueRecorder)\b|\b-?\d+\b)/g;
+  const tokens = /(\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:class|int|bool|void|final|return|while|if|else|true|false|null|set|get|this)\b|\b(?:ListNode|TreeNode|FixedMemory|QueueMemory|MyBST|MyArrayStack|MyArrayQueue|MySortedLinkedList|Recorder|QueueRecorder)\b|\b-?\d+\b)/g;
   let offset=0;
   for (const m of line.matchAll(tokens)) {
     if(m.index>offset) destination.append(document.createTextNode(line.slice(offset,m.index)));
     const token=m[0], span=document.createElement('span');
-    span.className=token.startsWith('//')?'syntax-comment':token.startsWith('"')||token.startsWith("'")?'syntax-string':/^-?\d+$/.test(token)?'syntax-number':/^(ListNode|TreeNode|FixedMemory|QueueMemory|MyBST|MyArrayStack|MyArrayQueue|MyLinkedList|Recorder|QueueRecorder)$/.test(token)?'syntax-type':'syntax-keyword';
+    span.className=token.startsWith('//')?'syntax-comment':token.startsWith('"')||token.startsWith("'")?'syntax-string':/^-?\d+$/.test(token)?'syntax-number':/^(ListNode|TreeNode|FixedMemory|QueueMemory|MyBST|MyArrayStack|MyArrayQueue|MySortedLinkedList|Recorder|QueueRecorder)$/.test(token)?'syntax-type':'syntax-keyword';
     span.textContent=token;destination.append(span);offset=m.index+token.length;
   }
   destination.append(document.createTextNode(line.slice(offset)||'\u00a0'));
@@ -669,7 +670,7 @@ function renderReferences(){
   }
   ui.references.append(...labels); // Text stays above intersecting pointer paths.
 }
-function renderAll(){if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}if(structure==='hash'){renderHash();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
+function renderAll(){if(isArrayList()){renderArrayList();return;}if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}if(structure==='hash'){renderHash();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
 function layoutFor(snapshot){
   if(isTree())return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
@@ -698,6 +699,7 @@ function layoutFor(snapshot){
   return {targets,count:index,cycle:cursor!==null&&seen.has(cursor)};
 }
 function applySnapshot(snapshot,animate=false){
+  if(isArrayList()){arrayListState={cells:[...snapshot.cells],size:snapshot.size};renderArrayList();return {targets:new Map(),count:snapshot.size,cycle:false};}
   if(structure==='stack'){stackState={cells:[...snapshot.cells],top:snapshot.top};renderStack();return {targets:new Map(),count:snapshot.top+1,cycle:false};}
   if(structure==='array_queue'){queueState=queueSnapshot(snapshot);renderQueue();return {targets:new Map(),count:queueState.size,cycle:false};}
   if(structure==='array_heap'){heapState=heapSnapshot(snapshot);renderHeap();return {targets:new Map(),count:heapState.cells.length,cycle:false};}
@@ -791,7 +793,7 @@ async function animateSettle(snapshot){
   ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
 }
 function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};arrayListState={cells:[],size:0};arrayListHot=null;heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded Dart execution.';
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
@@ -822,6 +824,7 @@ function makeFrames(raw, mode='conceptual'){
 }
 function instant(frame){
   if(frame.line!=null)showLine(frame.line);
+  if(isArrayList()){instantArrayList(frame);return;}
   if(structure==='stack'){instantStack(frame);return;}
   if(structure==='array_queue'){instantQueue(frame);return;}
   if(structure==='array_heap'){instantHeap(frame);return;}
@@ -856,6 +859,7 @@ function restore(index){clearView();applySnapshot(traceInitial);
 let traceInitial=null;
 async function animate(frame){
   if(frame.line!=null)showLine(frame.line);
+  if(isArrayList()){await animateArrayList(frame);return;}
   if(structure==='stack'){await animateStack(frame);return;}
   if(structure==='array_queue'){await animateQueue(frame);return;}
   if(structure==='array_heap'){await animateHeap(frame);return;}
@@ -1144,7 +1148,7 @@ ui.method.addEventListener('change',renderArguments);
 // Long linked chains need a wider view rather than squeezing node cards and
 // clipping head/tail/local pointers. Like trees, frame once per whole trace.
 function autoFrameLinked(steps){
-  if(!['list','linked_stack','linked_queue'].includes(structure)||cameraMode!=='auto')return;
+  if(!['sorted_linked_list','unsorted_linked_list','linked_stack','linked_queue'].includes(structure)||cameraMode!=='auto')return;
   const snapshots=steps.filter(step=>step.kind==='snapshot'&&Array.isArray(step.nodes));
   if(!snapshots.length)return;
   let left=Infinity,right=-Infinity,maxRefs=1;
@@ -1262,6 +1266,14 @@ function suggestedCalls(method, values){
   if(params.length===1){
     const type=params[0].type;
     if(type==='int'){
+      // Index-based list calls need index suggestions, not stored VALUES.
+      if(/(index|position|offset)/i.test(params[0].name)){
+        const candidates=[call([0], 'First index')];
+        if(values.length>1)candidates.push(call([values.length-1], 'Last index'));
+        candidates.push(call([values.length], 'Past last element (invalid for reads)'));
+        candidates.push(call([-1], 'Invalid index'));
+        return dedupeCalls(candidates).slice(0,4);
+      }
       const candidates=[];
       if((structure==='linked_stack' && method.name==='push') ||
           ((structure==='linked_queue'||structure==='array_queue') && method.name==='enqueue')){
@@ -1790,6 +1802,60 @@ async function animateHeap(frame){
     ui.status.textContent=frame.a!=null?`Swap cells[${frame.a}] ↔ cells[${frame.b}]`:
       `Array index ${frame.index} changed. Both projections show the same cell.`;
     await tween(440,()=>{});
+  }
+}
+// Fixed-capacity list: physical array cells never change positions.
+function renderArrayList(){
+  ui.stackView.replaceChildren();
+  const cells=arrayListState.cells??[], size=arrayListState.size??0;
+  if(!cells.length)return;
+  const valid=Number.isInteger(size)&&size>=0&&size<=cells.length;
+  const subtitle=svg('text',{x:SCENE_WIDTH/2,y:110,
+    class:'queue-size','text-anchor':'middle'});
+  subtitle.textContent=`${structure==='sorted_array_list'?'SORTED':'UNSORTED'} · length = ${size} / ${cells.length}${valid?'':' · INVALID'}`;
+  ui.stackView.append(subtitle);
+  const cellWidth=94,start=(SCENE_WIDTH-((cells.length-1)*cellWidth+80))/2,y=235;
+  for(let i=0;i<cells.length;i++){
+    const x=start+i*cellWidth;
+    const classes=['memory-cell'];
+    if(i<size)classes.push('queue-occupied');
+    if(i===arrayListHot)classes.push('selected');
+    const rect=svg('rect',{x,y,width:80,height:65,rx:8,class:classes.join(' ')});
+    const value=svg('text',{x:x+40,y:y+38,class:'memory-value'});
+    value.textContent=cells[i]===null?'·':String(cells[i]);
+    const label=svg('text',{x:x+40,y:y+82,class:'memory-index'});
+    label.textContent=`[${i}]`;
+    ui.stackView.append(rect,value,label);
+  }
+  ui.status.textContent=valid?`The list contains ${size} value(s). Cell positions remain fixed during shifts.`:
+    'Invalid list size. Check the student implementation.';
+}
+function instantArrayList(frame){
+  if(frame.line!=null)showLine(frame.line);
+  switch(frame.kind){
+    case 'operationStart':
+      currentOperation=frame.operation;ui.operation.textContent=currentOperation;
+      ui.returnValue.textContent='';ui.result.textContent='Running…';arrayListHot=null;break;
+    case 'memoryWriteAndSettle':
+      arrayListState={cells:[...frame.snapshot.cells],size:frame.snapshot.size};
+      arrayListHot=frame.index??null;break;
+    case 'snapshot':
+      arrayListState={cells:[...frame.snapshot.cells],size:frame.snapshot.size};
+      arrayListHot=null;break;
+    case 'operationEnd':
+      arrayListHot=null;showReturnValue(frame);ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
+      ui.result.textContent=frame.result;showLine(null);break;
+  }
+  renderArrayList();
+}
+async function animateArrayList(frame){
+  instantArrayList(frame);
+  if(frame.kind==='memoryWriteAndSettle'){
+    ui.phase.textContent=frame.index!=null?'ARRAY CELL WRITE':'LIST LENGTH';
+    ui.status.textContent=frame.index!=null
+      ?`memory[${frame.index}]: ${String(frame.oldValue)} → ${String(frame.value)}`
+      :`size: ${frame.oldValue} → ${frame.value}`;
+    await tween(420,()=>{});
   }
 }
 function renderStack(){

@@ -9,7 +9,7 @@ Create a student data structure (unfinished starter by default).
   ./new-structure STUDENT TYPE [IMPLEMENTATION]
 
 TYPE        IMPLEMENTATION          Result
-list        linked                  Sorted singly linked list
+list        unsorted-array | unsorted-nodes | sorted-array | sorted-nodes
 stack       array | nodes           Fixed array (default) | linked nodes
 queue       circular | nodes        Circular array (default) | linked nodes
 tree        bst | avl               Binary search tree (default) | AVL tree
@@ -40,7 +40,10 @@ for arg in "$@"; do
   esac
 done
 case "$kind:$implementation" in
-  list:|list:linked) filename=my_linked_list.dart;;
+    list:sorted-nodes) filename=my_sorted_linked_list.dart;;
+    list:unsorted-array) filename=my_unsorted_array_list.dart;;
+    list:unsorted-nodes) filename=my_unsorted_linked_list.dart;;
+    list:sorted-array) filename=my_sorted_array_list.dart;;
   stack:|stack:array) filename=my_array_stack.dart;;
   stack:nodes) filename=my_linked_stack.dart;;
   queue:|queue:circular) filename=my_array_queue.dart;;

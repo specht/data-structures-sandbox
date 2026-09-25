@@ -54,7 +54,7 @@ const far=elements.get('scene').getAttribute('viewBox').split(' ').map(Number);
 assert.ok(far[0]+far[2]>1200+112,'Fit must include a node and its moving pointer');
 run("references={current:null};head=1;renderReferences()");
 assert.equal(elements.get('null-rail').querySelectorAll('.null-rail').length,1,'Null reference keeps shared rail');
-run("structure='list';ensureViewport(structure);");
+run("structure='sorted_linked_list';ensureViewport(structure);");
 run(`autoFrameLinked([{kind:'snapshot',head:1,nodes:Array.from({length:16},(_,i)=>({id:i+1,next:i===15?null:i+2}))}]);`);
 assert.ok(run('viewport.w')>1100,'Long list must zoom out instead of overlapping nodes');
 console.log('PASS: interface-first labels, anchored references, null rail and pointer-aware Fit');

@@ -5,7 +5,10 @@ class StructureSpec {
   const StructureSpec(this.id,this.label,this.filename,this.className,this.storage,this.renderer);
 }
 const structures = <StructureSpec>[
-  StructureSpec('list','List (sorted, singly linked)','my_linked_list.dart','MyLinkedList','linked','linked-list'),
+  StructureSpec('unsorted_array_list','List (unsorted, array)','my_unsorted_array_list.dart','MyUnsortedArrayList','array','array-list'),
+  StructureSpec('unsorted_linked_list','List (unsorted, singly linked)','my_unsorted_linked_list.dart','MyUnsortedLinkedList','linked','linked-list'),
+  StructureSpec('sorted_array_list','List (sorted, array)','my_sorted_array_list.dart','MySortedArrayList','array','array-list'),
+  StructureSpec('sorted_linked_list','List (sorted, singly linked)','my_sorted_linked_list.dart','MySortedLinkedList','linked','linked-list'),
   StructureSpec('tree','Tree (binary search)','my_bst.dart','MyBST','linked','binary-tree'),
   StructureSpec('avl','Tree (AVL)','my_avl.dart','MyAVL','linked','binary-tree'),
   StructureSpec('stack','Stack (fixed array)','my_array_stack.dart','MyArrayStack','array','fixed-memory'),

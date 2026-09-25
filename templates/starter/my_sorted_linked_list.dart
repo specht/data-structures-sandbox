@@ -5,11 +5,17 @@ Implement the public operations below.
 
 import '../../lib/sandbox.dart';
 
-class MyLinkedList {
+class MySortedLinkedList {
   ListNode? head;
 
-  void insert(int value) {
-    // TODO: Insert one occurrence of value, preserving ascending order.
+  bool insert(int value) {
+    // TODO: Insert one occurrence in ascending order and return true.
+    return false;
+  }
+
+  int length() {
+    // TODO: Count the nodes by following next references.
+    return 0;
   }
 
   bool contains(int value) {
@@ -34,6 +40,6 @@ REFERENCE: ListNode and the sorted-list contract
 
   The list is singly linked and ordered from smallest to largest; its
   references form a chain without cycles. Duplicate values are permitted.
-  insert returns void and adds one occurrence.
+  insert returns true and adds one occurrence; length counts nodes.
   contains returns bool. remove returns bool and removes at most one occurrence.
 */

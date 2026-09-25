@@ -59,6 +59,23 @@ another `ListNode?`, and assigning to `next` updates an observable reference.
 A linked stack does not use `FixedMemory` or an integer `top`; its `head` **is**
 the top reference. See `templates/starter/my_linked_stack.dart`.
 
+## Observable array-list storage: `ListMemory`
+
+Both new array-list variants use `import '../../lib/list_sandbox.dart';` and
+keep `final ListMemory memory = ListMemory(8);` inside the student class.
+
+| Expression | Meaning |
+| --- | --- |
+| `memory.length` | Physical capacity (always 8 in these exercises). |
+| `memory.size` | Logical number of occupied cells, initially 0; student code must update it. |
+| `memory[index]` | Read a nullable cell. |
+| `memory[index] = value` | Write a value or `null` into an existing cell; the write is visualized. |
+
+The physical storage does **not** insert, remove or shift automatically.
+Occupied values must form a contiguous prefix `0..memory.size-1`, with all
+remaining cells null. The sorted-array exercise also requires the occupied
+prefix to be nondecreasing. Cell and size changes are traced independently.
+
 ## Other storage choices
 
 The same principle applies to `QueueMemory` (observable fixed cells and

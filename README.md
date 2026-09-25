@@ -148,7 +148,10 @@ Du kannst auf dieselbe Weise weitere Datenstrukturen anlegen, zum Beispiel:
 ./new-structure DEIN_NAME stack nodes
 ./new-structure DEIN_NAME queue circular
 ./new-structure DEIN_NAME queue nodes
-./new-structure DEIN_NAME list
+./new-structure DEIN_NAME list unsorted-array
+./new-structure DEIN_NAME list unsorted-nodes
+./new-structure DEIN_NAME list sorted-array
+./new-structure DEIN_NAME list sorted-nodes
 ./new-structure DEIN_NAME tree bst
 ./new-structure DEIN_NAME tree avl
 ./new-structure DEIN_NAME heap array
@@ -158,15 +161,19 @@ Du kannst auf dieselbe Weise weitere Datenstrukturen anlegen, zum Beispiel:
 
 Die Varianten sind eigenständige Dateien. Wenn du einen Stack mit Knoten
 implementieren möchtest, verwende `stack nodes` statt `stack array`.
+Bei Listen wählst du ausdrücklich `unsorted-array`, `unsorted-nodes`,
+`sorted-array` oder `sorted-nodes`. `list` ohne Variante ist ungültig.
+Die vier Listen und ihre Schnittstellen sind in
+[docs/list-exercises.md](docs/list-exercises.md) beschrieben.
 
-Wähle im Browser deine Datei und klicke im Quelltextbereich auf **Edit**.
-Der einfache, lokal mitgelieferte Editor unterstützt Tab, automatische
-Einrückung nach `{`, Rückgängig und **Ctrl+S** bzw. **Save**. Änderungen werden
-**nur beim Speichern** in dieselbe Datei unter `structures/` geschrieben, die
-du auch im Workspace-Editor öffnen kannst. Ein Dateikonflikt wird gemeldet,
-statt fremde Änderungen zu überschreiben. Wechsle über **Cancel** zurück zur
-Visualisierung, ohne Änderungen zu speichern. Deine Git-Commits und Pushes
-führst du wie bisher im Terminal aus.
+Wähle im Browser deine Datei. Der lokal mitgelieferte CodeMirror-Editor ist
+sofort bearbeitbar, unterstützt Einrückung, **Ctrl+S** (Speichern),
+**Ctrl+Shift+K** (Zeile löschen) und **Revert** (ungespeicherte Änderungen
+verwerfen). Änderungen werden erst mit Save bzw. Ctrl+S in derselben Datei
+unter `structures/` gespeichert, die du auch im Workspace-Editor öffnen
+kannst. Ein Dateikonflikt wird gemeldet, statt fremde Änderungen zu
+überschreiben. Die Visualisierung zeigt stets die zuletzt gespeicherte
+Codeversion. Git-Commits und Pushes führst du wie bisher im Terminal aus.
 
 Die Kommentare in der Dart-Datei erläutern die geforderte Wirkung der Methoden
 und die bereitgestellte Speicher-API. Hinweise
@@ -249,9 +256,10 @@ Arbeite immer an deiner Datei im eigenen Ordner unter `structures/`.
 - **`git push` wird abgelehnt**: Überschreibe nichts und lass dir beim
   Zusammenführen helfen.
 
-Die bisherige technische Projektdokumentation steht in
-[DEVELOPMENT.md](DEVELOPMENT.md). Für einen ersten Einstieg in den Array-Stack
-gibt es außerdem [docs/start-here.md](docs/start-here.md).
+Die aktuelle technische Dokumentation steht in [DEVELOPMENT.md](DEVELOPMENT.md),
+die geplanten Erweiterungen in [docs/roadmap.md](docs/roadmap.md). Für einen
+ersten Einstieg in den Array-Stack gibt es [docs/start-here.md](docs/start-here.md),
+für die vier Listen [docs/list-exercises.md](docs/list-exercises.md).
 
 ## Hintergrundbild lokal mitliefern
 
@@ -264,5 +272,4 @@ git commit -m "Bundle sandbox background"
 ```
 
 Das Bild wird als lokale Datei `web/background.jpg` ausgeliefert; nach dem
-Herunterladen benötigt die App dafür keine Internetverbindung. Der Browser-
-Editor benötigt keine externen Bibliotheken und speichert nur auf **Save**.
+Herunterladen benötigt die App dafür keine Internetverbindung. Der Browser-Editor lädt CodeMirror lokal aus `web/vendor/` und speichert nur auf **Save**.

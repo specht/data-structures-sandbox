@@ -12,7 +12,7 @@ Future<void> main() async {
   if(!found.any((s)=>s['id']=='example')) {
     throw StateError('Missing reference student; populate structures/example explicitly before running smoke.dart.');
   }
-  for(final kind in ['list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap','hash']){
+  for(final kind in ['sorted_linked_list','unsorted_array_list','unsorted_linked_list','sorted_array_list','tree','avl','stack','linked_stack','linked_queue','array_queue','array_heap','node_heap','hash']){
     final worker=await prepare('example',kind,'structures');
     final cached=await prepare('example',kind,'structures');
     if(worker!=cached)throw StateError('Cache did not reuse $kind worker: $worker vs $cached');
@@ -30,7 +30,7 @@ Future<void> main() async {
       final hello=await next();
       if(hello['type']!='hello') throw StateError('Expected hello for $kind: $hello');
       final method=(kind=='linked_queue'||kind=='array_queue')?'enqueue':(kind=='stack'||kind=='linked_stack')?'push':'insert';
-      process.stdin.writeln(jsonEncode({'action':'run','method':method,'arguments':[25]}));
+      process.stdin.writeln(jsonEncode({'action':'run','method':method,'arguments':(kind=='unsorted_array_list'||kind=='unsorted_linked_list')?[0,25]:[25]}));
       await process.stdin.flush();
       final trace=await next();
       if(trace['type']!='trace' || trace['steps'] is! List ||

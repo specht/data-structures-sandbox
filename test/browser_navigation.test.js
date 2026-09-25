@@ -152,7 +152,7 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   const without13={kind:'snapshot',head:1,nodes:[{id:1,value:7,next:null}]};
   const with13={kind:'snapshot',head:1,nodes:[{id:1,value:7,next:2},{id:2,value:13,next:null}]};
   const removedButRetained={kind:'snapshot',head:1,nodes:[{id:1,value:7,next:null},{id:2,value:13,next:null}]};
-  const collectionTrace={type:'trace',structure:'list',source:trace.source,steps:[with13,
+  const collectionTrace={type:'trace',structure:'sorted_linked_list',source:trace.source,steps:[with13,
     {kind:'operationStart',operation:'remove(13)',line:2},
     {kind:'pointerWrite',from:'node:1.next',oldTo:2,to:null,line:6},removedButRetained,
     {kind:'retire',ids:[2],line:0},without13,
@@ -198,11 +198,11 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   // v1.2: dynamically discovered class directories are selectable without a
   // browser rebuild; switching students sends the chosen class + kind to Dart.
   Socket.current.handlers.message({data:JSON.stringify({type:'catalog',students:[
-    {id:'example',structures:['list','tree','stack']},
+    {id:'example',structures:['sorted_linked_list','tree','stack']},
     {id:'alice',structures:['tree','stack']}
-  ],default:{student:'example',structure:'list'}})});
+  ],default:{student:'example',structure:'sorted_linked_list'}})});
   assert.equal(Socket.current.sent.at(-1).student,'example');
-  assert.equal(Socket.current.sent.at(-1).structure,'list');
+  assert.equal(Socket.current.sent.at(-1).structure,'sorted_linked_list');
   run("ui.student.value='alice';ui.student.onchange();");
   assert.equal(Socket.current.sent.at(-1).student,'alice');
   assert.equal(Socket.current.sent.at(-1).structure,'tree');

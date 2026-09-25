@@ -1,6 +1,6 @@
 // Discover callable methods from the real Dart AST, then instrument a COPY.
 // The original file is never edited; only a documented subset of method
-// signatures is exposed in this linked-list prototype.
+// signatures can be exposed in the browser method picker.
 import 'dart:convert';
 import 'dart:io';
 import 'package:analyzer/dart/ast/ast.dart';
@@ -8,7 +8,10 @@ import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 
 const configs = <String, Map<String,String>>{
-  'list': {'file':'my_linked_list','class':'MyLinkedList','recorder':'Recorder','node':'ListNode','root':'head'},
+  'sorted_linked_list': {'file':'my_sorted_linked_list','class':'MySortedLinkedList','recorder':'Recorder','node':'ListNode','root':'head'},
+  'unsorted_array_list': {'file':'my_unsorted_array_list','class':'MyUnsortedArrayList','recorder':'ListRecorder','node':'','root':''},
+  'unsorted_linked_list': {'file':'my_unsorted_linked_list','class':'MyUnsortedLinkedList','recorder':'Recorder','node':'ListNode','root':'head'},
+  'sorted_array_list': {'file':'my_sorted_array_list','class':'MySortedArrayList','recorder':'ListRecorder','node':'','root':''},
   'tree': {'file':'my_bst','class':'MyBST','recorder':'TreeRecorder','node':'TreeNode','root':'root'},
   'avl': {'file':'my_avl','class':'MyAVL','recorder':'TreeRecorder','node':'TreeNode','root':'root'},
   'stack': {'file':'my_array_stack','class':'MyArrayStack','recorder':'StackRecorder','node':'','root':''},
@@ -302,7 +305,7 @@ void generate(String kind, {bool announce = true}) {
   // ../../lib imports no longer resolve from the private staging directory.
   // Only the supported sandbox API imports are rewritten; other relative
   // imports must be resolved explicitly rather than silently miscompiled.
-  for (final lib in ['sandbox','tree_sandbox','stack_sandbox','queue_sandbox','heap_sandbox','hash_sandbox']) {
+  for (final lib in ['sandbox','tree_sandbox','stack_sandbox','queue_sandbox','heap_sandbox','hash_sandbox','list_sandbox']) {
     for (final quote in ["'", '"']) {
       transformed = transformed.replaceAll(
         'import $quote../../lib/$lib.dart$quote;',
