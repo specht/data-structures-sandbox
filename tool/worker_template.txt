@@ -529,9 +529,65 @@ class BrowserSession {
     return cursor==null && identical(last,q.tail) && q.tail!.next==null;
   }
 
-  // The classroom validator evaluates the public contract, not representation
-  // details such as bucket placement, node links or the particular hash function.
-  // The interactive trace retains its stronger physical invariant checks.
+  // The browser discovers method names, but the classroom contract also fixes
+  // the parameter types, arity and return type of each required method.
+  String requiredMethodSignature(String name) {
+    final returns=switch(name){
+      'insert' when {'tree','avl','array_heap','node_heap'}.contains(kind) => 'void',
+      'insert'||'push'||'enqueue'||'contains'||'remove'||'isEmpty'||'isFull' => 'bool',
+      'get'||'removeAt'||'pop'||'peek'||'dequeue'||'removeMin' => 'int?',
+      'length' => 'int',
+      'loadFactor' => 'double',
+      _ => throw StateError('No required signature for $kind.$name'),
+    };
+    final arguments=(name=='insert' &&
+      {'unsorted_array_list','unsorted_linked_list'}.contains(kind)) ? 'int, int' :
+      {'pop','peek','dequeue','removeMin','isEmpty','isFull','length','loadFactor'}
+        .contains(name) ? '' : 'int';
+    return '$returns $name($arguments)';
+  }
+
+  // Test expected returns using the reference state BEFORE invoking student code.
+  // In particular, an insert which changes storage but returns false is wrong.
+  Object? expectedReturn(String name,List<Object?> args) {
+    final value=args.isNotEmpty && args.last is int ? args.last as int : null;
+    final positional=kind=='unsorted_array_list'||kind=='unsorted_linked_list';
+    final index=positional && args.isNotEmpty ? args.first as int : null;
+    final fixedList=kind=='unsorted_array_list'||kind=='sorted_array_list';
+    switch(name){
+      case 'insert':
+        if(kind=='tree'||kind=='avl'||kind=='array_heap'||kind=='node_heap')return null;
+        if(kind=='hash')return !reference.contains(value);
+        if(kind=='sorted_linked_list'||kind=='linked_stack')return true;
+        if(kind=='linked_queue')return true;
+        if(positional)return (!fixedList||reference.length<8) &&
+            index!=null && index>=0 && index<=reference.length;
+        if(kind=='sorted_array_list'||kind=='stack'||kind=='array_queue')return reference.length<8;
+        break;
+      case 'push':return kind=='linked_stack'||reference.length<8;
+      case 'enqueue':return kind=='linked_queue'||reference.length<8;
+      case 'get':return index!=null && index>=0 && index<reference.length?reference[index]:null;
+      case 'removeAt':return index!=null && index>=0 && index<reference.length?reference[index]:null;
+      case 'pop':return reference.isEmpty?null:
+          kind=='linked_stack'?reference.first:reference.last;
+      case 'peek':return reference.isEmpty?null:
+          kind=='stack'?reference.last:
+          (kind=='array_heap'||kind=='node_heap')?(List<int>.of(reference)..sort()).first:reference.first;
+      case 'dequeue':return reference.isEmpty?null:reference.first;
+      case 'removeMin':return reference.isEmpty?null:(List<int>.of(reference)..sort()).first;
+      case 'remove':return reference.contains(value);
+      case 'contains':return reference.contains(value);
+      case 'length':return reference.length;
+      case 'isEmpty':return reference.isEmpty;
+      case 'isFull':return reference.length==8;
+      case 'loadFactor':
+        return reference.length/(instance as hash_student.MyHashTable).buckets.length;
+    }
+    throw StateError('No reference contract for $kind.$name');
+  }
+
+  // All independently observable parts of a contract are checked after EACH
+  // operation, not just when a later get()/contains()/peek() is called.
   Map<String,Object?> validateCall(Map<String,dynamic> message){
     final name=message['method'] as String;
     final params=(descriptor(name)['params'] as List).cast<Map<String,dynamic>>();
@@ -539,20 +595,25 @@ class BrowserSession {
     if(raw is! List || raw.length!=params.length){
       throw const FormatException('Wrong number of test arguments.');
     }
+    final requiredSignature=requiredMethodSignature(name);
+    final declared=descriptor(name);
+    final declaredArgs=(params.map((param)=>
+      param['named']==true ? 'named ${param['type']}' : '${param['type']}')).join(', ');
+    final declaredSignature="${declared['returns']} $name($declaredArgs)";
+    if(requiredSignature!=declaredSignature){
+      final contents=List<int>.of(reference);
+      return {
+        'type':'validationCall','ok':false,'notExecuted':true,
+        'expectedContents':contents,'actualContents':actualValues(),
+        'checks':[{'aspect':'Method signature','expected':requiredSignature,
+          'actual':declaredSignature}],
+        'message':'Method signature',
+      };
+    }
     final args=<Object?>[
       for(var i=0;i<raw.length;i++) scalar(raw[i],params[i]['type'] as String),
     ];
-    Object? expected;
-    if(kind=='hash'){
-      final key=args.isNotEmpty?args.single as int:null;
-      expected=switch(name){
-        'insert' => !reference.contains(key),
-        'remove' || 'contains' => reference.contains(key),
-        'isEmpty' => reference.isEmpty,
-        'loadFactor' => reference.length/(instance as hash_student.MyHashTable).buckets.length,
-        _ => null,
-      };
-    }
+    final expected=expectedReturn(name,args);
     // Instrumented student methods expect an active recorder. Use a fresh,
     // disposable recorder here; its trace is never interpreted as a test result.
     final trace=recorder();
@@ -578,21 +639,97 @@ class BrowserSession {
       heap_api.HeapRecorder.active=null;
       list_memory_api.ListRecorder.active=null;
     }
-    final bool ok;
-    if(kind=='hash' && name=='loadFactor'){
-      ok=returned is num && expected is num &&
-        (returned-expected).abs()<0.0000001;
-    }else{
-      ok=updateReference(name,args,returned);
+    // Advance the independent reference model regardless of a wrong return:
+    // this allows the report to identify return AND storage failures separately.
+    updateReference(name,args,returned);
+    final expectedContents=List<int>.of(reference);
+    final actualContents=actualValues();
+    final issues=<Map<String,Object?>>[];
+    void check(String aspect,Object? wanted,Object? observed,[bool? passed]) {
+      if(!(passed??wanted==observed))issues.add({
+        'aspect':aspect,'expected':wanted,'actual':observed,
+      });
     }
-    final listOk = listStorageValid() &&
-      (!{'unsorted_array_list','unsorted_linked_list','sorted_array_list','sorted_linked_list'}.contains(kind) ||
-       actualValues().join(',')==reference.join(','));
+    check('Return value',expected,returned,
+      kind=='hash'&&name=='loadFactor' ?
+        returned is num && expected is num && (returned-expected).abs()<0.0000001 : null);
+    final unordered={'hash','array_heap','node_heap'}.contains(kind);
+    final comparedActual=List<int>.of(actualContents);
+    final comparedExpected=List<int>.of(expectedContents);
+    if(unordered){comparedActual.sort();comparedExpected.sort();}
+    check('Contents',comparedExpected,comparedActual,
+      comparedExpected.join(',')==comparedActual.join(','));
+    if({'unsorted_array_list','unsorted_linked_list','sorted_array_list','sorted_linked_list'}.contains(kind)){
+      final size=switch(kind){
+        'unsorted_array_list'=>(instance as unsorted_array_list_student.MyUnsortedArrayList).size,
+        'unsorted_linked_list'=>(instance as unsorted_linked_list_student.MyUnsortedLinkedList).size,
+        'sorted_array_list'=>(instance as sorted_array_list_student.MySortedArrayList).size,
+        _=>(instance as sorted_linked_list_student.MySortedLinkedList).size,
+      };
+      check('Logical size',reference.length,size);
+      check('List storage and ordering',true,listStorageValid());
+      if(kind=='unsorted_array_list')check('Fixed capacity',8,
+        (instance as unsorted_array_list_student.MyUnsortedArrayList).memory.length);
+      if(kind=='sorted_array_list')check('Fixed capacity',8,
+        (instance as sorted_array_list_student.MySortedArrayList).memory.length);
+    }
+    if(kind=='stack'){
+      final stack=instance as stack_student.MyArrayStack;
+      check('Fixed capacity',8,stack.memory.length);
+      check('Top index',reference.length-1,stack.top);
+      check('Stack storage',true,stackStorageValid());
+    }
+    if(kind=='array_queue'){
+      final queue=instance as array_queue_student.MyArrayQueue;
+      check('Fixed capacity',8,queue.memory.length);
+      check('Logical size',reference.length,queue.size);
+      check('Circular queue storage',true,queueStorageValid());
+    }
+    if(kind=='linked_stack'){
+      final seen=<int>{};
+      var node=(instance as linked_stack_student.MyLinkedStack).head;
+      while(node!=null && seen.add(node.id))node=node.next;
+      check('Acyclic stack chain',true,node==null);
+    }
+    if(kind=='linked_queue')check('Head/tail and acyclic chain',true,queuePointersValid());
+    if(kind=='array_heap')check('Min-heap ordering',true,heapStorageValid());
+    if(kind=='node_heap'){
+      final h=instance as node_heap_student.MyNodeHeap;
+      final audit=node_heap_api.auditNodeHeap(h.root,h.size);
+      check('Acyclic node heap',true,audit['acyclic']);
+      check('Complete tree and size',true,audit['complete']);
+      check('Min-heap ordering',true,audit['ordered']);
+      check('Logical size',reference.length,h.size);
+    }
+    if(kind=='tree'||kind=='avl'){
+      final root=kind=='tree'?(instance as tree_student.MyBST).root:
+        (instance as avl_student.MyAVL).root;
+      final audit=tree_api.auditAvl(root);
+      check('Acyclic tree',true,audit['acyclic']);
+      check('BST ordering',true,audit['ordered']);
+      if(kind=='avl'){
+        check('Stored subtree heights',true,audit['heights']);
+        check('AVL balance',true,audit['balanced']);
+      }
+    }
+    if(kind=='hash'){
+      final table=instance as hash_student.MyHashTable;
+      final audit=hash_api.auditHash(table.buckets,table.size);
+      check('Acyclic chains',true,audit['acyclic']);
+      check('Bucket placement',true,audit['placement']);
+      check('Unique keys',true,audit['unique']);
+      check('Stored size',reference.length,table.size);
+      check('Hash table storage',true,audit['sizeOk']);
+    }
     return {
-      'type':'validationCall','ok':ok && listOk,
-      if(!ok) 'message': kind=='hash'
-        ? '$name(${args.join(', ')}) returned $returned; expected $expected.'
-        : '$name(${args.join(', ')}) returned $returned; the public contract was not met.',
+      'type':'validationCall','ok':issues.isEmpty,
+      'expectedReturn':expected,'actualReturn':returned,
+      'returnIsVoid':descriptor(name)['returns']=='void',
+      'expectedContents':unordered?comparedExpected:expectedContents,
+      'actualContents':unordered?comparedActual:actualContents,
+      'contentsComparedAsUnordered':unordered,
+      'checks':issues,
+      if(issues.isNotEmpty) 'message':issues.map((issue)=>issue['aspect']).join(', '),
     };
   }
 

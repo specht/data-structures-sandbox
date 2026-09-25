@@ -600,6 +600,16 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .source-editor .source-error-line{background:#67334475}
 .source-editor .source-error-underline{text-decoration:underline wavy #ff747d 1.5px;
   text-underline-offset:3px}
+/* An expanded failed test shows the entire executable reproduction. */
+.validation-results>li:has(.validation-history){flex-wrap:wrap}
+.validation-results>li>.validation-history{flex:0 0 100%;width:100%;margin:7px 0 3px 0;min-width:0;font-size:12px}
+.validation-history summary{cursor:pointer;color:#a7c8f9;line-height:1.5}
+.validation-history>ol{margin:8px 0 0;padding-left:24px;max-height:min(48vh,400px);overflow:auto}
+.validation-results .validation-history li{display:list-item;border:0;border-radius:0;padding:0;background:transparent;overflow-wrap:anywhere;margin:0 0 8px;line-height:1.5}
+.validation-history li.validation-step-fail{color:#ffbdad}
+.validation-history li.validation-step-pass{color:#c5d7ef}
+.validation-history p{margin:2px 0;font-family:ui-monospace,monospace;font-size:11px;white-space:pre-wrap}
+.validation-history ul{margin:5px 0 0;padding-left:18px}
 /* An always-editable source panel does not need an Edit-mode outline. */
 .source-editor.is-editing{box-shadow:none}
 /* Two persistent actions take less space than the former Edit/Save/Cancel row. */

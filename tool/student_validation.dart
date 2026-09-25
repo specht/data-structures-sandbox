@@ -36,6 +36,11 @@ List<ValidationCase> validationCases(String kind) {
         for (var i = 1; i <= 8; i++) c('push', i), c('push', 9), c('peek'),
         c('pop'), c('push', 9), c('peek'), c('isEmpty'),
       ]));
+    } else {
+      cases.add(ValidationCase('Linked stack beyond eight elements', [
+        for (var i = 0; i < 12; i++) c('push',i), c('peek'),
+        for (var i = 0; i < 12; i++) c('pop'), c('isEmpty'),
+      ]));
     }
     return cases;
   }
@@ -51,6 +56,11 @@ List<ValidationCase> validationCases(String kind) {
         ValidationCase('Full queue and rejection', [for (var i = 1; i <= 8; i++) c('enqueue', i), c('isFull'), c('enqueue', 9), c('peek'), c('dequeue'), c('isFull')]),
         ValidationCase('Circular wraparound', [for (var i = 1; i <= 8; i++) c('enqueue', i), for (var i = 0; i < 3; i++) c('dequeue'), for (var i = 9; i <= 11; i++) c('enqueue', i), c('isFull'), for (var i = 0; i < 8; i++) c('dequeue'), c('isEmpty')]),
       ]);
+    } else {
+      cases.add(ValidationCase('Linked queue beyond eight elements', [
+        for (var i = 0; i < 12; i++) c('enqueue',i), c('peek'),
+        for (var i = 0; i < 12; i++) c('dequeue'), c('isEmpty'),
+      ]));
     }
     return cases;
   }
@@ -94,6 +104,10 @@ List<ValidationCase> validationCases(String kind) {
     ValidationCase('Duplicates', [c('insert', 4), c('insert', 4), c('insert', 4), c('length'), c('remove', 4), c('contains', 4), c('remove', 4), c('remove', 4), c('contains', 4)]),
     ValidationCase('Remove missing, first and last', [c('insert', 3), c('insert', 1), c('insert', 7), c('remove', 9), c('remove', 1), c('remove', 7), c('remove', 3), c('remove', 3)]),
     ValidationCase('Mixed positive and negative keys', [c('insert', 0), c('insert', -9), c('insert', 9), c('insert', -2), c('remove', -9), c('contains', -2), c('remove', 0), c('contains', 9)]),
+    ValidationCase('Sorted linked list beyond eight elements', [
+      for(var i=12;i>=1;i--) c('insert',i), c('length'), c('contains',11),
+      c('remove',6), c('length'), c('contains',6),
+    ]),
   ];
   if (kind == 'tree' || kind == 'avl') {
     final cases = <ValidationCase>[
@@ -117,6 +131,10 @@ List<ValidationCase> validationCases(String kind) {
     ValidationCase('Duplicates', [c('insert', 4), c('insert', 4), c('insert', 1), c('removeMin'), c('removeMin'), c('removeMin'), c('removeMin'), c('isEmpty')]),
     ValidationCase('Ascending and descending values', [c('insert', 8), c('insert', 7), c('insert', 6), c('insert', 5), c('insert', 4), c('insert', 3), c('insert', 2), c('insert', 1), for (var i = 0; i < 8; i++) c('removeMin'), c('isEmpty')]),
     ValidationCase('Empty and refill', [c('insert', 42), c('removeMin'), c('insert', -3), c('insert', 0), c('peek'), c('removeMin'), c('removeMin'), c('isEmpty')]),
+    ValidationCase('Dynamic heap beyond eight elements', [
+      for(var i=12;i>=1;i--) c('insert',i), c('peek'),
+      for(var i=0;i<12;i++) c('removeMin'), c('isEmpty'),
+    ]),
   ];
   if (kind == 'hash') return [
     ValidationCase('Empty table', [c('isEmpty'), c('contains', 5), c('remove', 5), c('loadFactor')]),
@@ -124,6 +142,10 @@ List<ValidationCase> validationCases(String kind) {
     ValidationCase('Duplicate keys', [c('insert', 4), c('insert', 4), c('contains', 4), c('loadFactor'), c('remove', 4), c('contains', 4), c('remove', 4)]),
     ValidationCase('Remove existing and missing keys', [c('insert', 2), c('insert', 11), c('insert', 29), c('remove', 11), c('contains', 11), c('contains', 2), c('remove', 2), c('remove', 29), c('remove', 29), c('isEmpty')]),
     ValidationCase('Negative keys and reuse', [c('insert', -9), c('insert', -1), c('insert', 0), c('contains', -9), c('remove', -1), c('loadFactor'), c('remove', -9), c('remove', 0), c('isEmpty')]),
+    ValidationCase('Many keys and rising load factor', [
+      for(var i=0;i<20;i++) c('insert',i*8), c('loadFactor'),
+      c('contains',8), c('remove',8), c('contains',8), c('loadFactor'),
+    ]),
   ];
   throw ArgumentError.value(kind, 'kind', 'Unsupported data structure');
 }

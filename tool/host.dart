@@ -284,6 +284,7 @@ class Client {
         send({'type':'validationRunning','index':index,'name':scenario.name});
         String? failure;
         String? failingCall;
+        final steps=<Map<String,Object?>>[];
         try {
           final isolated=validationWorker ?? await startIsolated();
           if(!current()) return;
@@ -296,21 +297,34 @@ class Client {
               ...call.toRequest(),'action':'validateCall',
             });
             if(reply['type']=='error') {
-              failure='$failingCall: ${reply['message']}';
+              failure='Student code raised an error: ${reply['message']}';
+              steps.add({'call':failingCall,'passed':false,'message':failure});
               break;
             }
             if(reply['type']!='validationCall') {
-              failure='$failingCall: Invalid test response.';
+              failure='Invalid response from the test worker.';
+              steps.add({'call':failingCall,'passed':false,'message':failure});
               break;
             }
+            steps.add({'call':failingCall,'passed':reply['ok']==true,
+              'expectedReturn':reply['expectedReturn'],
+              'actualReturn':reply['actualReturn'],
+              'returnIsVoid':reply['returnIsVoid'],
+              'notExecuted':reply['notExecuted']==true,
+              'contentsComparedAsUnordered':reply['contentsComparedAsUnordered'],
+              'expectedContents':reply['expectedContents'],
+              'actualContents':reply['actualContents'],
+              'checks':reply['checks']});
             if(reply['ok']!=true) {
-              failure='$failingCall: ${reply['message'] ?? 'The public contract was not met.'}';
+              failure=reply['message']?.toString() ?? 'The public contract was not met.';
               break;
             }
           }
         } catch (error) {
           if(!current()) return;
           failure='${failingCall ?? scenario.name}: $error';
+          steps.add({'call':failingCall ?? scenario.name,
+            'passed':false,'message':'Student code or test worker threw: $error'});
         }
         if(!current()) return;
         if(failure==null)passed++;
@@ -319,7 +333,7 @@ class Client {
           validationWorker?.kill();validationWorker=null;
         }
         send({'type':'validationResult','index':index,'name':scenario.name,
-          'passed':failure==null,'message':failure,
+          'passed':failure==null,'message':failure,'steps':steps,
           'completed':index+1,'total':scenarios.length,'passedCount':passed});
       }
       if(current())send({'type':'validationDone','passed':passed,'total':scenarios.length});

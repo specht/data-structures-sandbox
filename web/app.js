@@ -157,7 +157,7 @@ const validationUI={
   dialog:$('validation-dialog'), close:$('validation-close'), rerun:$('validation-rerun'),
   status:$('validation-status'), progress:$('validation-progress'), results:$('validation-results'),
 };
-const validationCachePrefix='data-structure-sandbox.validation.v2';
+const validationCachePrefix='data-structure-sandbox.validation.v3';
 let validationItems=[],validationResults=[],validationRevision=null;
 let validationRunning=false,validationCompleted=false;
 function validationCacheKey(){return `${validationCachePrefix}:${selectedStudent}:${structure}`;}
@@ -196,6 +196,56 @@ function validationRows(){
       detail.textContent=`${record.state==='pass'?'Passed':'Failed'}: ${record.name}`+
         (record.message?` — ${record.message}`:'');
       item.append(symbol,detail);
+      if(Array.isArray(record.steps)&&record.steps.length){
+        const format=value=>value===undefined?'not available':JSON.stringify(value);
+        const history=document.createElement('details');
+        history.className='validation-history';
+        history.open=record.state==='fail';
+        const summary=document.createElement('summary');
+        summary.textContent=`Start empty · ${record.steps.length} step${record.steps.length===1?'':'s'} · ${record.state==='fail'?'view failure':'view history'}`;
+        const calls=document.createElement('ol');
+        for(const step of record.steps){
+          const entry=document.createElement('li');
+          entry.className=step.passed?'validation-step-pass':'validation-step-fail';
+          const call=document.createElement('strong');
+          call.textContent=step.call??'Unknown operation';
+          entry.append(call);
+          if(step.notExecuted){
+            const explanation=document.createElement('p');
+            explanation.textContent='Not executed: the method declaration does not match the required signature.';
+            entry.append(explanation);
+          }
+          if('expectedReturn' in step&&!step.notExecuted){
+            const returned=document.createElement('p');
+            returned.textContent=step.returnIsVoid&&step.actualReturn===null
+              ? 'Completed · void method (no return value)'
+              : `Returned ${format(step.actualReturn)} · expected ${format(step.expectedReturn)}`;
+            entry.append(returned);
+          }
+          if('expectedContents' in step){
+            const contents=document.createElement('p');
+            contents.textContent=`${step.contentsComparedAsUnordered?'Values (sorted for comparison)':'Contents'} ${format(step.actualContents)} · expected ${format(step.expectedContents)}`;
+            entry.append(contents);
+          }
+          if(Array.isArray(step.checks)&&step.checks.length){
+            const differences=document.createElement('ul');
+            for(const check of step.checks){
+              const difference=document.createElement('li');
+              difference.textContent=`${check.aspect}: expected ${format(check.expected)}, actual ${format(check.actual)}`;
+              differences.append(difference);
+            }
+            entry.append(differences);
+          }
+          if(step.message){
+            const problem=document.createElement('p');
+            problem.textContent=step.message;
+            entry.append(problem);
+          }
+          calls.append(entry);
+        }
+        history.append(summary,calls);
+        item.append(history);
+      }
     }else item.textContent=record.state==='running'?`${record.name} — running…`:record.name;
     validationUI.results.append(item);
     return item;
@@ -251,6 +301,7 @@ function validationMessage(data){
     case 'validationResult':
       if(validationResults[data.index])validationResults[data.index]={
         name:data.name,state:data.passed?'pass':'fail',message:data.message??null,
+        steps:Array.isArray(data.steps)?data.steps:[],
       };
       validationUI.progress.value=data.completed;
       validationUI.status.textContent=`${data.completed} / ${data.total} groups · ${data.passedCount} passed`;
