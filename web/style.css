@@ -621,3 +621,22 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 /* Two persistent actions take less space than the former Edit/Save/Cancel row. */
 .code-panel .section-heading>.source-actions{min-width:142px}
 @media(max-width:600px){.code-panel .section-heading>.source-actions{min-width:132px}}
+/* Lightweight, discoverable editor actions; retain the full-height code surface. */
+.source-shortcuts{display:flex;align-items:center;gap:7px 11px;flex-wrap:wrap;
+  padding:6px 11px;border-top:1px solid #24354b;background:#101b2b;
+  color:#94a9c3;font-size:10px;line-height:1.45}
+.source-shortcuts span{flex:1 1 225px}
+.source-shortcuts button{padding:2px 7px;font-size:10px;border:1px solid #38516f;
+  border-radius:4px;background:#1b2c42;color:#d4e5fb;white-space:nowrap}
+.source-shortcuts button:disabled{opacity:.45;cursor:default}
+.source-shortcuts button:focus-visible,.source-completion:focus-visible{outline:2px solid #ffd080}
+.source-editor .CodeMirror{position:relative}
+.source-completions{position:absolute;z-index:30;min-width:190px;max-width:min(320px,85%);
+  max-height:210px;overflow:auto;display:flex;flex-direction:column;gap:1px;
+  padding:3px;border:1px solid #567399;border-radius:5px;background:#14243a;
+  box-shadow:0 8px 24px #0009}
+.source-completions[hidden]{display:none}
+.source-completion{font:12px/1.5 ui-monospace,monospace;text-align:left;cursor:pointer;
+  padding:3px 8px;color:#d9e7fb;border:0;border-radius:3px;background:transparent}
+.source-completion.selected,.source-completion:hover{background:#31517a;color:white}
+@media(max-width:600px){.source-shortcuts{font-size:10px}}

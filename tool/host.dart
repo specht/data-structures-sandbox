@@ -358,6 +358,30 @@ class Client {
       final chosen=requestedStructure is String ? requestedStructure : 'list';
       await select(selected,chosen);return;
     }
+    if(message['action']=='formatSource') {
+      final requestId=message['requestId'];
+      final selected=student, selectedKind=kind;
+      final response=<String,dynamic>{
+        'requestId':requestId,'revision':message['revision'],
+        'student':selected,'structure':selectedKind,
+      };
+      try {
+        if(requestId is! int || requestId<1 ||
+            message['revision'] is! String || message['content'] is! String ||
+            selected==null || selectedKind==null) {
+          throw const FormatException('Invalid source format request.');
+        }
+        // Never accept a client-supplied path or rewrite the student's saved file.
+        final file=editableSource(repoPath, selected, selectedKind);
+        final formatted=await formatEditableDraft(file.path, message['content'] as String);
+        send({'type':'sourceFormatted',...response,'content':formatted});
+      } catch(error) {
+        final explanation=error is FormatException ? error.message : error.toString();
+        send({'type':'sourceFormatError',...response,
+          'message':explanation.length>1800?explanation.substring(0,1800):explanation});
+      }
+      return;
+    }
     if(message['action']=='readSource'||message['action']=='saveSource'){
       try {
         final selected=student, selectedKind=kind;

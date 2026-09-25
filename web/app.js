@@ -1462,6 +1462,9 @@ function connect(){
       if(data.type==='sourceFile'||data.type==='sourceSaved'||data.type==='sourceError'){
         window.sandboxEditor?.receive(data);return;
       }
+      if(data.type==='sourceFormatted'||data.type==='sourceFormatError'){
+        window.sandboxEditor?.receiveFormat(data);return;
+      }
       if(data.type==='compileDiagnostics'){
         showCompiling(false);
         ui.connection.textContent='Compilation failed';
@@ -1508,6 +1511,7 @@ function connect(){
     if(socket!==ws)return;
     clearInterval(heartbeat);heartbeat=null;
     socket=null;
+    window.sandboxEditor?.connectionLost();
     if(stopped)return;
     showCompiling(false);
     resetValidation('Connection lost; run the tests again after reconnecting.');

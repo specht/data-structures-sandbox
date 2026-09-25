@@ -171,9 +171,13 @@ bei Array-Listen nur die Kapazität, nicht die aktuelle Anzahl der Elemente.
 
 Wähle im Browser deine Datei. Der lokal mitgelieferte CodeMirror-Editor ist
 sofort bearbeitbar, unterstützt Einrückung, **Ctrl+S** (Speichern),
-**Ctrl+Shift+K** (Zeile löschen) und **Revert** (ungespeicherte Änderungen
-verwerfen). Änderungen werden erst mit Save bzw. Ctrl+S in derselben Datei
-unter `structures/` gespeichert, die du auch im Workspace-Editor öffnen
+**Ctrl+Shift+K** (Zeile löschen), **Ctrl+#** (Kommentar umschalten),
+**Shift+Alt+A** (Blockkommentar), **Ctrl+Space** (einfache Vorschläge) und
+**Shift+Alt+F** (Dart-Formatierung). Diese Befehle stehen unter dem Editor;
+Formatierung und Vorschläge sind auch per Schaltfläche erreichbar.
+**Revert** verwirft ungespeicherte Änderungen. Der Format-Befehl formatiert
+nur den aktuellen Entwurf. Erst Save bzw. Ctrl+S speichert ihn in der Datei
+unter `structures/`, die du auch im Workspace-Editor öffnen
 kannst. Ein Dateikonflikt wird gemeldet, statt fremde Änderungen zu
 überschreiben. Die Visualisierung zeigt stets die zuletzt gespeicherte
 Codeversion. Git-Commits und Pushes führst du wie bisher im Terminal aus.

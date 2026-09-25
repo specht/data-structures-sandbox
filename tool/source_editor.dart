@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -55,4 +56,34 @@ Map<String, Object?> saveEditableSource(
     'type': 'sourceSaved', 'student': student, 'structure': kind,
     'content': content, 'revision': studentStamp(file),
   };
+}
+
+// Format the editor draft on stdin. Never write a temporary copy or mutate the
+// selected student file. The existing read/save revision checks remain intact.
+Future<String> formatEditableDraft(String sourcePath, String content) async {
+  if (utf8.encode(content).length > maxSourceBytes || content.contains('\u0000')) {
+    throw const FormatException('Source must be UTF-8 text smaller than 256 KiB.');
+  }
+  final process = await Process.start(Platform.resolvedExecutable,
+      ['format', '--output=show', '--stdin-name=$sourcePath']);
+  final formattedOutput = process.stdout.transform(utf8.decoder).join();
+  final errorOutput = process.stderr.transform(utf8.decoder).join();
+  try {
+    process.stdin.write(content);
+    await process.stdin.close();
+    final status = await process.exitCode.timeout(const Duration(seconds: 10));
+    final formatted = await formattedOutput;
+    final errors = await errorOutput;
+    if (status != 0) {
+      throw FormatException(errors.trim().isNotEmpty ? errors.trim() :
+          'Dart could not format this draft. Check its syntax.');
+    }
+    if (utf8.encode(formatted).length > maxSourceBytes) {
+      throw const FormatException('Formatted source exceeds the 256 KiB editor limit.');
+    }
+    return formatted;
+  } on TimeoutException {
+    process.kill();
+    throw const FormatException('Formatting timed out. Your draft has not been changed.');
+  }
 }
