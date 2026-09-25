@@ -1404,6 +1404,13 @@ function connect(){
       if(data.type==='sourceFile'||data.type==='sourceSaved'||data.type==='sourceError'){
         window.sandboxEditor?.receive(data);return;
       }
+      if(data.type==='compileDiagnostics'){
+        showCompiling(false);
+        ui.connection.textContent='Compilation failed';
+        window.sandboxEditor?.receiveDiagnostics(data);
+        ui.cmdStatus.textContent='Compilation failed · select an error below the editor.';
+        ui.cmdStatus.classList.add('error');return;
+      }
       if(data.type.startsWith('validation')){validationMessage(data);return;}
       if(data.type==='catalog'){receiveCatalog(data);return;}
       if(data.type==='building'||data.type==='sourceChanged'){
@@ -1419,6 +1426,7 @@ function connect(){
         focusAfterCommand=false;ui.cmdStatus.textContent=data.message;ui.cmdStatus.classList.add('error');return;
       }
       if(data.type==='hello'){
+        window.sandboxEditor?.compiled();
         window.sandboxEditor?.ready();
         validationUI.button.disabled=false;
         validationUI.rerun.disabled=false;

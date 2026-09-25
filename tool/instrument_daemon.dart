@@ -27,6 +27,8 @@ Future<void> main() async {
       stdout.writeln(jsonEncode({
         'id': id, 'ok': status == 0,
         if (status != 0) 'error': instrument.lastError ?? 'Instrumentation failed.',
+        if (status != 0 && instrument.lastDiagnostics.isNotEmpty)
+          'diagnostics': instrument.lastDiagnostics,
       }));
     } catch (error) {
       exitCode = 0;

@@ -4,6 +4,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+// Keep student errors distinct from failures of the analyzer daemon.
+class StudentDiagnosticsException implements Exception {
+  final String message;
+  final List<Map<String, dynamic>> diagnostics;
+  StudentDiagnosticsException(this.message, this.diagnostics);
+  @override
+  String toString() => message;
+}
+
 class InstrumenterUnavailable implements Exception {
   final String message;
   InstrumenterUnavailable(this.message);
@@ -113,7 +122,17 @@ class InstrumentClient {
           await process.stdin.flush();
           final result = await waiting.future.timeout(const Duration(seconds: 60));
           if (result['ok'] != true) {
-            throw FormatException(result['error']?.toString() ?? 'Instrumentation failed.');
+            final message = result['error']?.toString() ?? 'Instrumentation failed.';
+            final diagnostics = (result['diagnostics'] as List?)
+                    ?.whereType<Map>()
+                    .map((entry) => entry.map(
+                        (key, value) => MapEntry(key.toString(), value)))
+                    .toList() ??
+                <Map<String, dynamic>>[];
+            if (diagnostics.isNotEmpty) {
+              throw StudentDiagnosticsException(message, diagnostics);
+            }
+            throw FormatException(message);
           }
           return;
         } on TimeoutException {

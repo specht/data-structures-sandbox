@@ -29,6 +29,8 @@ String? selectedSource;
 String? overrideKind;
 // The daemon returns exact diagnostics after a failed request.
 String? lastError;
+// Parser offsets belong to the student's ORIGINAL file, not generated code.
+List<Map<String, Object?>> lastDiagnostics = [];
 
 
 
@@ -260,6 +262,7 @@ void main(List<String> arguments) {
 void generate(String kind, {bool announce = true}) {
   exitCode=0;
   lastError=null;
+  lastDiagnostics=[];
   final requestedKind = kind;
   config = configs[requestedKind] ?? (throw ArgumentError('Unknown structure: $requestedKind'));
   sourcePath = selectedSource ?? 'structures/example/${config['file']}.dart';
@@ -271,6 +274,13 @@ void generate(String kind, {bool announce = true}) {
   final source = original.readAsStringSync();
   final parsed = parseString(content: source, path: sourcePath, throwIfDiagnostics: false);
   if (parsed.errors.isNotEmpty) {
+    lastDiagnostics = parsed.errors.map((error) {
+      final location = parsed.lineInfo.getLocation(error.offset);
+      return <String, Object?>{
+        'line': location.lineNumber, 'column': location.columnNumber,
+        'length': error.length, 'message': error.message, 'severity': 'error',
+      };
+    }).toList();
     lastError=parsed.errors.map((e)=>'Dart source: $e').join('\n');
     stderr.writeln(lastError);
     exitCode = 65; return;

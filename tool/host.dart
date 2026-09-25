@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'source_editor.dart';
 import 'prepare.dart';
+import 'instrument_client.dart';
 import 'registry.dart';
 import 'student_validation.dart';
 
@@ -150,7 +151,15 @@ class Client {
   }
   void send(Map<String,dynamic> data)=>sendRaw(jsonEncode(data));
   void sendRaw(String data){if(!closed && socket.readyState==WebSocket.open)socket.add(data);}
-  void error(Object e){send({'type':'error','message':e.toString().replaceFirst('FormatException: ','').replaceFirst('Bad state: ','')});}
+  void error(Object e){
+    if(e is StudentDiagnosticsException && student!=null && kind!=null){
+      send({'type':'compileDiagnostics', 'student':student, 'structure':kind,
+        'revision':currentStamp, 'message':e.message,
+        'diagnostics':e.diagnostics});
+      return;
+    }
+    send({'type':'error','message':e.toString().replaceFirst('FormatException: ','').replaceFirst('Bad state: ','')});
+  }
   void markChanged(){
     if(refreshing || student==null || kind==null)return;
     final detected = Stopwatch()..start();

@@ -6,10 +6,13 @@
   const save = $('source-save'), revert = $('source-discard');
   const container = $('source-editor'), oldView = $('code-scroll');
   const status = $('source-edit-status');
+  const problems = $('source-problems'), problemCount = $('source-problem-count');
+  const problemList = $('source-problem-list');
   let loading = false, saving = false, dirty = false;
   let revision = null, original = '', selection = null, highlighted = null;
   let suppressChange = false, pendingContent = null, sourceOutdated = false;
   let ignoreNextSourceChanged = false;
+  let pendingDiagnostics = null, diagnosticMarks = [];
   const locationKey = () => `${selectedStudent}/${structure}`;
   const connected = () => socket && socket.readyState === WebSocket.OPEN;
   const editor = CodeMirror(container, {
@@ -51,6 +54,62 @@
     status.textContent = text;
     status.classList.toggle('source-edit-error', error);
   }
+  function clearDiagnostics() {
+    for (const {line, marker} of diagnosticMarks) {
+      editor.removeLineClass(line, 'background', 'source-error-line');
+      marker?.clear();
+    }
+    diagnosticMarks = [];
+    pendingDiagnostics = null;
+    if (problemList.replaceChildren) problemList.replaceChildren();
+    else problemList.textContent = ''; // Tolerate minimal editor test doubles.
+    problems.hidden = true;
+  }
+  function receiveDiagnostics(message) {
+    if (selection !== locationKey() || message.student !== selectedStudent ||
+        message.structure !== structure || dirty) return;
+    if (loading || revision === null) {
+      pendingDiagnostics = message; // A failed select can precede readSource.
+      return;
+    }
+    if (message.revision !== revision) return; // An older compile must not mark new code.
+    clearDiagnostics();
+    const entries = Array.isArray(message.diagnostics) ? message.diagnostics : [];
+    for (const issue of entries) {
+      if (!Number.isInteger(issue.line) || issue.line < 1 ||
+          issue.line > editor.lineCount()) continue;
+      const line = issue.line - 1;
+      const sourceLine = editor.getLine(line);
+      const column = Math.max(0, Math.min(sourceLine.length, (issue.column || 1) - 1));
+      const end = Math.min(sourceLine.length, column + Math.max(1, issue.length || 1));
+      const messageText = String(issue.message || 'Dart could not compile this line.');
+      editor.addLineClass(line, 'background', 'source-error-line');
+      const marker = end > column ? editor.markText(
+        {line, ch: column}, {line, ch: end},
+        {className: 'source-error-underline', title: messageText}) : null;
+      diagnosticMarks.push({line, marker});
+      const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'source-problem';
+      button.textContent = `Line ${issue.line}, column ${issue.column || 1}: ${messageText}`;
+      button.addEventListener('click', () => {
+        editor.setCursor({line, ch: column});
+        editor.scrollIntoView({line, ch: column}, 90);
+        editor.focus();
+      });
+      item.append(button);
+      problemList.append(item);
+    }
+    if (!diagnosticMarks.length) return;
+    problemCount.textContent = diagnosticMarks.length === 1 ?
+      '1 compilation error · select to jump to the source' :
+      `${diagnosticMarks.length} compilation errors · select to jump to the source`;
+    problems.hidden = false;
+    const first = diagnosticMarks[0];
+    editor.scrollIntoView({line: first.line, ch: 0}, 90);
+    setStatus('Compilation failed · fix the marked lines, then save again', true);
+  }
   function updateDirty() {
     dirty = revision !== null && editor.getValue() !== original;
     save.disabled = !dirty || saving || loading || !connected();
@@ -60,7 +119,10 @@
   editor.on('change', () => {
     if (suppressChange || revision === null) return;
     updateDirty();
-    if (dirty) highlight(null); // The recorded trace refers to the saved source.
+    if (dirty) {
+      highlight(null); // The recorded trace refers to the saved source.
+      clearDiagnostics(); // Diagnostics also refer to the previously saved text.
+    }
   });
   function requestSource() {
     if (loading || saving || !selectedStudent || !structure || !connected()) return;
@@ -70,6 +132,7 @@
     socket.send(JSON.stringify({action: 'readSource'}));
   }
   function resetSelection() {
+    clearDiagnostics();
     selection = null; loading = false; saving = false; dirty = false;
     revision = null; original = ''; pendingContent = null; sourceOutdated = false;
     ignoreNextSourceChanged = false;
@@ -89,6 +152,8 @@
         updateButtons();
         return;
       }
+      const queued = pendingDiagnostics;
+      clearDiagnostics();
       revision = message.revision;
       original = message.content;
       sourceOutdated = false;
@@ -97,10 +162,12 @@
       write(original);
       writable(true);
       updateDirty();
+      if (queued) receiveDiagnostics(queued);
     } else if (message.type === 'sourceSaved') {
       if (!saving || selection !== locationKey() ||
           message.student !== selectedStudent || message.structure !== structure) return;
       saving = false;
+      clearDiagnostics();
       original = message.content;
       revision = message.revision;
       pendingContent = null;
@@ -136,6 +203,7 @@
     if (!dirty || saving || revision === null) return;
     if (!window.confirm('Discard unsaved changes and restore the last saved source?')) return;
     highlight(null);
+    clearDiagnostics();
     write(original);
     updateDirty();
     if (sourceOutdated) requestSource();
@@ -194,8 +262,11 @@
     receive, canLeave, highlight,
     renderSource(src) {this.lastSource = src; renderSource(src);},
     beforeSelection() {if (!canLeave()) return false; resetSelection(); return true;},
+    receiveDiagnostics,
+    compiled() {if (!dirty) clearDiagnostics();},
     sourceChanged() {
       if (selection !== locationKey()) return;
+      if (!dirty) clearDiagnostics();
       if (ignoreNextSourceChanged) { ignoreNextSourceChanged = false; return; }
       if (dirty || saving) {
         sourceOutdated = true;

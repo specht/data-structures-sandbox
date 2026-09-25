@@ -235,6 +235,11 @@ Future<String> _build(
     );
     buildProfile(subject, 'instrument (one-shot fallback)', instrumentation.elapsed);
     if (instrumented.exitCode != 0) {
+      final diagnostics = await _originalSourceDiagnostics(source);
+      if (diagnostics.isNotEmpty) {
+        throw StudentDiagnosticsException(
+            'Fix the errors in your Dart source and save again.', diagnostics);
+      }
       throw FormatException('Could not instrument ${source.path}:\n'
           '${instrumented.stdout}${instrumented.stderr}');
     }
@@ -271,7 +276,16 @@ Future<String> _build(
       output.contains('Unrecognized command') ||
       output.contains('not a valid subcommand');
   if (!missingCompiler) {
-    throw FormatException('Dart compilation diagnostics for $student/$kind:\n$output');
+    final diagnostics = await _originalSourceDiagnostics(source);
+    if (diagnostics.isNotEmpty) {
+      throw StudentDiagnosticsException(
+          'Fix the errors in your Dart source and save again.', diagnostics);
+    }
+    // Never present generated-worker positions as student source positions.
+    stderr.writeln('[sandbox] Generated compiler output for $student/$kind:\n$output');
+    throw FormatException('Dart compilation failed for $student/$kind. '
+        'The error may be in generated code or an imported file; see the app '
+        'terminal for technical details.');
   }
   stderr.writeln('[cache] Kernel compiler unavailable; using checked Dart source.');
   final analysis = Stopwatch()..start();
@@ -279,12 +293,52 @@ Future<String> _build(
       ['analyze', dartWorker.path]);
   buildProfile(subject, 'fallback analyze', analysis.elapsed);
   if (checked.exitCode != 0) {
-    throw FormatException('Dart compilation diagnostics for $student/$kind:\n'
+    final diagnostics = await _originalSourceDiagnostics(source);
+    if (diagnostics.isNotEmpty) {
+      throw StudentDiagnosticsException(
+          'Fix the errors in your Dart source and save again.', diagnostics);
+    }
+    stderr.writeln('[sandbox] Generated analyzer output for $student/$kind:\n'
         '${checked.stdout}${checked.stderr}');
+    throw FormatException('Dart compilation failed for $student/$kind; '
+        'see the app terminal for technical details.');
   }
   ready.writeAsStringSync(jsonEncode({'key': key, 'kernel': false}));
   buildProfile(subject, 'build total', total.elapsed);
   return dartWorker.path;
+}
+
+// Check the original, uninstrumented student file only when a build fails.
+// The compiler sees generated files and cannot provide editor line numbers.
+Future<List<Map<String, dynamic>>> _originalSourceDiagnostics(File source) async {
+  try {
+    final result = await Process.run(Platform.resolvedExecutable,
+        ['analyze', '--format=machine', source.absolute.path]);
+    final expected = source.absolute.path;
+    final diagnostics = <Map<String, dynamic>>[];
+    for (final line in '${result.stdout}\n${result.stderr}'.split('\n')) {
+      // Dart's machine output is SEVERITY|TYPE|CODE|FILE|LINE|COLUMN|LENGTH|MESSAGE.
+      // The pipe in a path or message can be escaped as \|.
+      final fields = line.split(RegExp(r'(?<!\\)\|'));
+      if (fields.length < 8 || fields[0] != 'ERROR') continue;
+      final filename = fields[3].replaceAll(r'\|', '|');
+      if (File(filename).absolute.path != expected) continue;
+      final row = int.tryParse(fields[4]);
+      final column = int.tryParse(fields[5]);
+      final length = int.tryParse(fields[6]);
+      if (row == null || row < 1 || column == null || column < 1) continue;
+      diagnostics.add({
+        'line': row, 'column': column, 'length': length ?? 1,
+        'message': fields.sublist(7).join('|').replaceAll(r'\|', '|'),
+        'severity': 'error',
+      });
+      if (diagnostics.length >= 30) break;
+    }
+    return diagnostics;
+  } catch (error) {
+    stderr.writeln('[sandbox] Could not analyze original source: $error');
+    return [];
+  }
 }
 
 extension on File {

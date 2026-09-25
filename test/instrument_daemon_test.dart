@@ -50,11 +50,17 @@ Future<void> main() async {
     check(File('${directory.path}/first/stack_methods.dart').existsSync(),
         'The first method dispatcher was not written.');
 
-    await source.writeAsString('class MyArrayStack { bool push( { }');
+    await source.writeAsString('class MyArrayStack {\n  int x = ;\n}');
     final invalid = await request(2, '${directory.path}/invalid');
     check(invalid['ok'] == false &&
         (invalid['error'] as String).contains('Dart source:'),
         'Syntax diagnostics were lost: $invalid');
+    final issues = invalid['diagnostics'] as List?;
+    check(issues != null && issues.isNotEmpty,
+        'Structured syntax diagnostics were not returned: $invalid');
+    check(issues!.any((issue) => issue['line'] == 2 &&
+        issue['column'] is int && issue['message'] is String),
+        'Diagnostics must refer to line 2 in the original source: $issues');
 
     await source.writeAsString(original);
     final third = await request(3, '${directory.path}/third');
