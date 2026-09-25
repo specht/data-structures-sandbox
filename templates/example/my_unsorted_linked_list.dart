@@ -3,6 +3,7 @@ import '../../lib/sandbox.dart';
 // Unsorted singly linked list with index-based operations and duplicates.
 class MyUnsortedLinkedList {
   ListNode? head;
+  int size = 0; // Number of reachable nodes; maintained by student code.
 
   bool insert(int index, int value) {
     if (index < 0) return false;
@@ -10,6 +11,7 @@ class MyUnsortedLinkedList {
       final fresh = ListNode(value);
       fresh.next = head;
       head = fresh;
+      size++;
       return true;
     }
     ListNode? previous = head;
@@ -20,6 +22,7 @@ class MyUnsortedLinkedList {
     final fresh = ListNode(value);
     fresh.next = previous.next;
     previous.next = fresh;
+    size++;
     return true;
   }
 
@@ -37,6 +40,7 @@ class MyUnsortedLinkedList {
     if (index == 0) {
       final removed = head!.value;
       head = head!.next;
+      size--;
       return removed;
     }
     ListNode? previous = head;
@@ -46,6 +50,7 @@ class MyUnsortedLinkedList {
     if (previous?.next == null) return null;
     final removed = previous!.next!;
     previous.next = removed.next;
+    size--;
     return removed.value;
   }
 
@@ -58,13 +63,5 @@ class MyUnsortedLinkedList {
     return false;
   }
 
-  int length() {
-    var count = 0;
-    ListNode? current = head;
-    while (current != null) {
-      count++;
-      current = current.next;
-    }
-    return count;
-  }
+  int length() => size;
 }

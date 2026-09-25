@@ -26,6 +26,14 @@ synchronous and do not print output to communicate their result.
 
 ### List variants
 
+All four list classes declare a student-owned `int size = 0`. Students update it
+on successful insertion/removal. Failed operations leave it unchanged, and
+`length()` returns this field in O(1), without counting occupied cells or nodes.
+`ListMemory.length` denotes *capacity*, not the list's logical size.
+`ListMemory` does not own or update the student's size. After every public
+operation the worker checks the field against the physically occupied array
+prefix or the number of reachable linked nodes, as well as the reference model.
+
 All four exercises have explicit IDs and require explicit CLI selections.
 Both unsorted lists share `insert(index,value)`, `get(index)`, `removeAt(index)`,
 `contains(value)` and `length()`; both sorted lists share `insert(value)`,

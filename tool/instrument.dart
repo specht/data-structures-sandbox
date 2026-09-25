@@ -129,6 +129,24 @@ class BodyInstrumenter extends RecursiveAstVisitor<void> {
       before='final $old = top;';
       after="trace.indexWrite('top', $old, top);";
     }
+    // The list's size is a field of the STUDENT class, not of ListMemory.
+    // Trace updates to that field without changing the student's original file.
+    final isList={'my_unsorted_array_list','my_unsorted_linked_list',
+      'my_sorted_array_list','my_sorted_linked_list'}.contains(config['file']);
+    final sizeMutation=isList &&
+      ((expr is AssignmentExpression &&
+        (expr.leftHandSide.toSource()=='size'||expr.leftHandSide.toSource()=='this.size')) ||
+       (expr is PrefixExpression &&
+        (expr.operand.toSource()=='size'||expr.operand.toSource()=='this.size') &&
+        (expr.operator.lexeme=='++'||expr.operator.lexeme=='--')) ||
+       (expr is PostfixExpression &&
+        (expr.operand.toSource()=='size'||expr.operand.toSource()=='this.size') &&
+        (expr.operator.lexeme=='++'||expr.operator.lexeme=='--')));
+    if(sizeMutation){
+      final old='__previousSize_${s.offset}';
+      before='final $old = size;';
+      after="trace.indexWrite('size', $old, size);";
+    }
     if (expr is AssignmentExpression) {
       final lhs = expr.leftHandSide.toSource();
       if ((lhs == config['root'] || lhs == config['tail']) &&

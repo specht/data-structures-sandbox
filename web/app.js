@@ -391,6 +391,7 @@ let playbackMode=['step','play','result'].includes(playbackPreferences.mode)?pla
 const CANCELLED = Symbol('animation interrupted');
 let lastResult = 'Ready', currentOperation = 'Ready', activeLine = null;
 let hotNode = null, hotLink = null, hotReference = null;
+let linkedListSize = 0;
 let head = null, tailId = null, rootId = null, structure='unsorted_array_list', arrayListState={cells:Array(8).fill(null),size:0},arrayListHot=null, stackState={cells:Array(8).fill(null),top:-1}, queueState={cells:Array(8).fill(null),front:0,rear:0,size:0}, heapState={cells:[],heapOrder:true},heapHot=[],hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8},hashHotBucket=null,hashHotNode=null, savedCapacity=8, references = {}, override = null, viewWidth = 1100;
 const nodes = new Map(), nodeViews = new Map(), links = new Map();
 
@@ -670,7 +671,17 @@ function renderReferences(){
   }
   ui.references.append(...labels); // Text stays above intersecting pointer paths.
 }
-function renderAll(){if(isArrayList()){renderArrayList();return;}if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}if(structure==='hash'){renderHash();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();}
+function renderAll(){
+  if(structure==='unsorted_linked_list'||structure==='sorted_linked_list'){
+    ui.stackView.replaceChildren();
+    const label=svg('text',{x:SCENE_WIDTH-94,y:89,
+      class:'queue-size','text-anchor':'end'});
+    label.textContent=`size = ${linkedListSize}`;
+    ui.stackView.append(label);
+  }
+  if(isArrayList()){renderArrayList();return;}
+  if(structure==='stack'){renderStack();return;}if(structure==='array_queue'){renderQueue();return;}if(structure==='array_heap'){renderHeap();return;}if(structure==='hash'){renderHash();return;}for(const node of nodes.values())renderNode(node);renderEdges();renderReferences();
+}
 function layoutFor(snapshot){
   if(isTree())return treeLayout(snapshot);
   const byId=new Map(snapshot.nodes.map(node=>[node.id,node]));
@@ -705,6 +716,9 @@ function applySnapshot(snapshot,animate=false){
   if(structure==='array_heap'){heapState=heapSnapshot(snapshot);renderHeap();return {targets:new Map(),count:heapState.cells.length,cycle:false};}
   if(structure==='hash'){hashState=hashSnapshot(snapshot);renderHash();return {targets:new Map(),count:hashState.size,cycle:false};}
   if(isTree())rootId=snapshot.root;else head=snapshot.head;
+  if(structure==='unsorted_linked_list'||structure==='sorted_linked_list'){
+    linkedListSize=snapshot.size??0;
+  }
   if(structure==='linked_queue')tailId=snapshot.tail??null;
   for(const data of snapshot.nodes){
     const node=newNode(data,true);node.value=data.value;node.next=data.next??null;
@@ -793,7 +807,7 @@ async function animateSettle(snapshot){
   ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
 }
 function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
-  head=null;tailId=null;rootId=null;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};arrayListState={cells:[],size:0};arrayListHot=null;heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  head=null;tailId=null;rootId=null;linkedListSize=0;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};arrayListState={cells:[],size:0};arrayListHot=null;heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded Dart execution.';
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
@@ -845,6 +859,7 @@ function instant(frame){
     }
     case 'heightAndSettle':hotNode=frame.id;applySnapshot(frame.snapshot);break;
     case 'snapshot':applySnapshot(frame.snapshot);break;
+    case 'memoryWriteAndSettle':applySnapshot(frame.snapshot);break;
     case 'retireAndSettle':retireNodes(frame.ids);applySnapshot(frame.snapshot);break;
     case 'operationEnd':references={};hotNode=null;lastResult=frame.result;ui.result.textContent=lastResult;showReturnValue(frame);showLine(null);break;
   }
@@ -883,6 +898,11 @@ async function animate(frame){
       ui.status.textContent=`Node #${frame.id}: height ${frame.before} → ${frame.to}.`;
       applySnapshot(frame.snapshot);renderAll();await tween(230,()=>{});break;
     case 'snapshot':await animateSettle(frame.snapshot);break;
+    case 'memoryWriteAndSettle':
+      applySnapshot(frame.snapshot);renderAll();
+      ui.phase.textContent='LIST SIZE';
+      ui.status.textContent=`Student-owned size: ${frame.oldValue} → ${frame.value}`;
+      await tween(220,()=>{});break;
     case 'retireAndSettle':await animateRetire(frame.ids,frame.snapshot);break;
     case 'operationEnd':references={};hotNode=null;showReturnValue(frame);ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
       lastResult=frame.result;ui.result.textContent=lastResult;ui.status.textContent=frame.result;showLine(null);renderAll();break;
@@ -1812,7 +1832,7 @@ function renderArrayList(){
   const valid=Number.isInteger(size)&&size>=0&&size<=cells.length;
   const subtitle=svg('text',{x:SCENE_WIDTH/2,y:110,
     class:'queue-size','text-anchor':'middle'});
-  subtitle.textContent=`${structure==='sorted_array_list'?'SORTED':'UNSORTED'} · length = ${size} / ${cells.length}${valid?'':' · INVALID'}`;
+  subtitle.textContent=`${structure==='sorted_array_list'?'SORTED':'UNSORTED'} · size = ${size} / ${cells.length}${valid?'':' · INVALID'}`;
   ui.stackView.append(subtitle);
   const cellWidth=94,start=(SCENE_WIDTH-((cells.length-1)*cellWidth+80))/2,y=235;
   for(let i=0;i<cells.length;i++){

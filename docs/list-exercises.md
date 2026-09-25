@@ -4,13 +4,19 @@ A *list* stores a sequence in which occurrences matter. Every list exercise
 here allows duplicate integer values. **Storage** (array versus nodes) and
 **ordering policy** (unsorted versus sorted ascending) are independent choices.
 An ADT describes public behavior; an implementation supplies memory and code.
+**Each list class declares its own `int size = 0`.** Students increment it after
+successful inserts and decrement it after successful removals, including for
+linked lists. `length()` returns `size` in O(1); it must not count nodes or
+occupied cells each time. The visualizer observes the field but never maintains
+it. Tests independently check it against the number of physically stored values.
+`ListMemory.length` means array **capacity**, not the list's logical size.
 
 | Exercise | CLI | Public behavior | Representation |
 | --- | --- | --- | --- |
-| Unsorted array | `./new-structure NAME list unsorted-array` | `insert(index,value)`, `get(index)`, `removeAt(index)`, `contains(value)`, `length()` | Eight fixed cells; student-controlled logical size; shift on indexed insertion/removal. |
-| Unsorted linked nodes | `./new-structure NAME list unsorted-nodes` | Same unsorted interface and invalid-index rules | Singly linked acyclic chain; `head` is the first node; no fixed capacity. |
-| Sorted array | `./new-structure NAME list sorted-array` | `insert(value)`, `contains(value)`, `remove(value)`, `length()` | Eight fixed cells; nondecreasing occupied prefix, duplicates retained. |
-| Sorted linked nodes | `./new-structure NAME list sorted-nodes` | Same sorted interface, including `bool insert` and `length()` | Unbounded, acyclic singly linked chain with ascending values. |
+| Unsorted array | `./new-structure NAME list unsorted-array` | `insert(index,value)`, `get(index)`, `removeAt(index)`, `contains(value)`, `length()` | Eight fixed cells; student-owned `size` field; shift on indexed insertion/removal. |
+| Unsorted linked nodes | `./new-structure NAME list unsorted-nodes` | Same unsorted interface and invalid-index rules | Singly linked acyclic chain; `head` and student-owned `size`; no fixed capacity. |
+| Sorted array | `./new-structure NAME list sorted-array` | `insert(value)`, `contains(value)`, `remove(value)`, `length()` | Eight fixed cells; student-owned `size`; nondecreasing occupied prefix, duplicates retained. |
+| Sorted linked nodes | `./new-structure NAME list sorted-nodes` | Same sorted interface, including `bool insert` and `length()` | Unbounded, acyclic singly linked chain with ascending values and student-owned `size`. |
 
 `./new-structure NAME list` without a variant is intentionally rejected; the
 recommended first exercise. Starters are unfinished; `--example` supplies a

@@ -41,6 +41,8 @@ void main() {
       }
       require((linked ? nodes.length() : array.length()) == model.length,
         'length at $step, linked=$linked');
+      require((linked ? nodes.size : array.size) == model.length,
+        'student-owned size at $step, linked=$linked');
       for (var i = 0; i < model.length; i++) {
         require((linked ? nodes.get(i) : array.get(i)) == model[i],
           'sequence at step $step, linked=$linked');
@@ -66,6 +68,7 @@ void main() {
       require(sorted.remove(value) == model.remove(value), 'sorted remove at $step');
     }
     require(sorted.length() == model.length, 'sorted length at $step');
+    require(sorted.size == model.length, 'sorted student-owned size at $step');
     require(sorted.contains(value) == model.contains(value), 'sorted contains at $step');
     final cells = sorted.memory.copy();
     for (var i = 0; i < cells.length; i++) {
@@ -84,10 +87,12 @@ void main() {
       require(sortedNodes.remove(value)==sortedModel.remove(value),'linked sorted remove at $i');
     }
     require(sortedNodes.length()==sortedModel.length,'linked sorted length at $i');
+    require(sortedNodes.size==sortedModel.length,'linked sorted student-owned size at $i');
     var current=sortedNodes.head;
     final seen=<int>{}, values=<int>[];
     while(current!=null && seen.add(current.id)){values.add(current.value);current=current.next;}
     require(current==null && values.join(',')==sortedModel.join(','),'linked sorted order at $i');
+    require(values.length==sortedNodes.size,'linked sorted stored size at $i');
     require(sortedNodes.contains(value)==sortedModel.contains(value),'linked sorted contains at $i');
   }
   print('PASS: 350 randomized operations per list; four list variants, ordering, bounds and storage');

@@ -66,8 +66,9 @@ for t in test/*.test.js; do node "$t"; done
 
 A pass establishes behavior in tested scenarios, not a proof for all inputs.
 Interactive and separate validation runners should both check final physical
-invariants: occupied memory prefix/size, list order for sorted arrays, acyclic
-linked chains, the BST/AVL invariants, complete heap shape, hash placement and
+invariants: occupied memory prefix/student-owned size, sorted-array order,
+acyclic linked chains whose reachable count equals student-owned size, the
+BST/AVL invariants, complete heap shape, hash placement and
 other structure-specific requirements.
 
 ## Operational limitations

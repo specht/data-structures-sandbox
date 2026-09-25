@@ -10,7 +10,9 @@ observable adapter, worker validation, renderer and tests work end to end.
 
 - Stack: fixed array and linked nodes; queue: circular array and linked nodes.
 - Lists: unsorted array, unsorted linked nodes, sorted array and sorted
-  linked nodes, each with its own explicit ID and CLI selection. See [list exercises](list-exercises.md).
+  linked nodes, each with its own explicit ID and CLI selection. All four
+  explicitly maintain a student-owned size field; the worker verifies it
+  against physical storage. See [list exercises](list-exercises.md).
 - Integer-set BST and AVL; array and node-based min-heaps; integer hash set
   with separate chaining and student-selected bucket count/hash function.
 - Student starters and complete reference examples; independent reference

@@ -1,22 +1,15 @@
 import 'trace_budget.dart';
 
 /// Observable fixed cells for the list exercises, not a list implementation.
-/// Student code controls size through memory.size and shifts cells explicitly.
+/// Student code owns `int size` in the list class and shifts cells explicitly.
 class ListMemory {
   final List<int?> _cells;
-  int _size = 0;
 
   ListMemory(int capacity) : _cells = List<int?>.filled(capacity, null) {
     if (capacity <= 0) throw ArgumentError.value(capacity, 'capacity');
   }
 
   int get length => _cells.length;
-  int get size => _size;
-  set size(int value) {
-    final previous = _size;
-    _size = value;
-    ListRecorder.active?.indexWrite('size', previous, value);
-  }
 
   int? operator [](int index) => _cells[index];
   void operator []=(int index, int? value) {
@@ -32,6 +25,7 @@ class ListRecorder {
   static ListRecorder? active;
   final List<Map<String, Object?>> steps = EventLog();
   ListMemory Function()? memory;
+  int Function()? size;
   int sourceLine = 0;
 
   ListRecorder(List<String> lines);
@@ -56,7 +50,7 @@ class ListRecorder {
   Map<String, Object?> snapshot() {
     final m = memory?.call();
     return {'kind': 'snapshot', 'cells': m?.copy() ?? <int?>[],
-      'size': m?.size ?? 0};
+      'size': size?.call() ?? 0};
   }
   void end(Object? value, bool ok,
       {bool returnedVoid = false, String? message}) {

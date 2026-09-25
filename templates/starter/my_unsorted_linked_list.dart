@@ -5,6 +5,7 @@ import '../../lib/sandbox.dart';
 
 class MyUnsortedLinkedList {
   ListNode? head;
+  int size = 0; // Number of reachable nodes; maintained by student code.
 
   bool insert(int index, int value) {
     // TODO: Return false for invalid indices without changing the list.
@@ -29,7 +30,7 @@ class MyUnsortedLinkedList {
   }
 
   int length() {
-    // TODO: Count the reachable nodes by following next references.
+    // TODO: Return the size field; do not traverse the chain to count.
     return 0;
   }
 }
@@ -41,5 +42,6 @@ head is the first node or null. The chain must be acyclic and end at null.
 Duplicates are allowed and insertion does NOT sort values. insert(index,
 value) accepts indices 0..length (inclusive); get and removeAt require
 0..length-1. Invalid indices return false/null without modifying anything.
-No fixed capacity. Use the same API as the unsorted array list.
+No fixed capacity. Update your `size` field only after successful insertions
+and removals; length() returns that field. Use the same API as the array list.
 */

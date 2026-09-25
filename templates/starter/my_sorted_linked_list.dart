@@ -7,6 +7,7 @@ import '../../lib/sandbox.dart';
 
 class MySortedLinkedList {
   ListNode? head;
+  int size = 0; // Number of nodes; update this field yourself.
 
   bool insert(int value) {
     // TODO: Insert one occurrence in ascending order and return true.
@@ -14,7 +15,7 @@ class MySortedLinkedList {
   }
 
   int length() {
-    // TODO: Count the nodes by following next references.
+    // TODO: Return the student-maintained size field (no traversal).
     return 0;
   }
 
@@ -40,6 +41,7 @@ REFERENCE: ListNode and the sorted-list contract
 
   The list is singly linked and ordered from smallest to largest; its
   references form a chain without cycles. Duplicate values are permitted.
-  insert returns true and adds one occurrence; length counts nodes.
+  Increment size on successful insertion and decrement it after successful
+  removal. length() returns size; the sandbox never maintains it for you.
   contains returns bool. remove returns bool and removes at most one occurrence.
 */

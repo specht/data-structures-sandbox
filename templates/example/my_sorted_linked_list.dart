@@ -4,6 +4,7 @@ import '../../lib/sandbox.dart';
 // Public methods with simple arguments appear automatically in the browser.
 class MySortedLinkedList {
   ListNode? head;
+  int size = 0; // Maintained by the student, not calculated by the recorder.
 
   bool insert(int value) {
     ListNode? current = head;
@@ -19,18 +20,11 @@ class MySortedLinkedList {
     } else {
       previous.next = fresh;
     }
+    size++;
     return true;
   }
 
-  int length() {
-    var count = 0;
-    ListNode? current = head;
-    while (current != null) {
-      count++;
-      current = current.next;
-    }
-    return count;
-  }
+  int length() => size;
 
   bool contains(int value) {
     ListNode? current = head;
@@ -51,6 +45,7 @@ class MySortedLinkedList {
         } else {
           previous.next = current.next;
         }
+        size--;
         return true;
       }
       previous = current;

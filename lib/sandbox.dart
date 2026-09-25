@@ -43,6 +43,8 @@ class Recorder {
   // A linked queue has a second owning reference. The ordinary list and linked
   // stack leave this null, so their trace format does not change.
   ListNode? Function()? tail;
+  // Only list variants provide this; other linked structures retain their trace shape.
+  int Function()? size;
   String method = '';
   int sourceLine = 0;
 
@@ -91,6 +93,13 @@ class Recorder {
     });
   }
 
+  // Student-owned list size updates are instrumented on the copied source.
+  void indexWrite(String name, int before, int after) {
+    steps.add({'kind': 'indexWrite', 'name': name,
+      'oldValue': before, 'value': after, 'line': sourceLine});
+    steps.add(snapshot());
+  }
+
   void visit(ListNode node) {
     steps.add({'kind': 'visit', 'id': node.id, 'line': sourceLine});
   }
@@ -123,6 +132,7 @@ class Recorder {
   Map<String, Object?> snapshot() => {
     'kind': 'snapshot', 'head': root?.call()?.id,
     if (tail != null) 'tail': tail!.call()?.id,
+    if (size != null) 'size': size!.call(),
     'nodes': [for (final node in registry.values)
       {'id': node.id, 'value': node._value, 'next': node.next?.id}],
   };

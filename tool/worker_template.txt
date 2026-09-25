@@ -106,11 +106,14 @@ class BrowserSession {
 
   dynamic recorder() => switch(kind) {
     'unsorted_array_list' => list_memory_api.ListRecorder(lines)
-      ..memory = (() => (instance as unsorted_array_list_student.MyUnsortedArrayList).memory),
+      ..memory = (() => (instance as unsorted_array_list_student.MyUnsortedArrayList).memory)
+      ..size = (() => (instance as unsorted_array_list_student.MyUnsortedArrayList).size),
     'sorted_array_list' => list_memory_api.ListRecorder(lines)
-      ..memory = (() => (instance as sorted_array_list_student.MySortedArrayList).memory),
+      ..memory = (() => (instance as sorted_array_list_student.MySortedArrayList).memory)
+      ..size = (() => (instance as sorted_array_list_student.MySortedArrayList).size),
     'unsorted_linked_list' => list_api.Recorder(lines)
-      ..root = (() => (instance as unsorted_linked_list_student.MyUnsortedLinkedList).head),
+      ..root = (() => (instance as unsorted_linked_list_student.MyUnsortedLinkedList).head)
+      ..size = (() => (instance as unsorted_linked_list_student.MyUnsortedLinkedList).size),
     'tree' => tree_api.TreeRecorder(lines)
       ..root = (() => (instance as tree_student.MyBST).root),
     'avl' => tree_api.TreeRecorder(lines)
@@ -135,7 +138,8 @@ class BrowserSession {
       ..root = (() => (instance as linked_queue_student.MyLinkedQueue).head)
       ..tail = (() => (instance as linked_queue_student.MyLinkedQueue).tail),
     _ => list_api.Recorder(lines)
-      ..root = (() => (instance as sorted_linked_list_student.MySortedLinkedList).head),
+      ..root = (() => (instance as sorted_linked_list_student.MySortedLinkedList).head)
+      ..size = (() => (instance as sorted_linked_list_student.MySortedLinkedList).size),
   };
 
   Map<String,Object?> initial() {
@@ -207,9 +211,12 @@ class BrowserSession {
       final memory=kind=='unsorted_array_list'
         ? (instance as unsorted_array_list_student.MyUnsortedArrayList).memory
         : (instance as sorted_array_list_student.MySortedArrayList).memory;
+      final size=kind=='unsorted_array_list'
+        ? (instance as unsorted_array_list_student.MyUnsortedArrayList).size
+        : (instance as sorted_array_list_student.MySortedArrayList).size;
       final cells=memory.copy();
-      if(memory.size<0 || memory.size>cells.length)return [10000000];
-      for(var i=0;i<memory.size;i++){
+      if(size<0 || size>cells.length)return [10000000];
+      for(var i=0;i<size;i++){
         if(cells[i]==null)return [10000000];
         values.add(cells[i]!);
       }
@@ -449,27 +456,34 @@ class BrowserSession {
   bool listStorageValid(){
     if(kind=='unsorted_linked_list'||kind=='sorted_linked_list'){
       final seen=<int>{};
+      final size=kind=='unsorted_linked_list'
+        ? (instance as unsorted_linked_list_student.MyUnsortedLinkedList).size
+        : (instance as sorted_linked_list_student.MySortedLinkedList).size;
+      if(size<0)return false;
       var node=kind=='unsorted_linked_list'
         ? (instance as unsorted_linked_list_student.MyUnsortedLinkedList).head
         : (instance as sorted_linked_list_student.MySortedLinkedList).head;
       int? previous;
       while(node!=null){
-        if(!seen.add(node.id))return false;
+        if(!seen.add(node.id) || seen.length>size)return false;
         if(kind=='sorted_linked_list' && previous!=null && node.value<previous)return false;
         previous=node.value;
         node=node.next;
       }
-      return true;
+      return seen.length==size && size==reference.length;
     }
     if(kind!='unsorted_array_list' && kind!='sorted_array_list')return true;
     final memory=kind=='unsorted_array_list'
       ? (instance as unsorted_array_list_student.MyUnsortedArrayList).memory
       : (instance as sorted_array_list_student.MySortedArrayList).memory;
-    if(memory.size<0 || memory.size>memory.length)return false;
+    final size=kind=='unsorted_array_list'
+      ? (instance as unsorted_array_list_student.MyUnsortedArrayList).size
+      : (instance as sorted_array_list_student.MySortedArrayList).size;
+    if(size<0 || size>memory.length || size!=reference.length)return false;
     final cells=memory.copy();
     for(var i=0;i<cells.length;i++){
-      if((i<memory.size)!=(cells[i]!=null))return false;
-      if(kind=='sorted_array_list' && i>0 && i<memory.size &&
+      if((i<size)!=(cells[i]!=null))return false;
+      if(kind=='sorted_array_list' && i>0 && i<size &&
          cells[i-1]!>cells[i]!)return false;
     }
     return true;
