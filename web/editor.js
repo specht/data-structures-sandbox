@@ -434,7 +434,7 @@
     }
     resetSelection();
     highlighted = null;
-    container.classList.add('source-empty');
+    setEmpty(true);
     write('Create a starter from the app terminal:\n\n./new-structure YOUR_NAME stack array');
   }
   function canLeave() {
