@@ -77,13 +77,12 @@ cd ~
 git clone https://github.com/specht/data-structures-sandbox.git data-structures-sandbox
 ```
 
-Wechsle in das **äußere** App-Verzeichnis. Die Lehrkraft gibt euch die
-SSH-Adresse des gemeinsamen Klassen-Repositories. Ersetze im folgenden Befehl
-`GITLAB_SSH_URL_DER_KLASSE` durch diese Adresse:
+Wechsle in das **äußere** App-Verzeichnis und klone das gemeinsame
+Klassen-Repository über SSH:
 
 ```bash
 cd ~/data-structures-sandbox
-git clone GITLAB_SSH_URL_DER_KLASSE structures
+git clone git@git.nhcham.org:specht/data-structure-sandbox-structures-2026.git structures
 ```
 
 Der Zielordner muss **genau** `structures` heißen. Klone das Klassen-Repository
