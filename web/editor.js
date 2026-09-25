@@ -32,7 +32,7 @@
       'Ctrl-/': cm => toggleLineComment(cm), 'Cmd-/': cm => toggleLineComment(cm),
       'Ctrl-#': cm => toggleLineComment(cm), 'Cmd-#': cm => toggleLineComment(cm),
       'Ctrl-Shift-7': cm => toggleLineComment(cm), // German keyboard: / is Shift+7.
-      'Shift-Alt-F': () => formatDocument(), 'Ctrl-Space': cm => showSuggestions(cm, true),
+      'Ctrl-Space': cm => showSuggestions(cm, true),
       'Cmd-Space': cm => showSuggestions(cm, true),
       'Tab': cm => cm.somethingSelected() ? cm.indentSelection('add') : cm.execCommand('insertSoftTab'),
       'Shift-Tab': cm => cm.indentSelection('subtract'),

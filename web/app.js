@@ -201,7 +201,8 @@ function validationRows(){
         const format=value=>value===undefined?'not available':JSON.stringify(value);
         const history=document.createElement('details');
         history.className='validation-history';
-        history.open=record.state==='fail';
+        // Keep the results scannable: students expand a group when needed.
+        history.open=false;
         const summary=document.createElement('summary');
         summary.textContent=`Start empty · ${record.steps.length} step${record.steps.length===1?'':'s'} · ${record.state==='fail'?'view failure':'view history'}`;
         const calls=document.createElement('ol');

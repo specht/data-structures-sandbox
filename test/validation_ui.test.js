@@ -59,7 +59,7 @@ assert.match(ui('validation-results').children[0].children[0].innerHTML,/svg/);
 vm.runInContext("validationMessage({type:'validationResult',index:1,name:'Capacity',passed:false,message:'push(9): return value, contents',completed:2,total:2,passedCount:1,steps:[{call:'push(1)',passed:true,actualReturn:true,expectedReturn:true,actualContents:[1],expectedContents:[1],checks:[]},{call:'push(9)',passed:false,actualReturn:false,expectedReturn:true,actualContents:[1],expectedContents:[1,9],checks:[{aspect:'Return value',actual:false,expected:true},{aspect:'Contents',actual:[1],expected:[1,9]}]}]})",context);
 assert.match(ui('validation-results').children[1].children[1].textContent,/push\(9\)/);
 const failureHistory=ui('validation-results').children[1].children[2];
-assert.equal(failureHistory.open,true,'Failed test history must be visible immediately.');
+assert.equal(failureHistory.open,false,'Failed test history stays collapsed for an overview.');
 assert.match(failureHistory.children[0].textContent,/2 steps/);
 assert.equal(failureHistory.children[1].children.length,2);
 const successfulStep=failureHistory.children[1].children[0];
