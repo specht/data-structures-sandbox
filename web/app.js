@@ -193,6 +193,7 @@ function validationRows(){
         ?'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg>'
         :'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg>';
       const detail=document.createElement('span');
+      detail.className='validation-group-label';
       detail.textContent=`${record.state==='pass'?'Passed':'Failed'}: ${record.name}`+
         (record.message?` — ${record.message}`:'');
       item.append(symbol,detail);
@@ -207,9 +208,15 @@ function validationRows(){
         for(const step of record.steps){
           const entry=document.createElement('li');
           entry.className=step.passed?'validation-step-pass':'validation-step-fail';
+          const stepIcon=document.createElement('span');
+          stepIcon.className='validation-step-icon';
+          stepIcon.setAttribute('aria-label',step.passed?'Passed step':'Failed step');
+          stepIcon.innerHTML=step.passed
+            ?'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg>'
+            :'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg>';
           const call=document.createElement('strong');
           call.textContent=step.call??'Unknown operation';
-          entry.append(call);
+          entry.append(stepIcon,call);
           if(step.notExecuted){
             const explanation=document.createElement('p');
             explanation.textContent='Not executed: the method declaration does not match the required signature.';

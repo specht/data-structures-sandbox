@@ -310,7 +310,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 .validation-results[hidden]{display:none}
 .validation-results li{display:flex;align-items:flex-start;gap:8px;min-width:0;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;overflow-wrap:anywhere}
 .validation-results .validation-pass{color:#a2e5bf;border-color:#276b4c}
-.validation-results .validation-fail{color:#ffc1c1;border-color:#8a3c42;background:#331e2b}
+.validation-results .validation-fail{color:var(--text);border-color:#8a3c42;background:transparent}
+.validation-results .validation-fail>.validation-icon,
+.validation-results .validation-fail>.validation-group-label{color:#ffc1c1}
 .validation-results .validation-running{color:#f7bf61}
 .validation-results .validation-running::before{content:'';flex:none;width:12px;height:12px;border:2px solid #b98c42;border-top-color:transparent;border-radius:50%;animation:validation-spin .8s linear infinite}
 @keyframes validation-spin{to{transform:rotate(360deg)}}
@@ -608,6 +610,10 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .validation-results .validation-history li{display:list-item;border:0;border-radius:0;padding:0;background:transparent;overflow-wrap:anywhere;margin:0 0 8px;line-height:1.5}
 .validation-history li.validation-step-fail{color:#ffbdad}
 .validation-history li.validation-step-pass{color:#c5d7ef}
+.validation-step-icon{display:inline-flex;vertical-align:middle;flex:none;width:14px;height:14px;margin-right:6px}
+.validation-step-icon svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.validation-step-pass>.validation-step-icon{color:#a2e5bf}
+.validation-step-fail>.validation-step-icon{color:#ff9090}
 .validation-history p{margin:2px 0;font-family:ui-monospace,monospace;font-size:11px;white-space:pre-wrap}
 .validation-history ul{margin:5px 0 0;padding-left:18px}
 /* An always-editable source panel does not need an Edit-mode outline. */
