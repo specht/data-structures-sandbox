@@ -4,7 +4,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const save = $('source-save'), revert = $('source-discard');
-  const formatButton = $('source-format'), suggestButton = $('source-suggest');
+  const formatButton = $('source-format');
   const container = $('source-editor'), oldView = $('code-scroll');
   const status = $('source-edit-status');
   const problems = $('source-problems'), problemCount = $('source-problem-count');
@@ -28,17 +28,28 @@
       'Ctrl-S': () => saveChanges(), 'Cmd-S': () => saveChanges(),
       'Ctrl-Shift-K': cm => cm.execCommand('deleteLine'),
       'Cmd-Shift-K': cm => cm.execCommand('deleteLine'),
+      'Alt-Shift-K': cm => cm.execCommand('deleteLine'), // If Chrome owns Ctrl+Shift+K.
       'Ctrl-/': cm => toggleLineComment(cm), 'Cmd-/': cm => toggleLineComment(cm),
       'Ctrl-#': cm => toggleLineComment(cm), 'Cmd-#': cm => toggleLineComment(cm),
       'Ctrl-Shift-7': cm => toggleLineComment(cm), // German keyboard: / is Shift+7.
-      'Shift-Alt-A': cm => toggleBlockComment(cm),
       'Shift-Alt-F': () => formatDocument(), 'Ctrl-Space': cm => showSuggestions(cm, true),
       'Cmd-Space': cm => showSuggestions(cm, true),
       'Tab': cm => cm.somethingSelected() ? cm.indentSelection('add') : cm.execCommand('insertSoftTab'),
       'Shift-Tab': cm => cm.indentSelection('subtract'),
     },
   });
-  // A small, local completion list: no language server, extension CDN or Dart plugin.
+  // The editor's own input handler does not see every browser-modified shortcut.
+  // Capture Ctrl+Shift+K inside the editor before the CodeMirror keymap runs.
+  // Shortcuts owned by Chrome itself cannot be overridden by web content.
+  editor.getWrapperElement?.()?.addEventListener?.('keydown', event => {
+    if (!event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey ||
+        (event.code !== 'KeyK' && event.key?.toLowerCase() !== 'k') ||
+        editor.getOption('readOnly')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    editor.execCommand('deleteLine');
+  }, true);
+  // Small local word completion only: no snippets or language server.
   const completion = document.createElement('div');
   completion.className = 'source-completions';
   completion.setAttribute('role', 'listbox');
@@ -50,11 +61,6 @@
     'for', 'if', 'import', 'in', 'int', 'is', 'late', 'List', 'Map', 'new', 'null',
     'override', 'return', 'static', 'String', 'super', 'switch', 'this', 'throw',
     'true', 'var', 'void', 'while'];
-  const snippets = [
-    {label: 'for', detail: 'for loop', insert: 'for (var i = 0; i < length; i++) {\n  \n}'},
-    {label: 'if', detail: 'if block', insert: 'if (condition) {\n  \n}'},
-    {label: 'while', detail: 'while loop', insert: 'while (condition) {\n  \n}'},
-  ];
   function hideSuggestions() {
     suggestions = []; suggestionIndex = 0;
     completion.hidden = true;
@@ -72,10 +78,7 @@
     const {cursor, from} = identifierAtCursor(cm);
     suppressSuggestions = true;
     hideSuggestions();
-    const indent = (cm.getLine(from.line).match(/^\s*/) || [''])[0];
-    const insertion = target.detail ? target.insert.split('\n').join('\n' + indent) : target.insert;
-    cm.replaceRange(insertion, from, cursor, '+completion');
-    if (target.detail) cm.setCursor({line: from.line + 1, ch: indent.length + 2});
+    cm.replaceRange(target.insert, from, cursor, '+completion');
     suppressSuggestions = false;
     cm.focus();
   }
@@ -87,7 +90,7 @@
       item.className = 'source-completion' + (i === suggestionIndex ? ' selected' : '');
       item.setAttribute('role', 'option');
       item.setAttribute('aria-selected', String(i === suggestionIndex));
-      item.textContent = candidate.label + (candidate.detail ? ' · ' + candidate.detail : '');
+      item.textContent = candidate.label;
       item.addEventListener('mousedown', event => event.preventDefault());
       item.addEventListener('click', () => chooseSuggestion(editor, i));
       completion.append(item);
@@ -103,16 +106,12 @@
       hideSuggestions(); return;
     }
     const candidates = new Map();
-    for (const entry of snippets) candidates.set(entry.label, entry);
-    for (const word of words) if (!candidates.has(word)) candidates.set(word, {label: word, insert: word});
+    for (const word of words) candidates.set(word, {label: word, insert: word});
     for (const word of cm.getValue().match(/[A-Za-z_][A-Za-z_0-9]*/g) || []) {
       if (!candidates.has(word)) candidates.set(word, {label: word, insert: word});
     }
     suggestions = [...candidates.values()].filter(entry =>
       entry.label.startsWith(prefix) && entry.label !== prefix).slice(0, 9);
-    // Offer a snippet when the entire prefix matches its trigger.
-    if (snippets.some(entry => entry.label === prefix))
-      suggestions.unshift(...snippets.filter(entry => entry.label === prefix));
     if (!suggestions.length) {hideSuggestions(); return;}
     suggestionIndex = 0;
     const coords = cm.cursorCoords(cursor, 'local');
@@ -144,20 +143,6 @@
         else cm.replaceRange('// ', start, start, '+comment');
       }
     });
-  }
-  function toggleBlockComment(cm) {
-    if (revision === null || saving || loading) return;
-    hideSuggestions();
-    const from = cm.getCursor('from'), to = cm.getCursor('to');
-    const selected = cm.getSelection();
-    if (!selected) {
-      cm.replaceSelection('/*  */', 'around', '+comment');
-      cm.setCursor({line: from.line, ch: from.ch + 3});
-      return;
-    }
-    const match = selected.match(/^\/\*([\s\S]*)\*\/$/);
-    const replacement = match ? match[1] : '/*' + selected + '*/';
-    cm.replaceRange(replacement, from, to, '+comment');
   }
   function formatDocument() {
     if (revision === null || saving || loading || formatting || !connected() ||
@@ -291,7 +276,6 @@
     save.disabled = !dirty || saving || loading || !connected();
     revert.disabled = !dirty || saving;
     formatButton.disabled = revision === null || saving || loading || formatting || !connected();
-    suggestButton.disabled = revision === null || saving || loading;
     setStatus(dirty ? 'Unsaved changes · Ctrl+S to save · Ctrl+Shift+K deletes a line' : 'Saved');
   }
   editor.on('change', (cm, change) => {
@@ -336,7 +320,7 @@
     writable(false);
     save.disabled = true;
     revert.disabled = true;
-    formatButton.disabled = true; suggestButton.disabled = true;
+    formatButton.disabled = true;
     setStatus('');
   }
   function receive(message) {
@@ -386,7 +370,6 @@
   }
   function updateButtons() {
     formatButton.disabled = revision === null || saving || loading || formatting || !connected();
-    suggestButton.disabled = revision === null || saving || loading;
     save.disabled = !dirty || saving || loading || !connected();
     revert.disabled = !dirty || saving;
   }
@@ -453,7 +436,6 @@
   }
   save.addEventListener('click', saveChanges);
   formatButton.addEventListener('click', formatDocument);
-  suggestButton.addEventListener('click', () => {editor.focus();showSuggestions(editor, true);});
   revert.addEventListener('click', revertChanges);
   window.addEventListener('beforeunload', event => {
     if (!dirty) return;

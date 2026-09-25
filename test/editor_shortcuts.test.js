@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 class El{
   constructor(){this.children=[];this.events={};this.hidden=false;this.disabled=false;this.textContent='';this.style={};this.clientWidth=640;this.clientHeight=500;
     const classes=new Set();this.classList={add:k=>classes.add(k),remove:k=>classes.delete(k),toggle:(k,b)=>b?classes.add(k):classes.delete(k)};}
-  setAttribute(){} addEventListener(k,fn){this.events[k]=fn;} append(...a){this.children.push(...a);} replaceChildren(...a){this.children=a;}
+  setAttribute(){} addEventListener(k,fn,capture){this.events[k]=fn;this.capture=capture;} append(...a){this.children.push(...a);} replaceChildren(...a){this.children=a;}
 }
 const elements=new Map(),document={getElementById(k){if(!elements.has(k))elements.set(k,new El());return elements.get(k);},createElement(){return new El();}};
 let cm;function CodeMirror(_node,options){
@@ -20,7 +20,7 @@ let cm;function CodeMirror(_node,options){
       this.edits.push({text,origin});this.listeners.change?.(this,{origin,text:[text]});},
     replaceSelection(text,mode,origin){this.replaceRange(text,this.getCursor('from'),this.getCursor('to'),origin);},
     getTokenAt(){return {type:null};},getOption(k){return this.options[k];},setOption(k,v){this.options[k]=v;},getWrapperElement(){return this.wrapper;},cursorCoords(){return {left:70,top:20,bottom:40};},
-    operation(f){f();},on(k,f){this.listeners[k]=f;},clearHistory(){},refresh(){},scrollTo(){},scrollIntoView(){},addLineClass(){},removeLineClass(){},markText(){return {clear(){}};},focus(){},execCommand(){},indentSelection(){},
+    operation(f){f();},on(k,f){this.listeners[k]=f;},clearHistory(){},refresh(){},scrollTo(){},scrollIntoView(){},addLineClass(){},removeLineClass(){},markText(){return {clear(){}};},focus(){},execCommand(cmd){this.lastCommand=cmd;},indentSelection(){},
   };return cm;
 }
 const sent=[],window={addEventListener(){},confirm:()=>true};
@@ -32,15 +32,32 @@ editor.ready();assert.equal(sent.at(-1).action,'readSource');
 editor.receive({type:'sourceFile',student:'alice',structure:'stack',revision:'r1',content:'class A {\n  int value;\n  void work() {}\n}'});
 assert.equal(button('source-format').disabled,false);
 assert.equal(typeof cm.options.extraKeys['Ctrl-Shift-K'],'function');
+assert.equal(cm.wrapper.capture,true,'Chrome shortcut must run before CodeMirror input handling');
+let prevented=false,stopped=false;
+cm.wrapper.events.keydown({ctrlKey:true,shiftKey:true,altKey:false,metaKey:false,
+  code:'KeyK',key:'K',preventDefault(){prevented=true;},stopImmediatePropagation(){stopped=true;}});
+assert.equal(cm.lastCommand,'deleteLine');assert.equal(prevented,true);assert.equal(stopped,true);
+assert.equal(typeof cm.options.extraKeys['Alt-Shift-K'],'function','Fallback delete-line shortcut');
+key('Alt-Shift-K');assert.equal(cm.lastCommand,'deleteLine');
+assert.equal(cm.options.extraKeys['Shift-Alt-A'],undefined,'Block comment shortcut is removed');
+const html=fs.readFileSync(path.join(__dirname,'../web/index.html'),'utf8');
+assert.doesNotMatch(html,/source-suggest|Ctrl\+Space Suggestions|Block comment/);
 cm.setSelection({line:1,ch:0},{line:2,ch:15});key('Ctrl-#');
 assert.match(cm.getValue(),/  \/\/ int value;/);assert.match(cm.getValue(),/  \/\/ void work/);
 cm.setSelection({line:1,ch:0},{line:2,ch:18});key('Ctrl-#');
 assert.equal(cm.getValue(),'class A {\n  int value;\n  void work() {}\n}','Line comments must toggle without leaving spaces.');
-cm.setSelection({line:1,ch:6},{line:1,ch:9});key('Shift-Alt-A');assert.match(cm.getValue(),/int \/\*val\*\/ue;/);
-cm.setSelection({line:1,ch:6},{line:1,ch:13});key('Shift-Alt-A');assert.equal(cm.getValue(),'class A {\n  int value;\n  void work() {}\n}');
-cm.setValue('class A {\n  wh\n}');cm.setCursor({line:1,ch:4});key('Ctrl-Space');
-const completions=cm.wrapper.children[0];assert.equal(completions.hidden,false);assert.match(completions.children[0].textContent,/^while/);
-cm.listeners.keydown(cm,{key:'Enter',preventDefault(){}});assert.match(cm.getValue(),/while \(condition\)/);
+cm.setValue('class A {\n  wh\n}');cm.setCursor({line:1,ch:4});
+cm.listeners.change(cm,{origin:'+input',text:['h']});
+const completions=cm.wrapper.children[0];assert.equal(completions.hidden,false);
+assert.equal(completions.children[0].textContent,'while');
+assert.equal(completions.children[0].textContent.includes('loop'),false);
+cm.listeners.keydown(cm,{key:'Enter',preventDefault(){}});
+assert.match(cm.getValue(),/\bwhile\b/);
+assert.doesNotMatch(cm.getValue(),/while \(condition\)/,'Completion must not insert a snippet');
+cm.setValue('class A {\n  int studentCounter;\n  stu\n}');cm.setCursor({line:2,ch:5});
+cm.listeners.change(cm,{origin:'+input',text:['u']});
+assert.equal(completions.hidden,false);
+assert.equal(completions.children[0].textContent,'studentCounter');
 cm.setValue('class A{int x=1;}');button('source-format').events.click();
 const req=sent.at(-1);assert.equal(req.action,'formatSource');assert.equal(req.content,'class A{int x=1;}');assert.equal(sent.some(x=>x.action==='saveSource'),false);
 editor.receiveFormat({type:'sourceFormatted',requestId:req.requestId,revision:'r1',student:'alice',structure:'stack',content:'class A {\n  int x = 1;\n}\n'});

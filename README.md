@@ -171,10 +171,10 @@ bei Array-Listen nur die Kapazität, nicht die aktuelle Anzahl der Elemente.
 
 Wähle im Browser deine Datei. Der lokal mitgelieferte CodeMirror-Editor ist
 sofort bearbeitbar, unterstützt Einrückung, **Ctrl+S** (Speichern),
-**Ctrl+Shift+K** (Zeile löschen), **Ctrl+#** (Kommentar umschalten),
-**Shift+Alt+A** (Blockkommentar), **Ctrl+Space** (einfache Vorschläge) und
-**Shift+Alt+F** (Dart-Formatierung). Diese Befehle stehen unter dem Editor;
-Formatierung und Vorschläge sind auch per Schaltfläche erreichbar.
+**Ctrl+Shift+K** (Zeile löschen; alternativ **Alt+Shift+K** in Chrome), **Ctrl+#** (Zeilenkommentar umschalten)
+und **Shift+Alt+F** (Dart-Formatierung). Die Kurzbefehle stehen unter dem
+Editor. Die automatische Wortvervollständigung ergänzt vorhandene Bezeichner
+und Dart-Schlüsselwörter, fügt aber keine Codevorlagen ein.
 **Revert** verwirft ungespeicherte Änderungen. Der Format-Befehl formatiert
 nur den aktuellen Entwurf. Erst Save bzw. Ctrl+S speichert ihn in der Datei
 unter `structures/`, die du auch im Workspace-Editor öffnen
