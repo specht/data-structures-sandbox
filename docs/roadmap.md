@@ -1,12 +1,11 @@
 # Data Structure Sandbox · curriculum and development roadmap
 
-Updated 2026-09-25. This file records the ideas agreed for the sandbox and is
-the durable place to track future work; the structure registry and
-[contracts](contracts.md) remain authoritative for **currently executable**
-student exercises. Do not advertise a new structure until its starter, example,
-observable adapter, worker validation, renderer and tests work end to end.
+This file tracks teaching plans, planned interfaces and development work.
+The [registry](../tool/registry.dart) and [contracts](contracts.md) describe
+**currently executable** exercises. Add a new exercise only after its starter,
+example, observable adapter, worker validation, renderer and tests work end to end.
 
-## Completed / available in the codebase
+## Currently available
 
 - Stack: fixed array and linked nodes; queue: circular array and linked nodes.
 - Lists: unsorted array, unsorted linked nodes, sorted array and sorted
@@ -93,4 +92,7 @@ incoming edges and disconnected components are normal graph states.
 - Test in a Dart-equipped workspace (`dart test/list_model.dart`,
   `dart test/validation_integration.dart`, optional `dart test/smoke.dart`, and
   `node test/*.test.js` individually). Do not treat source inspection as a test run.
-- Update contracts, student onboarding, storage API and this roadmap.
+- Update contracts, student onboarding, storage API and this roadmap. Keep
+  installation instructions in the [README](../README.md), technical testing
+  instructions in the [development guide](../DEVELOPMENT.md) and proposed
+  features here; remove claims about old releases and deleted scripts.

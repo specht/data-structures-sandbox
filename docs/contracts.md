@@ -17,7 +17,7 @@ synchronous and do not print output to communicate their result.
 | List (unsorted, array) | `bool insert(int index,int value)`, `int? get(int index)`, `int? removeAt(int index)`, `bool contains(int)`, `int length()` | Integer sequence, duplicates allowed, capacity 8. Insert at indices 0..length, read/remove at 0..length-1. Invalid indices return `false`/`null` without changes; full insert returns `false`. |
 | List (unsorted, singly linked) | Same unsorted list interface | Same sequence/invalid-index semantics; no fixed capacity; `head` owns an acyclic singly linked chain. |
 | List (sorted, array) | `bool insert(int value)`, `bool contains(int)`, `bool remove(int)`, `int length()` | Ascending order, duplicates allowed, capacity 8. Full insert returns `false` without changes; remove deletes exactly one occurrence. |
-| List (sorted, singly linked) | `bool insert(int)`, `bool contains(int)`, `bool remove(int)`, `int length()` | **Current adapter is sorted in ascending order** and accepts duplicates; insert adds one occurrence, remove deletes one matching occurrence, contains tests membership. |
+| List (sorted, singly linked) | `bool insert(int)`, `bool contains(int)`, `bool remove(int)`, `int length()` | Ascending order, duplicates allowed, no fixed capacity; insert adds one occurrence and returns `true`, remove deletes one matching occurrence. |
 | Tree (binary search) | `void insert(int)`, `bool contains(int)`, `bool remove(int)` | Integer set: duplicate inserts change nothing; left keys strictly smaller, right keys strictly greater; removal returns whether a key was present. No balancing guarantee. |
 | Tree (AVL) | Same tree interface | Same set semantics, plus stored subtree heights and balance factor between −1 and +1 after each public call. |
 | Heap (array) | `void insert(int)`, `int? removeMin()`, `int? peek()`, `bool isEmpty()` | Dynamic **min**-heap, duplicates allowed; minimum at root/index 0; empty peek/remove return `null`. |
@@ -57,20 +57,17 @@ instruments a separate copy while showing students their own source file.
 For the fixed-array stack, `int top = -1` is **owned by the student**;
 `FixedMemory` owns only observable cells. Assign to `top` in student code;
 the sandbox instruments and visualizes the assignment automatically.
-See `docs/storage-api.md`. Create a starter with `./new-structure STUDENT stack array`
-or use `stack nodes` for the linked implementation. Both commands create
-unfinished student exercises.
+See [storage APIs](storage-api.md). Create a starter with
+`./new-structure STUDENT stack array` or use `stack nodes` for the linked
+implementation. Both commands create unfinished student exercises.
 
 Returning a placeholder `false` or `null` in a starter is not a solution.
 It is intentionally compilable but should fail the model check when the
 operation is supposed to succeed. The `example/` templates remain **complete
 working implementations**; `starter/` files are unfinished exercises.
 
-## Next: directed graphs (not yet supported)
+## Planned interfaces
 
-Before adding the graph adapter, define a separate vertex/edge contract: integer
-vertex IDs, directed edges without duplicates, explicit behavior when a vertex
-or edge is missing, deterministic neighbor iteration order, and whether
-self-loops are allowed. DFS/BFS return visitation order and directed-cycle
-detection uses an active recursion stack or equivalent color states. Graphs
-are not advertised as runnable until their adapter, renderer and tests exist.
+Priority queues and graphs are not currently selectable exercises. Their
+proposed contracts and implementation sequence are recorded in the
+[roadmap](roadmap.md); the registry defines what is runnable today.

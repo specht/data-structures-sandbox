@@ -8,25 +8,26 @@ instrumented copies and compiled workers live under ignored `tool/generated*`.
 A fresh `./run` does **not** create `structures/` or a demo student. Create the
 student repository separately. No student file is replaced by a template.
 
-## Start and create a reference example
+## Start and create implementations
+
+Clone the class repository to `structures/` first (see [student setup](README.md)).
+The app deliberately does not create this separate Git repository. From the
+outer app repository, start the server and use another terminal for the CLI:
 
 ```sh
 ./run
-# From the outer application repository in a second terminal:
+# In the second terminal, still in the outer application repository:
 ./new-structure alice list unsorted-array
 ./new-structure alice list unsorted-nodes
 ./new-structure alice list sorted-array
 ./new-structure alice list sorted-nodes
-# Optional: explicitly prepare complete examples in structures/example:
+# For a complete reference copy of an individual list implementation:
 ./new-structure example list unsorted-array --example
-./new-structure example list unsorted-nodes --example
-./new-structure example list sorted-array --example
-./new-structure example list sorted-nodes --example
 ```
 
 `./new-structure` without arguments lists all supported exercise choices.
 `list` requires an explicit variant. All four list files and class names
-follow the same naming scheme; no old `list` adapter is retained. See [list exercises](docs/list-exercises.md),
+follow the same naming scheme. See [list exercises](docs/list-exercises.md),
 [contracts](docs/contracts.md) and [storage APIs](docs/storage-api.md).
 
 ## Browser and worker architecture
@@ -50,19 +51,31 @@ follow the same naming scheme; no old `list` adapter is retained. See [list exer
 
 ## Verification
 
+Run these from the outer application repository with the Dart SDK and Node.js
+available. The integration test creates a **temporary** student repository;
+it does not require `structures/example`:
+
 ```sh
-dart test/list_model.dart              # New list reference model
-# Existing standalone model checks:
+bash test/new_structure.test.sh
+bash test/first_run.test.sh
+dart test/list_model.dart
+dart test/stack_model.dart
 dart test/heap_model.dart
 dart test/node_heap_model.dart
 dart test/hash_model.dart
 dart test/avl_model.dart
-dart test/validation_integration.dart  # Copies examples to a temporary repo
-# Only if structures/example has the matching reference files:
-dart test/smoke.dart
+dart test/student_validation.test.dart
+dart test/specialized_worker_test.dart
+dart test/validation_integration.dart
 for t in test/*.test.js; do node "$t"; done
-./run
 ```
+
+`dart test/smoke.dart` is an **optional** end-to-end check. It runs every kind
+listed by the registry and requires `structures/example/` to contain a
+complete reference file for **every** registered structure, not merely the
+four lists or the structure being studied. Create any missing examples with
+`./new-structure example TYPE [IMPLEMENTATION] --example` before running it.
+Use `./run` separately for a manual browser check.
 
 A pass establishes behavior in tested scenarios, not a proof for all inputs.
 Interactive and separate validation runners should both check final physical

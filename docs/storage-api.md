@@ -64,7 +64,9 @@ the top reference. See `templates/starter/my_linked_stack.dart`.
 Both array-list variants use `import '../../lib/list_sandbox.dart';` and
 declare `final ListMemory memory = ListMemory(8);` in the student class.
 **All four list variants**, including linked lists, also declare `int size = 0`.
-The student must update `size` after successful insertions and removals.
+Students update `size` after successful insertions and removals; failed
+operations must leave it unchanged. `length()` returns this field in O(1).
+See the [four list exercises](list-exercises.md) for the full contracts.
 
 | Expression | Meaning |
 | --- | --- |

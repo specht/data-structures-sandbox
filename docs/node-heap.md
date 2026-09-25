@@ -27,10 +27,14 @@ shape and `parent <= child` after each public method. Intermediate snapshots
 may temporarily violate min-heap order during a sift; the returned state may
 not. The reference model independently checks duplicates and minimum removal.
 
-For a local check before giving the example to students:
+## Verify
 
 ```sh
 dart test/node_heap_model.dart
-dart test/smoke.dart
-for t in test/*.test.js; do node "$t"; done
+dart test/validation_integration.dart
+node test/tree_motion.test.js
 ```
+
+`dart test/smoke.dart` is optional and requires every registered reference
+implementation in `structures/example`; see the
+[development guide](../DEVELOPMENT.md).

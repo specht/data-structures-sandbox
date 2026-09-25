@@ -38,9 +38,17 @@ if ./new-structure alice stack mystery >/dev/null 2>&1; then echo 'Accepted inva
 if ./new-structure alice stack --starter >/dev/null 2>&1; then echo 'Accepted obsolete flag!' >&2; exit 1; fi
 for starter in templates/starter/*.dart; do
   if ! head -n 1 "$starter" | grep -qx '/\*'; then echo "Missing starter introduction: $starter" >&2; exit 1; fi
-  if ! grep -q 'REFERENCE:' "$starter"; then echo "Missing English starter API documentation: $starter" >&2; exit 1; fi
+  if ! grep -q '^Quick reference · ' "$starter"; then echo "Missing compact API reference: $starter" >&2; exit 1; fi
+  if grep -q 'REFERENCE:' "$starter"; then echo "Obsolete reference footer: $starter" >&2; exit 1; fi
   if grep -Eq 'HILFE:|Aufgabe:|Prüfe selbst|Lies das Minimum' "$starter"; then echo "Non-English starter comment: $starter" >&2; exit 1; fi
   if ! tail -n 1 "$starter" | grep -qx '\*/'; then echo "Missing footer documentation: $starter" >&2; exit 1; fi
+  # Keep the quick reference compact and located at the very end of the file.
+  if ! awk '/^Quick reference · / {start=NR} END {exit !(start>0 && NR-start<=10)}' "$starter"; then
+    echo "Reference footer is too long: $starter" >&2; exit 1
+  fi
+  if grep -Eq 'Shift occupied|shift cells|shift the suffix|update head if needed' "$starter"; then
+    echo "Starter gives away implementation steps: $starter" >&2; exit 1
+  fi
 done
 if grep -Eq 'bool isEmpty\(\)[[:space:]]*=>' templates/starter/*.dart; then
   echo 'A starter already implements isEmpty!' >&2; exit 1

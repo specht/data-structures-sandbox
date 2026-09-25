@@ -34,10 +34,14 @@ there is no automatic resizing. Choosing a different count before construction
 is supported. The display frames the actual number of buckets as well as the
 longest collision chain; use zoom/pan to inspect large tables.
 
-Validate locally before students use it:
+## Verify
 
 ```sh
 dart test/hash_model.dart
-dart test/smoke.dart
-for t in test/*.test.js; do node "$t"; done
+dart test/validation_integration.dart
+node test/hash_view.test.js
 ```
+
+`dart test/smoke.dart` is an optional full-catalogue test. It requires
+`structures/example` to contain **all** registered reference files; see the
+[development guide](../DEVELOPMENT.md).

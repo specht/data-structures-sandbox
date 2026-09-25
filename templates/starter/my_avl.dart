@@ -24,21 +24,11 @@ class MyAVL {
 }
 
 /*
-REFERENCE: TreeNode and the AVL contract
-
-  TreeNode(value)         Create a node containing an int.
-  node.value             Read or write its int value.
-  node.left              Read the left child (TreeNode?; may be null).
-  node.right             Read the right child (TreeNode?; may be null).
-  node.left = child;     Set a nullable left reference (TreeNode?).
-  node.right = child;    Set a nullable right reference (TreeNode?).
-  node.height            Read or write stored height (int).
-  root                   Root reference (TreeNode?; initially null).
-
-  A missing subtree has height 0; a leaf has height 1.
-  Balance factor = height(left subtree) - height(right subtree).
-  After every public operation, every node must have a correct stored
-  height and a balance factor in [-1, 1]. All left-subtree keys are smaller
-  and all right-subtree keys are greater; duplicate keys are ignored.
-  insert returns void. contains and remove return bool.
+Quick reference · TreeNode
+  TreeNode(value)   Create a node
+  node.value       Stored int
+  node.left/right  Nullable child references
+  node.height      Stored subtree height
+  root             Nullable root reference
+  Details: docs/contracts.md
 */

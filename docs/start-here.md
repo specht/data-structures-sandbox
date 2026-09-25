@@ -1,7 +1,10 @@
 # Student quick start · Stack (fixed array)
 
 Your files live in a **separate `structures/` Git repository**, with one folder
-per student. Start the sandbox from the *outer* application directory:
+per student. If it is not present yet, clone the class repository into
+`structures/` as explained in the [setup guide](../README.md#4-das-klassen-repository-klonen).
+The sandbox does not create the class repository for you. From the *outer*
+application directory, start the sandbox:
 
 ```sh
 ./run
@@ -23,7 +26,7 @@ state is expected after code changes; stored values do not survive a rebuild.
 
 ### Implement and test one behavior at a time
 
-Read `docs/contracts.md` and open your `my_array_stack.dart`. The starter
+Read the [contracts](contracts.md) and open your `my_array_stack.dart`. The starter
 already provides `FixedMemory(8)` and a student-owned `int top = -1`.
 You write the logic, **not** the drawing code. `top == -1` means empty, and
 `memory[0]` through `memory[7]` are fixed cells. No `List.add()` or
@@ -50,8 +53,8 @@ highlights your Dart file; the instrumented worker lives outside your student
 repository. Commit your file in the **separate** `structures/` repository when
 your implementation passes its checks.
 
-Run `./new-structure` without arguments to see every interface and
-implementation. The default creates an unfinished **starter**. For a linked
-stack use `./new-structure alice stack nodes`.
-Existing files are never overwritten. See `docs/storage-api.md` for the
-observable memory and node classes used in the starter files.
+Run `./new-structure` without arguments to see every supported choice.
+Creating a file without `--example` copies an unfinished **starter**. For a
+linked stack use `./new-structure alice stack nodes`.
+Existing files are never overwritten. See the [storage APIs](storage-api.md)
+for the observable memory and node classes used in the starter files.

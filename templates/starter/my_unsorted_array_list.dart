@@ -8,8 +8,7 @@ class MyUnsortedArrayList {
   int size = 0; // Number of occupied cells; maintained by student code.
 
   bool insert(int index, int value) {
-    // TODO: Reject invalid indices or full storage without changing anything.
-    // Shift occupied cells to the right before inserting; update size.
+    // TODO: Insert value at index; return false if invalid or full.
     return false;
   }
 
@@ -19,13 +18,12 @@ class MyUnsortedArrayList {
   }
 
   int? removeAt(int index) {
-    // TODO: Remove one indexed value, shift the remaining cells left,
-    // clear the last occupied cell and decrease size.
+    // TODO: Remove and return the value at index, or null if invalid.
     return null;
   }
 
   bool contains(int value) {
-    // TODO: Search only the occupied prefix of the array.
+    // TODO: Return whether value is in the list.
     return false;
   }
 
@@ -36,14 +34,10 @@ class MyUnsortedArrayList {
 }
 
 /*
-REFERENCE: ListMemory and unsorted-array list contract
-ListMemory(8) exposes memory.length (capacity), memory[index] (int?),
-and memory[index] = value (int?; null clears a cell).
-The class field `int size = 0` is YOUR responsibility; update it after every
-successful insertion/removal. ListMemory does not track how many cells are full.
-Occupied cells must form the prefix [0, size); all later cells are null.
-insert(index, value) accepts 0..length, returns false for an invalid index or
-when full, and otherwise inserts one occurrence at index. get and removeAt
-return null for invalid indices; removeAt returns the removed value otherwise.
-contains tests membership and length returns the current number of values.
+Quick reference · ListMemory
+  memory.length       Physical capacity (8)
+  memory[i]           Read an int? cell
+  memory[i] = value   Write an int? (null clears a cell)
+  size                Student-maintained logical length
+  Details: docs/list-exercises.md, docs/storage-api.md
 */

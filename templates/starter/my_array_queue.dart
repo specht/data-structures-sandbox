@@ -41,22 +41,11 @@ class MyArrayQueue {
 }
 
 /*
-REFERENCE: QueueMemory and the queue contract
-
-  memory is QueueMemory(8): eight fixed cells indexed from 0 to 7.
-  memory.length           Cell count (int).
-  memory[index]           Read a cell (int?; null means an empty cell).
-  memory[index] = value;  Write an int to an existing cell.
-  memory[index] = null;   Clear an existing cell.
-
-  front, rear, and size are int properties provided above. Their accessors
-  delegate to QueueMemory so the sandbox can observe changes.
-  front identifies the next element to remove; rear identifies the next
-  insertion position; size is the number of stored elements (initially 0).
-  front and rear initially equal 0 and may coincide both when empty and full.
-  This is a circular, fixed-capacity representation; cells do not move.
-
-  enqueue returns false and leaves the queue unchanged if full; otherwise true.
-  dequeue and peek return int? (null if empty). peek does not remove a value.
-  isEmpty and isFull return bool. Duplicate values are permitted.
+Quick reference · QueueMemory
+  memory.length       Physical capacity (8)
+  memory[i]           Read an int? cell
+  memory[i] = value   Write an int? (null clears a cell)
+  front / rear        Next removal / insertion positions
+  size                Current number of stored values
+  Details: docs/contracts.md, docs/storage-api.md
 */

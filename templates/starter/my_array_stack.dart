@@ -32,20 +32,10 @@ class MyArrayStack {
 }
 
 /*
-REFERENCE: FixedMemory and the stack contract
-
-  memory is FixedMemory(8): eight fixed cells indexed from 0 to 7.
-  memory.length           Cell count (int).
-  memory[index]           Read a cell (int?; null means an empty cell).
-  memory[index] = value;  Write an int to an existing cell.
-  memory[index] = null;   Clear an existing cell.
-
-  top is an int maintained by this stack, not by FixedMemory.
-  Initially top == -1; otherwise it identifies the occupied top cell.
-  FixedMemory has no push, pop, add, removeLast, or top operation.
-  The sandbox observes changes to top and memory; use this storage only.
-
-  push returns false and leaves the stack unchanged if full; otherwise true.
-  pop and peek return int? (null if empty). peek does not remove a value.
-  isEmpty returns bool. Duplicate values are permitted.
+Quick reference · FixedMemory
+  memory.length       Physical capacity (8)
+  memory[i]           Read an int? cell
+  memory[i] = value   Write an int? (null clears a cell)
+  top                 Student-maintained top index (-1 if empty)
+  Details: docs/contracts.md, docs/storage-api.md
 */

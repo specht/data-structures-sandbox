@@ -8,7 +8,7 @@ panel remain shared.
 
 | Structure | Observable storage | Mutation events | Layout |
 | --- | --- | --- | --- |
-| Linked list | `ListNode(id,value,next)` + `head` | `createNode`, `pointerWrite`, local reference | Horizontal reachable chain; orphans fade at method end |
+| Linked lists (sorted / unsorted) | `ListNode(id,value,next)` + student-owned `head` and `size` | `createNode`, `pointerWrite`, student `size` writes, local references | Horizontal reachable chain; detached nodes retire at method end |
 | Array lists (sorted / unsorted) | `ListMemory` fixed cells + student-controlled `size` | `cellWrite`, `indexWrite` | Fixed indexed cells, occupied prefix and visible shifts |
 | BST / AVL | `TreeNode(id,value,left,right)` + `root` | left/right/root writes and value writes | Hierarchical inorder layout; settle *after* pointer moves |
 | Array stack | fixed indexed `FixedMemory` + `top` | `cellWrite`, `indexWrite` | Fixed cell row, top marker, no node pointers |
@@ -17,11 +17,12 @@ panel remain shared.
 | Hash table | buckets + collision chains | indexed writes + node/reference writes | Bucket columns with linked chains |
 | General graphs (future) | registered nodes/edges | edge updates | Stable geometric layout; graph traversal overlay |
 
-A tree's pointer events do not assume the result is balanced. An AVL extension
-will need per-node height/balance invariants and rotations, but can reuse stable
-node identities and tree edge retargeting. Heap algorithms are different: their
-logical tree follows array indices, not left/right object pointers. Do not force
-an array heap into the reference graph model.
+A BST does not have to be balanced. The implemented AVL adapter additionally
+records heights, checks balance factors and visualizes rotations using stable
+node IDs. Heap algorithms are different: their logical tree follows array
+indices, not left/right object pointers. Do not force an array heap into the
+reference graph model. Both array and linked lists maintain a student-owned
+`size`; the worker checks that field against their physical contents.
 
 Trace registries must not become the only reason for an educationally "live"
 object to stay visible. During a method, local variables may refer to

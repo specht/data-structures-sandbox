@@ -31,17 +31,11 @@ class MySortedLinkedList {
 }
 
 /*
-REFERENCE: ListNode and the sorted-list contract
-
-  ListNode(value)         Create a node containing an int.
-  node.value             Read or write its int value.
-  node.next              Read its successor (ListNode?; may be null).
-  node.next = other;     Set its successor (other is ListNode?; may be null).
-  head                   First node (ListNode?; initially null).
-
-  The list is singly linked and ordered from smallest to largest; its
-  references form a chain without cycles. Duplicate values are permitted.
-  Increment size on successful insertion and decrement it after successful
-  removal. length() returns size; the sandbox never maintains it for you.
-  contains returns bool. remove returns bool and removes at most one occurrence.
+Quick reference · ListNode
+  ListNode(value)  Create a node
+  node.value      Stored int
+  node.next       Nullable successor reference
+  head            Nullable first-node reference
+  size            Student-maintained logical length
+  Details: docs/list-exercises.md
 */

@@ -1,7 +1,8 @@
 # Data Structure Sandbox
 
 Mit der Data Structure Sandbox könnt ihr Datenstrukturen in Dart selbst
-implementieren, direkt im Browser bearbeiten, beobachten und mit automatischen Tests überprüfen.
+implementieren, im Browser bearbeiten, beobachten und mit automatischen Tests
+überprüfen.
 
 ## Was liegt wo?
 
@@ -164,7 +165,10 @@ implementieren möchtest, verwende `stack nodes` statt `stack array`.
 Bei Listen wählst du ausdrücklich `unsorted-array`, `unsorted-nodes`,
 `sorted-array` oder `sorted-nodes`. `list` ohne Variante ist ungültig.
 Die vier Listen und ihre Schnittstellen sind in
-[docs/list-exercises.md](docs/list-exercises.md) beschrieben.
+[docs/list-exercises.md](docs/list-exercises.md) beschrieben. Bei allen vier
+Listen gehört `int size = 0` zur **eigenen Implementierung**: Ihr ändert den
+Wert nach erfolgreichen Einfüge- und Löschoperationen. `memory.length` ist
+bei Array-Listen nur die Kapazität, nicht die aktuelle Anzahl der Elemente.
 
 Wähle im Browser deine Datei. Der lokal mitgelieferte CodeMirror-Editor ist
 sofort bearbeitbar, unterstützt Einrückung, **Ctrl+S** (Speichern),
@@ -199,10 +203,12 @@ du den Fortschritt, die Ergebnisse der einzelnen Testgruppen und das
 Gesamtergebnis. Mit **Run tests again** kannst du die Tests erneut ausführen.
 Die Schaltfläche zeigt das zuletzt gespeicherte Gesamtergebnis für genau diese
 Codeversion an. Nach einer Änderung am Quelltext gilt das alte Ergebnis nicht
-mehr. Die Tests überprüfen die öffentliche Schnittstelle, nicht die konkrete
-Umsetzung. Sie laufen in einem **separaten Testprozess** und verändern die
-Datenstruktur im normalen Visualisierungsbereich nicht. Auch bestandene Tests
-beweisen nicht, dass ein Programm in jeder Situation korrekt ist.
+mehr. Die Tests vergleichen das beobachtbare Verhalten mit einem Referenzmodell;
+wo vorgesehen, prüfen sie auch die physische Speicherstruktur (bei Listen
+beispielsweise `size`, Reihenfolge und Knotenverkettung). Sie laufen in einem
+**separaten Testprozess** und verändern die Datenstruktur im normalen
+Visualisierungsbereich nicht. Auch bestandene Tests beweisen nicht, dass ein
+Programm in jeder Situation korrekt ist.
 
 ## 8. Deine Datenstruktur veröffentlichen
 
@@ -261,15 +267,5 @@ die geplanten Erweiterungen in [docs/roadmap.md](docs/roadmap.md). Für einen
 ersten Einstieg in den Array-Stack gibt es [docs/start-here.md](docs/start-here.md),
 für die vier Listen [docs/list-exercises.md](docs/list-exercises.md).
 
-## Hintergrundbild lokal mitliefern
-
-Zum einmaligen Herunterladen des Hintergrundbildes aus dem 2D-Projekt:
-
-```bash
-./web/fetch-background.sh
-git add web/background.jpg
-git commit -m "Bundle sandbox background"
-```
-
-Das Bild wird als lokale Datei `web/background.jpg` ausgeliefert; nach dem
-Herunterladen benötigt die App dafür keine Internetverbindung. Der Browser-Editor lädt CodeMirror lokal aus `web/vendor/` und speichert nur auf **Save**.
+Der Browser-Editor verwendet die lokal mitgelieferte CodeMirror-Version unter
+`web/vendor/`; er benötigt dafür keine externe CDN-Verbindung.

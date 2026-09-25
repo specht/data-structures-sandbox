@@ -18,11 +18,11 @@ it. Tests independently check it against the number of physically stored values.
 | Sorted array | `./new-structure NAME list sorted-array` | `insert(value)`, `contains(value)`, `remove(value)`, `length()` | Eight fixed cells; student-owned `size`; nondecreasing occupied prefix, duplicates retained. |
 | Sorted linked nodes | `./new-structure NAME list sorted-nodes` | Same sorted interface, including `bool insert` and `length()` | Unbounded, acyclic singly linked chain with ascending values and student-owned `size`. |
 
-`./new-structure NAME list` without a variant is intentionally rejected; the
-recommended first exercise. Starters are unfinished; `--example` supplies a
-complete reference implementation in the selected student directory without
-overwriting existing work. The `structures/` directory is a separate Git
-repository and is not populated automatically by `./run`.
+`./new-structure NAME list` without a variant is intentionally rejected.
+Start with `./new-structure NAME list unsorted-array`. Starters are unfinished;
+`--example` copies a complete reference implementation to the selected student
+folder without overwriting existing work. The `structures/` directory must
+already be set up as a separate Git repository; `./run` does not create it.
 
 ## Classroom sequence
 
@@ -70,13 +70,12 @@ variable capacity/length; the fixed eight-cell exercise itself is bounded.
 ```sh
 dart test/list_model.dart
 dart test/validation_integration.dart
-# If structures/example contains all four list reference files:
-dart test/smoke.dart
-for t in test/*.test.js; do node "$t"; done
+node test/list_view.test.js
 ```
 
-`validation_integration.dart` copies bundled examples to its own temporary
-student repository. `smoke.dart` uses the optional separate `structures/example`
-folder, so make sure it contains the new reference files if you use it. A
-passing suite verifies tested scenarios, not asymptotic performance or every
-possible student implementation.
+`validation_integration.dart` copies the bundled examples to a temporary
+student repository. The optional `dart test/smoke.dart` instead requires a
+complete `structures/example` containing **every** registered reference
+implementation, not just the four lists; see the
+[development guide](../DEVELOPMENT.md). Passing tests verifies the scenarios
+run, not asymptotic performance or every possible student implementation.

@@ -36,18 +36,17 @@ there are no node identities to preserve. Repeat with duplicate values and
 negative numbers. A temporarily invalid ordering during insert/removal is
 expected; the worker checks the completed public method's min-heap invariant.
 
-## Verify before using with students
+## Verify
 
-```
+```sh
 dart test/heap_model.dart
-dart test/smoke.dart
-for t in test/*.test.js; do node "$t"; done
-./run
+dart test/validation_integration.dart
+node test/heap_view.test.js
 ```
 
-`dart test/heap_model.dart` includes deterministic randomized scenarios and
-checks duplicates, sorted removal, the multiset and min-heap invariant.
-`dart test/smoke.dart` compiles and executes a real generated worker; JS tests
-exercise historical array/tree projection, index highlighting and auto-framing.
-A separately running student worker still has the existing event-size and
-wall-clock limits. No unverified claim of OS-level isolation is made.
+The model test includes deterministic randomized scenarios; integration
+compiles and exercises the reference implementations in a temporary student
+repository. The view test checks the array/tree projection and trace history.
+`dart test/smoke.dart` is optional and needs a complete `structures/example`
+for **all** registered structures; see [development guide](../DEVELOPMENT.md).
+A separate worker with time and event limits is not OS-level security isolation.

@@ -31,18 +31,10 @@ class MyLinkedQueue {
 }
 
 /*
-REFERENCE: ListNode and the queue contract
-
-  ListNode(value)         Create a node containing an int.
-  node.value             Read or write its int value.
-  node.next              Read its successor (ListNode?; may be null).
-  node.next = other;     Set its successor (other is ListNode?; may be null).
-  head                   Oldest node (ListNode?; initially null).
-  tail                   Newest node (ListNode?; initially null).
-
-  For an empty queue, both head and tail are null.
-  For a nonempty queue, tail.next is null. Duplicate values are permitted;
-  the queue has no fixed capacity.
-  enqueue returns true. dequeue and peek return int? (null if empty).
-  peek does not remove a value. isEmpty returns bool.
+Quick reference · ListNode
+  ListNode(value)  Create a node
+  node.value      Stored int
+  node.next       Nullable successor reference
+  head / tail     Oldest / newest node (null if empty)
+  Details: docs/contracts.md, docs/storage-api.md
 */

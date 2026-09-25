@@ -8,8 +8,7 @@ class MySortedArrayList {
   int size = 0; // Number of occupied cells; maintained by student code.
 
   bool insert(int value) {
-    // TODO: Reject when full; find the sorted insertion position,
-    // shift cells right, insert one occurrence and increase size.
+    // TODO: Insert value in ascending order; return false if full.
     return false;
   }
 
@@ -19,8 +18,7 @@ class MySortedArrayList {
   }
 
   bool remove(int value) {
-    // TODO: Remove exactly one occurrence if present, shift the suffix
-    // to the left, clear the vacated cell and decrease size.
+    // TODO: Remove one matching value and report whether it existed.
     return false;
   }
 
@@ -31,12 +29,10 @@ class MySortedArrayList {
 }
 
 /*
-REFERENCE: ListMemory and sorted-array list contract
-ListMemory is observable indexed storage with nullable cells and capacity
-memory.length. The class field `int size = 0` belongs to your implementation.
-All occupied cells are the contiguous prefix 0..size-1; remaining
-cells are null. Values in that prefix must be in ascending (nondecreasing)
-order, including duplicates. insert returns false with no changes when full;
-otherwise inserts one value and returns true. remove deletes one occurrence
-and returns true, or false if absent. contains tests membership.
+Quick reference · ListMemory
+  memory.length       Physical capacity (8)
+  memory[i]           Read an int? cell
+  memory[i] = value   Write an int? (null clears a cell)
+  size                Student-maintained logical length
+  Details: docs/list-exercises.md, docs/storage-api.md
 */

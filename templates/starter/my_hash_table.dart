@@ -46,24 +46,12 @@ class MyHashTable {
 }
 
 /*
-REFERENCE: HashBuckets, ListNode, and the hash-set contract
-
-  MyHashTable([bucketCount]) selects the bucket count (default 8).
-  buckets is HashBuckets(bucketCount, _hash), an observable storage adapter.
-  buckets.length          Bucket count (int; at least 1).
-  buckets.indexFor(key)    Calls _hash(key, capacity) and validates its index.
-  buckets[index]           Read a bucket head (ListNode?; may be null).
-  buckets[index] = node;   Set a bucket head (ListNode?; may be null).
-  ListNode(value)          Create a node containing an int.
-  node.value              Read or write its int value.
-  node.next               Read a successor (ListNode?; may be null).
-  node.next = other;      Set a successor (ListNode?; may be null).
-
-  _hash returns a deterministic index from 0 to capacity - 1 for any
-  int key, including negative keys. Collisions use linked bucket chains.
-  size is the total number of stored keys (int; initially 0).
-  This is a set: duplicate keys are not stored. Bucket count stays fixed.
-
-  insert, contains, remove, and isEmpty return bool.
-  loadFactor returns double: stored key count divided by bucket count.
+Quick reference · HashBuckets / ListNode
+  buckets.length         Number of buckets
+  buckets.indexFor(key)  Validated bucket index
+  buckets[i]             Read/write a ListNode? bucket head
+  ListNode(key)          Create a node; .next is ListNode?
+  size                   Number of stored keys
+  _hash(key, capacity)   Return an index in 0..capacity - 1
+  Details: docs/hash-table.md
 */
