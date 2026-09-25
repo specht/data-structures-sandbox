@@ -332,7 +332,7 @@ ui.speed.addEventListener('input',()=>{
 ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
 function isArrayList(){return structure==='unsorted_array_list'||structure==='sorted_array_list';}
-const STRUCTURE_LABELS={unsorted_unsorted_array_list:'List (unsorted, array)',unsorted_unsorted_linked_list:'List (unsorted, singly linked)',sorted_array_list:'List (sorted, array)',hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',sorted_linked_list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
+const STRUCTURE_LABELS={unsorted_array_list:'List (unsorted, array)',unsorted_linked_list:'List (unsorted, singly linked)',sorted_array_list:'List (sorted, array)',hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',sorted_linked_list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
 let selectedStudent='',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
