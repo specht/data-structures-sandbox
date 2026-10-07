@@ -343,6 +343,122 @@ validationUI.close.addEventListener('click',()=>validationUI.dialog.close());
 validationUI.dialog.addEventListener('click',event=>{
   if(event.target===validationUI.dialog)validationUI.dialog.close();
 });
+const progressUI={
+  button:$('progress-open'),
+  dialog:$('progress-dialog'),
+  close:$('progress-close'),
+  refresh:$('progress-refresh'),
+  status:$('progress-status'),
+  head:$('progress-head'),
+  body:$('progress-body'),
+};
+
+const PROGRESS_LABELS={
+  unsorted_array_list:'Unsorted list · array',
+  unsorted_linked_list:'Unsorted list · nodes',
+  sorted_array_list:'Sorted list · array',
+  sorted_linked_list:'Sorted list · nodes',
+  tree:'BST',
+  avl:'AVL',
+  stack:'Stack · array',
+  linked_stack:'Stack · nodes',
+  array_queue:'Queue · array',
+  linked_queue:'Queue · nodes',
+  array_heap:'Heap · array',
+  node_heap:'Heap · nodes',
+  hash:'Hash table',
+};
+
+function progressDescription(cell){
+  if(!cell||cell.state==='missing')return 'No implementation';
+  if(cell.state==='complete'){
+    return `Fully verified · ${cell.passed} / ${cell.total} test groups passed`;
+  }
+  if(cell.tested){
+    if(cell.error)return `Started · tests could not complete: ${cell.error}`;
+    return `Started · ${cell.passed} / ${cell.total} test groups passed`;
+  }
+  return 'Started · awaiting automated tests';
+}
+
+function renderProgress(data){
+  const structures=Array.isArray(data.structures)?data.structures:[];
+  const students=Array.isArray(data.students)?data.students:[];
+
+  const header=document.createElement('tr');
+  const studentHeader=document.createElement('th');
+  studentHeader.scope='col';
+  studentHeader.textContent='Student';
+  header.append(studentHeader);
+
+  for(const structure of structures){
+    const th=document.createElement('th');
+    th.scope='col';
+    th.textContent=PROGRESS_LABELS[structure.id]??structure.label??structure.id;
+    th.title=structure.label??structure.id;
+    header.append(th);
+  }
+  progressUI.head.replaceChildren(header);
+
+  progressUI.body.replaceChildren();
+  for(const student of students){
+    const row=document.createElement('tr');
+    const name=document.createElement('th');
+    name.scope='row';
+    name.textContent=student.id;
+    row.append(name);
+
+    for(const structure of structures){
+      const cell=student.cells?.[structure.id]??{state:'missing'};
+      const td=document.createElement('td');
+      td.className=`progress-cell progress-${cell.state??'missing'}`;
+
+      const marker=document.createElement('span');
+      marker.className='progress-marker';
+      marker.textContent=
+        cell.state==='complete'?'✓':
+        cell.state==='missing'?'—':'○';
+
+      const description=progressDescription(cell);
+      marker.setAttribute('aria-label',description);
+      marker.title=description;
+      td.append(marker);
+      row.append(td);
+    }
+
+    progressUI.body.append(row);
+  }
+}
+
+function requestProgressOverview(){
+  if(!socket||socket.readyState!==WebSocket.OPEN){
+    progressUI.status.textContent='Connection unavailable; reconnect and refresh.';
+    return;
+  }
+  progressUI.status.textContent='Checking class progress…';
+  socket.send(JSON.stringify({action:'progressOverview'}));
+}
+
+function progressMessage(data){
+  if(data.type==='progressSnapshot'){
+    renderProgress(data);
+    return;
+  }
+  if(data.type==='progressStatus'){
+    progressUI.status.textContent=data.message??'Class progress updated.';
+  }
+}
+
+progressUI.button.addEventListener('click',()=>{
+  if(!progressUI.dialog.open)progressUI.dialog.showModal();
+  requestProgressOverview();
+});
+progressUI.refresh.addEventListener('click',requestProgressOverview);
+progressUI.close.addEventListener('click',()=>progressUI.dialog.close());
+progressUI.dialog.addEventListener('click',event=>{
+  if(event.target===progressUI.dialog)progressUI.dialog.close();
+});
+
 const svg = (name, attrs={}) => {
   const element = document.createElementNS(NS,name);
   for(const [key,value] of Object.entries(attrs)) element.setAttribute(key,value);
@@ -1473,6 +1589,7 @@ function connect(){
         ui.cmdStatus.textContent='Compilation failed · select an error below the editor.';
         ui.cmdStatus.classList.add('error');return;
       }
+      if(data.type.startsWith('progress')){progressMessage(data);return;}
       if(data.type.startsWith('validation')){validationMessage(data);return;}
       if(data.type==='catalog'){receiveCatalog(data);return;}
       if(data.type==='building'||data.type==='sourceChanged'){

@@ -10,7 +10,7 @@
     <div class="topright"><label class="structure-label" for="student">Student</label><select id="student" aria-label="Choose student"></select><label class="structure-label" for="structure">Structure</label><select id="structure" aria-label="Choose data structure"><option value="list">List (sorted, singly linked)</option><option value="tree">Tree (binary search)</option><option value="stack">Stack (fixed array)</option><option value="array_queue">Queue (circular array)</option></select><button type="button" id="retry" class="retry-button" title="Restart the selected implementation"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-rotate-clockwise"/></svg> Retry</button><span class="pill live">DART PROCESS</span><span id="compile-spinner" class="compile-indicator" hidden title="Recompiling Dart" aria-label="Recompiling Dart"><svg class="ui-icon spinner-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg></span><span id="connection" class="connection" role="status">Connecting…</span></div>
   </header>
   <section class="commands" aria-label="Call methods">
-    <div class="command-line"><form id="call-form" class="call-form"><label for="call-input">Method call</label><input id="call-input" value="insert(25)" autocomplete="off" spellcheck="false" aria-label="Method call e.g. contains(7)"><button type="submit" class="primary"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-arrow-right"/></svg> Run</button></form><button id="reset" class="subtle" type="button"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Reset</button><button id="validation-run" class="subtle validation-button" type="button" disabled aria-haspopup="dialog" aria-controls="validation-dialog"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-clipboard-check"/></svg> Run tests <span id="validation-summary" class="validation-summary" hidden></span></button><span id="command-status" role="status" class="command-status">Choose a call to start.</span></div>
+    <div class="command-line"><form id="call-form" class="call-form"><label for="call-input">Method call</label><input id="call-input" value="insert(25)" autocomplete="off" spellcheck="false" aria-label="Method call e.g. contains(7)"><button type="submit" class="primary"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-arrow-right"/></svg> Run</button></form><button id="reset" class="subtle" type="button"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Reset</button><button id="validation-run" class="subtle validation-button" type="button" disabled aria-haspopup="dialog" aria-controls="validation-dialog"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-clipboard-check"/></svg> Run tests <span id="validation-summary" class="validation-summary" hidden></span></button><button id="progress-open" class="subtle progress-button" type="button" aria-haspopup="dialog" aria-controls="progress-dialog"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-clipboard-check"/></svg> Class progress</button><span id="command-status" role="status" class="command-status">Choose a call to start.</span></div>
     <div id="method-suggestions" class="suggestion-rows" aria-label="One-click method calls"></div>
     <form id="invoke" hidden><select id="method"></select><span id="single-argument"><label id="arg-label" for="values"></label><input id="values"></span><span id="multi-arguments"></span><button id="invoke-button"></button></form>
   </section>
@@ -25,6 +25,31 @@
     <div class="validation-dialog-footer">
       <span>Tests use a separate worker and do not change the visualized data structure.</span>
       <button type="button" id="validation-rerun" disabled><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Run tests again</button>
+    </div>
+  </dialog>
+  <dialog id="progress-dialog" class="progress-dialog" aria-labelledby="progress-title">
+    <div class="validation-dialog-heading">
+      <div>
+        <span class="eyebrow">CLASS OVERVIEW</span>
+        <h2 id="progress-title">Class progress</h2>
+      </div>
+      <button type="button" id="progress-close" class="subtle" aria-label="Close class progress"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg> Close</button>
+    </div>
+    <p id="progress-status" role="status" aria-live="polite">Loading class progress…</p>
+    <div class="progress-table-wrap">
+      <table class="progress-table" aria-label="Student progress by data structure">
+        <thead id="progress-head"></thead>
+        <tbody id="progress-body"></tbody>
+      </table>
+    </div>
+    <div class="progress-legend" aria-label="Progress legend">
+      <span><strong class="progress-missing">—</strong> no implementation</span>
+      <span><strong class="progress-pending">○</strong> started / not fully verified</span>
+      <span><strong class="progress-complete">✓</strong> all tests pass</span>
+    </div>
+    <div class="validation-dialog-footer">
+      <span>Current source revisions are tested automatically when no result is cached yet.</span>
+      <button type="button" id="progress-refresh"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Refresh</button>
     </div>
   </dialog>
   <main class="workspace">

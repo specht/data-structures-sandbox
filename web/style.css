@@ -639,3 +639,147 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   padding:3px 8px;color:#d9e7fb;border:0;border-radius:3px;background:transparent}
 .source-completion.selected,.source-completion:hover{background:#31517a;color:white}
 @media(max-width:600px){.source-shortcuts{font-size:10px}}
+
+/* Keep Class progress with the other command controls. The generic
+   button.subtle rule uses margin-left:auto, which otherwise pushes this
+   button into the middle of the command bar. */
+.command-line .progress-button{
+  margin-left:2px;
+  height:34px;
+  min-height:34px;
+  box-sizing:border-box;
+  padding:0 12px;
+  border-radius:6px;
+  flex:none;
+  white-space:nowrap
+}
+@media(max-width:800px){
+  .command-line .progress-button{margin-left:0}
+}
+
+/* Shared, student-visible class progress matrix. */
+.progress-dialog{
+  width:min(96vw,1600px);
+  max-width:none;
+  max-height:90vh;
+  padding:0;
+  border:1px solid #405778;
+  border-radius:14px;
+  background:#101b2b;
+  color:#edf3ff;
+  box-shadow:0 24px 70px #000a
+}
+.progress-dialog::backdrop{background:#050912b8}
+.progress-dialog>.validation-dialog-heading{padding:16px 18px 12px}
+.progress-dialog>#progress-status{
+  margin:0;
+  padding:0 18px 12px;
+  color:#9fb5d2;
+  font-size:12px
+}
+.progress-table-wrap{
+  margin:0 18px;
+  max-height:66vh;
+  overflow:auto;
+  border:1px solid #2d405b;
+  border-radius:9px;
+  background:#0c1523;
+  scrollbar-color:#4a627f #101a29
+}
+.progress-table{
+  width:100%;
+  min-width:max-content;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:12px
+}
+.progress-table th,
+.progress-table td{
+  height:44px;
+  min-width:92px;
+  padding:7px 10px;
+  text-align:center;
+  border-right:1px solid #263a54;
+  border-bottom:1px solid #263a54
+}
+.progress-table thead th{
+  position:sticky;
+  top:0;
+  z-index:3;
+  max-width:122px;
+  background:#17263b;
+  color:#c9d9ee;
+  font-size:10px;
+  line-height:1.25;
+  white-space:normal
+}
+.progress-table thead th:first-child{
+  left:0;
+  z-index:5;
+  min-width:150px;
+  text-align:left
+}
+.progress-table tbody th{
+  position:sticky;
+  left:0;
+  z-index:2;
+  min-width:150px;
+  text-align:left;
+  background:#111f31;
+  color:#e4edf9;
+  font-weight:650
+}
+.progress-table tr:last-child>th,
+.progress-table tr:last-child>td{border-bottom:0}
+.progress-table tr>th:last-child,
+.progress-table tr>td:last-child{border-right:0}
+.progress-marker{
+  display:inline-grid;
+  place-items:center;
+  width:27px;
+  height:27px;
+  border-radius:50%;
+  font:700 17px/1 "0xProto Nerd Font",ui-monospace,monospace
+}
+.progress-missing .progress-marker,
+.progress-missing{color:#6f849e}
+.progress-pending .progress-marker{
+  color:#f2c36e;
+  background:#3a2e1d;
+  border:1px solid #73582e
+}
+.progress-complete .progress-marker{
+  color:#a6e6be;
+  background:#183a2b;
+  border:1px solid #387458
+}
+.progress-legend{
+  display:flex;
+  gap:18px;
+  flex-wrap:wrap;
+  padding:12px 18px 0;
+  color:#99aec8;
+  font-size:11px
+}
+.progress-legend span{
+  display:inline-flex;
+  align-items:center;
+  gap:6px
+}
+.progress-legend strong{
+  font:700 15px "0xProto Nerd Font",ui-monospace,monospace
+}
+.progress-legend .progress-pending{color:#f2c36e}
+.progress-legend .progress-complete{color:#a6e6be}
+.progress-dialog>.validation-dialog-footer{margin-top:12px}
+
+@media(max-width:700px){
+  .progress-dialog{width:98vw}
+  .progress-table th,
+  .progress-table td{
+    min-width:82px;
+    padding:6px
+  }
+  .progress-table thead th:first-child,
+  .progress-table tbody th{min-width:116px}
+}

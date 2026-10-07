@@ -46,6 +46,135 @@ void broadcastCatalog(){
   for(final client in clients)client.sendRaw(json);
 }
 
+class ProgressJob {
+  final String student, kind, revision;
+  const ProgressJob(this.student,this.kind,this.revision);
+}
+
+class ProgressResult {
+  final int passed, total;
+  final String? error;
+  final bool stale;
+  const ProgressResult(this.passed,this.total,{this.error,this.stale=false});
+}
+
+Map<String,dynamic> _loadProgressCache(){
+  try{
+    final decoded=jsonDecode(File('.runtime/progress.json').readAsStringSync());
+    if(decoded is Map){
+      return decoded.map((key,value)=>MapEntry(key.toString(),value));
+    }
+  }catch(_){ }
+  return <String,dynamic>{};
+}
+
+final progressCache=_loadProgressCache();
+Future<void>? progressSweep;
+String progressStatusMessage='Open class progress to check current implementations.';
+
+String _progressKey(String student,String kind)=>'$student/$kind';
+
+Map<String,dynamic>? _cachedProgress(String student,String kind,String revision){
+  final raw=progressCache[_progressKey(student,kind)];
+  if(raw is Map && raw['revision']==revision){
+    return Map<String,dynamic>.from(raw);
+  }
+  return null;
+}
+
+void _saveProgressCache(){
+  Directory('.runtime').createSync(recursive:true);
+  File('.runtime/progress.json').writeAsStringSync(jsonEncode(progressCache));
+}
+
+void recordProgress(
+  String student,
+  String kind,
+  String revision,
+  int passed,
+  int total, {
+  String? error,
+}){
+  final safeError=error==null?null:
+      (error.length>600?error.substring(0,600):error);
+  progressCache[_progressKey(student,kind)]={
+    'revision':revision,
+    'passed':passed,
+    'total':total,
+    'testedAt':DateTime.now().toUtc().toIso8601String(),
+    if(safeError!=null)'error':safeError,
+  };
+  _saveProgressCache();
+}
+
+Map<String,Object?> progressSnapshot(){
+  final rows=<Map<String,Object?>>[];
+  for(final entry in catalog()){
+    final student=entry['id'] as String;
+    final available=(entry['structures'] as List).whereType<String>().toSet();
+    final cells=<String,Object?>{};
+    for(final spec in structures){
+      if(!available.contains(spec.id)){
+        cells[spec.id]={'state':'missing'};
+        continue;
+      }
+
+      final revision=stamp(student,spec.id);
+      final cached=_cachedProgress(student,spec.id,revision);
+      if(cached==null){
+        cells[spec.id]={'state':'pending','tested':false};
+        continue;
+      }
+
+      final passed=(cached['passed'] as num?)?.toInt()??0;
+      final total=(cached['total'] as num?)?.toInt()??0;
+      cells[spec.id]={
+        'state':total>0&&passed==total?'complete':'pending',
+        'tested':true,
+        'passed':passed,
+        'total':total,
+        if(cached['error'] is String)'error':cached['error'],
+      };
+    }
+    rows.add({'id':student,'cells':cells});
+  }
+
+  return {
+    'type':'progressSnapshot',
+    'structures':[
+      for(final spec in structures)
+        {'id':spec.id,'label':spec.label}
+    ],
+    'students':rows,
+  };
+}
+
+List<ProgressJob> pendingProgressJobs(){
+  final result=<ProgressJob>[];
+  for(final entry in catalog()){
+    final student=entry['id'] as String;
+    final available=(entry['structures'] as List).whereType<String>();
+    for(final kind in available){
+      final revision=stamp(student,kind);
+      if(_cachedProgress(student,kind,revision)==null){
+        result.add(ProgressJob(student,kind,revision));
+      }
+    }
+  }
+  return result;
+}
+
+void broadcastProgressSnapshot(){
+  final json=jsonEncode(progressSnapshot());
+  for(final client in clients)client.sendRaw(json);
+}
+
+void broadcastProgressStatus(String message){
+  progressStatusMessage=message;
+  final json=jsonEncode({'type':'progressStatus','message':message});
+  for(final client in clients)client.sendRaw(json);
+}
+
 Map<String,String> lastSelection(){
   try {
     final data=jsonDecode(File('.runtime/selection.json').readAsStringSync());
@@ -126,6 +255,140 @@ class StudentWorker {
     process.kill(ProcessSignal.sigkill);
   }
   void kill(){_fail(StateError('Worker stopped.'));unawaited(_out.cancel());unawaited(_err.cancel());}
+}
+
+final progressRuns=<String,Future<ProgressResult>>{};
+
+Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
+  final scenarios=validationCases(job.kind);
+  StudentWorker? runner;
+  String? runError;
+
+  try{
+    final path=await prepare(job.student,job.kind,repoPath);
+    if(stamp(job.student,job.kind)!=job.revision){
+      return ProgressResult(0,scenarios.length,stale:true);
+    }
+
+    Future<StudentWorker> startWorker() async {
+      final process=await Process.start(
+        Platform.resolvedExecutable,
+        [path],
+        workingDirectory:Directory.current.path,
+      );
+      final fresh=StudentWorker(process);
+      final hello=await fresh.next(startupTimeout);
+      if(hello['type']!='hello'){
+        fresh.kill();
+        throw StateError('Test worker failed to initialize.');
+      }
+      return fresh;
+    }
+
+    var passed=0;
+    for(final scenario in scenarios){
+      var scenarioPassed=true;
+      try{
+        runner ??= await startWorker();
+
+        final cleared=await runner.request({'action':'reset'});
+        if(cleared['type']!='trace'){
+          throw StateError('Could not reset the test instance.');
+        }
+
+        for(final call in scenario.calls){
+          final reply=await runner.request({
+            ...call.toRequest(),
+            'action':'validateCall',
+          });
+          if(reply['type']!='validationCall'||reply['ok']!=true){
+            scenarioPassed=false;
+            break;
+          }
+        }
+      }catch(error){
+        scenarioPassed=false;
+        runError??=error.toString();
+      }
+
+      if(scenarioPassed){
+        passed++;
+      }else{
+        // A broken or timed-out scenario gets a fresh process for the next group.
+        runner?.kill();
+        runner=null;
+      }
+    }
+
+    return ProgressResult(passed,scenarios.length,error:runError);
+  }catch(error){
+    return ProgressResult(0,scenarios.length,error:error.toString());
+  }finally{
+    runner?.kill();
+  }
+}
+
+Future<ProgressResult> validateProgressJob(ProgressJob job){
+  final key='${job.student}\u0000${job.kind}\u0000${job.revision}';
+  final existing=progressRuns[key];
+  if(existing!=null)return existing;
+
+  late final Future<ProgressResult> future;
+  future=_runProgressValidation(job).whenComplete((){
+    if(identical(progressRuns[key],future))progressRuns.remove(key);
+  });
+  progressRuns[key]=future;
+  return future;
+}
+
+Future<void> runProgressSweep(List<ProgressJob> jobs) async {
+  for(var index=0;index<jobs.length;index++){
+    final job=jobs[index];
+    broadcastProgressStatus(
+      'Checking ${index+1} / ${jobs.length}: '
+      '${job.student} · ${specFor(job.kind).label}',
+    );
+
+    final result=await validateProgressJob(job);
+    if(!result.stale&&stamp(job.student,job.kind)==job.revision){
+      recordProgress(
+        job.student,
+        job.kind,
+        job.revision,
+        result.passed,
+        result.total,
+        error:result.error,
+      );
+    }
+    broadcastProgressSnapshot();
+  }
+
+  broadcastProgressStatus('Class progress is up to date.');
+}
+
+void requestProgress(Client client){
+  client.send(progressSnapshot());
+  client.send({
+    'type':'progressStatus',
+    'message':progressStatusMessage,
+  });
+
+  if(progressSweep!=null)return;
+
+  final jobs=pendingProgressJobs();
+  if(jobs.isEmpty){
+    client.send({
+      'type':'progressStatus',
+      'message':'Class progress is up to date.',
+    });
+    return;
+  }
+
+  late final Future<void> sweep;
+  sweep=runProgressSweep(jobs).whenComplete((){
+    if(identical(progressSweep,sweep))progressSweep=null;
+  });
+  progressSweep=sweep;
 }
 
 class Client {
@@ -336,7 +599,25 @@ class Client {
           'passed':failure==null,'message':failure,'steps':steps,
           'completed':index+1,'total':scenarios.length,'passedCount':passed});
       }
-      if(current())send({'type':'validationDone','passed':passed,'total':scenarios.length});
+      if(current()){
+        send({
+          'type':'validationDone',
+          'passed':passed,
+          'total':scenarios.length,
+        });
+
+        final selectedStudent=student;
+        if(selectedStudent!=null&&selectedStamp!=null){
+          recordProgress(
+            selectedStudent,
+            selectedKind,
+            selectedStamp,
+            passed,
+            scenarios.length,
+          );
+          broadcastProgressSnapshot();
+        }
+      }
     } catch (error) {
       if(current())send({'type':'validationError','message':'Test runner failed: $error'});
     } finally {
@@ -350,6 +631,7 @@ class Client {
 
   Future<void> handle(Map<String,dynamic> message) async {
     if(message['action']=='ping'){send({'type':'pong'});return;}
+    if(message['action']=='progressOverview'){requestProgress(this);return;}
     if(message['action']=='validate') {unawaited(validate());return;}
     if(message['action']=='select'){
       final requestedStudent=message['student'];
@@ -441,7 +723,11 @@ Future<void> main(List<String> args) async {
   var fingerprint=jsonEncode(catalog());
   Timer.periodic(const Duration(milliseconds:700),(_){
     final next=jsonEncode(catalog());
-    if(next!=fingerprint){fingerprint=next;broadcastCatalog();}
+    if(next!=fingerprint){
+      fingerprint=next;
+      broadcastCatalog();
+      broadcastProgressSnapshot();
+    }
     for(final client in [...clients])client.markChanged();
   });
   await for(final request in server){unawaited(_handleRequest(request));}
