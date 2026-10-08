@@ -10,7 +10,9 @@ cd "$work"
 ./new-structure > choices.txt
 grep -q 'stack       array | nodes' choices.txt
 grep -q 'queue       circular | nodes' choices.txt
+grep -q 'heap        array' choices.txt
 grep -q 'list        unsorted-array | unsorted-nodes | sorted-array | sorted-nodes' choices.txt
+if grep -q 'node-based min-heap' choices.txt; then echo 'Node heap is still advertised!' >&2; exit 1; fi
 if grep -q -- '--example' choices.txt; then echo 'Student help advertises the reference solution!' >&2; exit 1; fi
 ./new-structure --help > help.txt
 if grep -q -- '--example' help.txt; then echo '--help advertises the reference solution!' >&2; exit 1; fi
@@ -24,6 +26,9 @@ cmp templates/example/my_linked_stack.dart structures/bob/my_linked_stack.dart
 cmp templates/starter/my_linked_queue.dart structures/carol/my_linked_queue.dart
 ./new-structure dave tree avl
 cmp templates/starter/my_avl.dart structures/dave/my_avl.dart
+./new-structure dora heap array
+cmp templates/starter/my_array_heap.dart structures/dora/my_array_heap.dart
+if ./new-structure dora heap nodes >/dev/null 2>&1; then echo 'Accepted removed node heap variant!' >&2; exit 1; fi
 ./new-structure eve list unsorted-array
 cmp templates/starter/my_unsorted_array_list.dart structures/eve/my_unsorted_array_list.dart
 ./new-structure eve list unsorted-nodes

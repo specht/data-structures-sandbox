@@ -21,7 +21,6 @@ synchronous and do not print output to communicate their result.
 | Tree (binary search) | `void insert(int)`, `bool contains(int)`, `bool remove(int)` | Integer set: duplicate inserts change nothing; left keys strictly smaller, right keys strictly greater; removal returns whether a key was present. No balancing guarantee. |
 | Tree (AVL) | Same tree interface | Same set semantics, plus stored subtree heights and balance factor between −1 and +1 after each public call. |
 | Heap (array) | `void insert(int)`, `int? removeMin()`, `int? peek()`, `bool isEmpty()` | Dynamic **min**-heap, duplicates allowed; minimum at root/index 0; empty peek/remove return `null`. |
-| Heap (node-based) | Same heap interface | Same min-heap semantics but real nodes: complete binary tree; `size` equals reachable node count; node IDs remain stable when values sift. |
 | Hash table (separate chaining) | `bool insert(int)`, `bool contains(int)`, `bool remove(int)`, `bool isEmpty()`, `double loadFactor()` | Integer **set**: duplicate insert returns `false`, missing remove returns `false`; fixed positive bucket count chosen by student; student's deterministic hash function returns a valid index even for negative keys; load factor is `size / bucketCount` (can exceed 1). |
 
 ### List variants

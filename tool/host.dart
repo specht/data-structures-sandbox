@@ -25,6 +25,11 @@ String stamp(String student,String kind){
   return studentStamp(f);
 }
 
+// A node-based heap adds pointer bookkeeping without clarifying the heap ADT;
+// keep the legacy runtime support internal, but remove it from classroom use.
+Iterable<StructureSpec> visibleStructures() =>
+    structures.where((spec)=>spec.id!='node_heap');
+
 List<Map<String,Object?>> catalog(){
   final root=Directory(repoPath);
   if(!root.existsSync())return [];
@@ -34,7 +39,7 @@ List<Map<String,Object?>> catalog(){
   for(final directory in dirs){
     final student=directory.uri.pathSegments.where((s)=>s.isNotEmpty).last;
     if(!RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$').hasMatch(student))continue;
-    final available=[for(final spec in structures)
+    final available=[for(final spec in visibleStructures())
       if(File('${directory.path}/${spec.filename}').existsSync()) spec.id];
     if(available.isNotEmpty)result.add({'id':student,'structures':available});
   }
@@ -71,12 +76,17 @@ Map<String,dynamic> _loadProgressCache(){
 final progressCache=_loadProgressCache();
 Future<void>? progressSweep;
 String progressStatusMessage='Open class progress to check current implementations.';
+const progressCacheVersion=2;
 
 String _progressKey(String student,String kind)=>'$student/$kind';
 
+int progressCheckCount(String kind)=>validationCases(kind)
+    .fold<int>(0,(total,scenario)=>total+scenario.calls.length);
+
 Map<String,dynamic>? _cachedProgress(String student,String kind,String revision){
   final raw=progressCache[_progressKey(student,kind)];
-  if(raw is Map && raw['revision']==revision){
+  if(raw is Map && raw['version']==progressCacheVersion &&
+      raw['revision']==revision){
     return Map<String,dynamic>.from(raw);
   }
   return null;
@@ -98,6 +108,7 @@ void recordProgress(
   final safeError=error==null?null:
       (error.length>600?error.substring(0,600):error);
   progressCache[_progressKey(student,kind)]={
+    'version':progressCacheVersion,
     'revision':revision,
     'passed':passed,
     'total':total,
@@ -113,7 +124,7 @@ Map<String,Object?> progressSnapshot(){
     final student=entry['id'] as String;
     final available=(entry['structures'] as List).whereType<String>().toSet();
     final cells=<String,Object?>{};
-    for(final spec in structures){
+    for(final spec in visibleStructures()){
       if(!available.contains(spec.id)){
         cells[spec.id]={'state':'missing'};
         continue;
@@ -122,7 +133,11 @@ Map<String,Object?> progressSnapshot(){
       final revision=stamp(student,spec.id);
       final cached=_cachedProgress(student,spec.id,revision);
       if(cached==null){
-        cells[spec.id]={'state':'pending','tested':false};
+        cells[spec.id]={
+          'state':'pending',
+          'tested':false,
+          'total':progressCheckCount(spec.id),
+        };
         continue;
       }
 
@@ -142,7 +157,7 @@ Map<String,Object?> progressSnapshot(){
   return {
     'type':'progressSnapshot',
     'structures':[
-      for(final spec in structures)
+      for(final spec in visibleStructures())
         {'id':spec.id,'label':spec.label}
     ],
     'students':rows,
@@ -261,13 +276,15 @@ final progressRuns=<String,Future<ProgressResult>>{};
 
 Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
   final scenarios=validationCases(job.kind);
+  final totalChecks=scenarios.fold<int>(
+      0,(total,scenario)=>total+scenario.calls.length);
   StudentWorker? runner;
   String? runError;
 
   try{
     final path=await prepare(job.student,job.kind,repoPath);
     if(stamp(job.student,job.kind)!=job.revision){
-      return ProgressResult(0,scenarios.length,stale:true);
+      return ProgressResult(0,totalChecks,stale:true);
     }
 
     Future<StudentWorker> startWorker() async {
@@ -285,7 +302,7 @@ Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
       return fresh;
     }
 
-    var passed=0;
+    var passedChecks=0;
     for(final scenario in scenarios){
       var scenarioPassed=true;
       try{
@@ -301,7 +318,9 @@ Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
             ...call.toRequest(),
             'action':'validateCall',
           });
-          if(reply['type']!='validationCall'||reply['ok']!=true){
+          if(reply['type']=='validationCall'&&reply['ok']==true){
+            passedChecks++;
+          }else{
             scenarioPassed=false;
             break;
           }
@@ -311,18 +330,16 @@ Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
         runError??=error.toString();
       }
 
-      if(scenarioPassed){
-        passed++;
-      }else{
+      if(!scenarioPassed){
         // A broken or timed-out scenario gets a fresh process for the next group.
         runner?.kill();
         runner=null;
       }
     }
 
-    return ProgressResult(passed,scenarios.length,error:runError);
+    return ProgressResult(passedChecks,totalChecks,error:runError);
   }catch(error){
-    return ProgressResult(0,scenarios.length,error:error.toString());
+    return ProgressResult(0,totalChecks,error:error.toString());
   }finally{
     runner?.kill();
   }
@@ -540,6 +557,9 @@ class Client {
     }
 
     var passed=0;
+    var passedChecks=0;
+    final totalChecks=scenarios.fold<int>(
+        0,(total,scenario)=>total+scenario.calls.length);
     try {
       for(var index=0;index<scenarios.length;index++) {
         if(!current()) return;
@@ -578,6 +598,7 @@ class Client {
               'expectedContents':reply['expectedContents'],
               'actualContents':reply['actualContents'],
               'checks':reply['checks']});
+            if(reply['ok']==true)passedChecks++;
             if(reply['ok']!=true) {
               failure=reply['message']?.toString() ?? 'The public contract was not met.';
               break;
@@ -612,8 +633,8 @@ class Client {
             selectedStudent,
             selectedKind,
             selectedStamp,
-            passed,
-            scenarios.length,
+            passedChecks,
+            totalChecks,
           );
           broadcastProgressSnapshot();
         }

@@ -734,14 +734,24 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .progress-table tr>th:last-child,
 .progress-table tr>td:last-child{border-right:0}
 .progress-marker{
-  display:inline-grid;
-  place-items:center;
-  width:27px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-width:58px;
   height:27px;
-  border-radius:50%;
-  font:700 17px/1 "0xProto Nerd Font",ui-monospace,monospace
+  padding:0 7px;
+  border-radius:999px;
+  font:700 11px/1 "0xProto Nerd Font",ui-monospace,monospace
 }
-.progress-missing .progress-marker,
+.progress-state-icon{display:inline-flex;align-items:center}
+.progress-state-icon .ui-icon{width:14px;height:14px;stroke-width:2.5}
+.progress-ratio{white-space:nowrap}
+.progress-missing .progress-marker{
+  min-width:27px;
+  padding:0;
+  color:#6f849e
+}
 .progress-missing{color:#6f849e}
 .progress-pending .progress-marker{
   color:#f2c36e;
@@ -769,9 +779,13 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .progress-legend strong{
   font:700 15px "0xProto Nerd Font",ui-monospace,monospace
 }
-.progress-legend .progress-pending{color:#f2c36e}
-.progress-legend .progress-complete{color:#a6e6be}
-.progress-dialog>.validation-dialog-footer{margin-top:12px}
+.progress-legend .ui-icon{width:14px;height:14px;stroke-width:2.5}
+.progress-legend .progress-pending-icon{color:#f2c36e}
+.progress-legend .progress-complete-icon{color:#a6e6be}
+.progress-dialog>.validation-dialog-footer{
+  margin-top:12px;
+  padding:12px 18px 0
+}
 
 @media(max-width:700px){
   .progress-dialog{width:98vw}

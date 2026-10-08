@@ -12,8 +12,8 @@ example, observable adapter, worker validation, renderer and tests work end to e
   linked nodes, each with its own explicit ID and CLI selection. All four
   explicitly maintain a student-owned size field; the worker verifies it
   against physical storage. See [list exercises](list-exercises.md).
-- Integer-set BST and AVL; array and node-based min-heaps; integer hash set
-  with separate chaining and student-selected bucket count/hash function.
+- Integer-set BST and AVL; an array-based min-heap; integer hash set with
+  separate chaining and student-selected bucket count/hash function.
 - Student starters and complete reference examples; independent reference
   models and physical-state checks; separate workers; browser editor and
   playback of observable mutations. Read the [development guide](../DEVELOPMENT.md)
@@ -31,21 +31,22 @@ example, observable adapter, worker validation, renderer and tests work end to e
 5. Hash sets, collisions and load factor; contrast with sorted lists and BSTs.
 6. Directed graphs: adjacency lists/matrices, DFS and BFS using the previously
    learned stacks and queues, reachability, cycles and disconnected components.
-7. Weighted graphs and Dijkstra, reusing priority queues; AVL deletion and
-   node-based heaps remain optional advanced comparisons.
+7. Weighted graphs and Dijkstra, reusing priority queues; AVL deletion can
+   remain an optional advanced extension.
 
 ## Next: dedicated priority-queue unit
 
 A heap is one implementation of the priority-queue ADT, not the ADT itself.
-Keep the current integer min-heaps as introductory exercises. Define a new
-priority-queue contract with an explicit `(priority, payload)` entry and an
-optional insertion sequence to settle ties FIFO. The current integer heaps do
-not promise FIFO behavior for equal priorities. Offer unsorted-array,
-sorted-array and heap implementations with a shared `enqueue`, `peek` and
-`dequeue` contract. Display priority and payload separately and count comparisons
-and memory accesses. Use a concrete scheduling/print-job task. The current
-node-heap reference's repeated root-to-parent lookup can make insertion
-O(log² n), unlike the array heap's O(log n); document this if comparing costs.
+Keep the current integer array min-heap as an introductory exercise. Its
+complete binary tree maps directly to array indices, so the implementation can
+focus on the heap property and sift operations instead of parent-pointer and
+shape-maintenance bookkeeping. Define a new priority-queue contract with an
+explicit `(priority, payload)` entry and an optional insertion sequence to
+settle ties FIFO. The current integer heap does not promise FIFO behavior for
+equal priorities. Offer unsorted-array, sorted-array and heap implementations
+with a shared `enqueue`, `peek` and `dequeue` contract. Display priority and
+payload separately and count comparisons and memory accesses. Use a concrete
+scheduling/print-job task.
 
 ## Next: directed graphs
 

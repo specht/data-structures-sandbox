@@ -365,20 +365,19 @@ const PROGRESS_LABELS={
   array_queue:'Queue · array',
   linked_queue:'Queue · nodes',
   array_heap:'Heap · array',
-  node_heap:'Heap · nodes',
   hash:'Hash table',
 };
 
 function progressDescription(cell){
   if(!cell||cell.state==='missing')return 'No implementation';
   if(cell.state==='complete'){
-    return `Fully verified · ${cell.passed} / ${cell.total} test groups passed`;
+    return `Fully verified · ${cell.passed} / ${cell.total} checks passed`;
   }
   if(cell.tested){
     if(cell.error)return `Started · tests could not complete: ${cell.error}`;
-    return `Started · ${cell.passed} / ${cell.total} test groups passed`;
+    return `Started · ${cell.passed} / ${cell.total} checks passed`;
   }
-  return 'Started · awaiting automated tests';
+  return 'Started · awaiting automated checks';
 }
 
 function renderProgress(data){
@@ -415,9 +414,20 @@ function renderProgress(data){
 
       const marker=document.createElement('span');
       marker.className='progress-marker';
-      marker.textContent=
-        cell.state==='complete'?'✓':
-        cell.state==='missing'?'—':'○';
+      if(cell.state==='missing'){
+        marker.textContent='—';
+      }else{
+        const icon=document.createElement('span');
+        icon.className='progress-state-icon';
+        icon.innerHTML=cell.state==='complete'
+          ?'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg>'
+          :'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg>';
+        const ratio=document.createElement('span');
+        ratio.className='progress-ratio';
+        const total=Number.isInteger(cell.total)?cell.total:'?';
+        ratio.textContent=cell.tested?`${cell.passed}/${total}`:`…/${total}`;
+        marker.append(icon,ratio);
+      }
 
       const description=progressDescription(cell);
       marker.setAttribute('aria-label',description);
@@ -507,7 +517,7 @@ ui.speed.addEventListener('input',()=>{
 ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
 function isArrayList(){return structure==='unsorted_array_list'||structure==='sorted_array_list';}
-const STRUCTURE_LABELS={unsorted_array_list:'List (unsorted, array)',unsorted_linked_list:'List (unsorted, singly linked)',sorted_array_list:'List (sorted, array)',hash:'Hash table (separate chaining)',node_heap:'Heap (node-based)',array_heap:'Heap (array)',sorted_linked_list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
+const STRUCTURE_LABELS={unsorted_array_list:'List (unsorted, array)',unsorted_linked_list:'List (unsorted, singly linked)',sorted_array_list:'List (sorted, array)',hash:'Hash table (separate chaining)',array_heap:'Heap (array)',sorted_linked_list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
 let selectedStudent='',initializedCatalog=false,studentCatalog=[];
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}

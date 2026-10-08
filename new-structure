@@ -13,7 +13,7 @@ list        unsorted-array | unsorted-nodes | sorted-array | sorted-nodes
 stack       array | nodes           Fixed array (default) | linked nodes
 queue       circular | nodes        Circular array (default) | linked nodes
 tree        bst | avl               Binary search tree (default) | AVL tree
-heap        array | nodes           Array (default) | node-based min-heap
+heap        array                   Array min-heap
 hash        chains                  Separate chaining (student hash function)
 
 Examples:
@@ -51,7 +51,6 @@ case "$kind:$implementation" in
   tree:|tree:bst) filename=my_bst.dart;;
   tree:avl) filename=my_avl.dart;;
   heap:|heap:array) filename=my_array_heap.dart;;
-  heap:nodes) filename=my_node_heap.dart;;
   hash:|hash:chains) filename=my_hash_table.dart;;
   *) echo "Unknown choice: $kind ${implementation}. Run ./new-structure to see all options." >&2; exit 64;;
 esac

@@ -10,9 +10,13 @@ const host=fs.readFileSync('tool/host.dart','utf8');
 assert.match(html,/id="progress-open"/);
 assert.match(html,/id="progress-dialog"/);
 assert.match(html,/started \/ not fully verified/);
+assert.match(html,/tabler-icons\.svg#ti-loader-2/);
+assert.match(html,/tabler-icons\.svg#ti-check/);
 assert.match(host,/\.runtime\/progress\.json/);
+assert.match(host,/progressCacheVersion=2/);
 assert.match(host,/message\['action'\]=='progressOverview'/);
 assert.match(host,/pendingProgressJobs\(\)/);
+assert.match(host,/visibleStructures\(\)/);
 assert.match(host,/recordProgress\(\s*selectedStudent,\s*selectedKind,\s*selectedStamp/);
 
 const start=source.indexOf('const progressUI=');
@@ -76,16 +80,16 @@ vm.runInContext(`progressMessage({
     {
       id:'alice',
       cells:{
-        stack:{state:'complete',tested:true,passed:5,total:5},
-        tree:{state:'pending',tested:false},
+        stack:{state:'complete',tested:true,passed:43,total:43},
+        tree:{state:'pending',tested:false,total:33},
         avl:{state:'missing'}
       }
     },
     {
       id:'bob',
       cells:{
-        stack:{state:'pending',tested:true,passed:3,total:5},
-        tree:{state:'complete',tested:true,passed:6,total:6},
+        stack:{state:'pending',tested:true,passed:40,total:43},
+        tree:{state:'complete',tested:true,passed:33,total:33},
         avl:{state:'missing'}
       }
     }
@@ -97,12 +101,16 @@ const body=controls.get('progress-body');
 assert.equal(head.children.length,1);
 assert.equal(head.children[0].children.length,4);
 assert.equal(body.children.length,2);
-assert.equal(body.children[0].children[1].children[0].textContent,'✓');
-assert.equal(body.children[0].children[2].children[0].textContent,'○');
+const aliceStack=body.children[0].children[1].children[0];
+const aliceTree=body.children[0].children[2].children[0];
+assert.match(aliceStack.children[0].innerHTML,/#ti-check/);
+assert.equal(aliceStack.children[1].textContent,'43/43');
+assert.match(aliceTree.children[0].innerHTML,/#ti-loader-2/);
+assert.equal(aliceTree.children[1].textContent,'…/33');
 assert.equal(body.children[0].children[3].children[0].textContent,'—');
 assert.match(
   body.children[1].children[1].children[0].attrs['aria-label'],
-  /3 \/ 5/,
+  /40 \/ 43/,
 );
 
 vm.runInContext(
@@ -115,5 +123,5 @@ assert.equal(
 );
 
 console.log(
-  'PASS: shared class progress dialog, three-state matrix and refresh request.',
+  'PASS: shared class progress dialog, check ratios, real icons and refresh request.',
 );

@@ -155,7 +155,6 @@ Du kannst auf dieselbe Weise weitere Datenstrukturen anlegen, zum Beispiel:
 ./new-structure DEIN_NAME tree bst
 ./new-structure DEIN_NAME tree avl
 ./new-structure DEIN_NAME heap array
-./new-structure DEIN_NAME heap nodes
 ./new-structure DEIN_NAME hash
 ```
 

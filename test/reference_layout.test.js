@@ -25,7 +25,6 @@ vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/app.js'),'utf8'),con
 const run=src=>vm.runInContext(src,context);
 assert.equal(run("STRUCTURE_LABELS.linked_stack"),'Stack (linked list)');
 assert.equal(run("STRUCTURE_LABELS.array_queue"),'Queue (circular array)');
-assert.equal(run("STRUCTURE_LABELS.node_heap"),'Heap (node-based)');
 run("structure='linked_stack';ensureViewport(structure);nodes.set(1,{id:1,x:330,y:276,opacity:1,detached:false});head=1;references={current:1,previous:1};");
 const anchors=run('referenceAnchors(referenceValues())');
 assert.equal(anchors.get('head').y,226);
