@@ -2,6 +2,7 @@ import '../../lib/hash_sandbox.dart';
 import '../../lib/sandbox.dart';
 
 // A fixed-capacity hash SET of integers; collisions form observable chains.
+// Duplicate policy: not allowed; inserting an existing key returns false.
 // This simple example deliberately does not resize: as the load factor rises,
 // students can observe how longer collision chains affect lookup and removal.
 class MyHashTable {

@@ -1,5 +1,6 @@
 /*
 Linked stack (LIFO).
+Duplicate policy: allowed; every push stores another occurrence.
 Implement the public operations below.
 */
 

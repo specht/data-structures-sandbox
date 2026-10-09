@@ -2,7 +2,7 @@ import '../../lib/heap_sandbox.dart';
 
 // Min-heap: the smallest key is at index 0. This is a DYNAMIC array, not
 // linked nodes. Indices describe one contiguous, complete binary tree.
-// Duplicates are allowed; every insertion adds another occurrence.
+// Duplicate policy: allowed; every insert stores another occurrence.
 class MyArrayHeap {
   final HeapMemory memory = HeapMemory();
 

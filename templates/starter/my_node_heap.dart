@@ -1,5 +1,6 @@
 /*
 Node-based min-heap of integers.
+Duplicate policy: allowed; every insert stores another occurrence.
 Implement the public operations below.
 */
 

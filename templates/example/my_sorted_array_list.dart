@@ -1,6 +1,7 @@
 import '../../lib/list_sandbox.dart';
 
-// Fixed-capacity array list in nondecreasing order. Duplicates are retained.
+// Fixed-capacity array list in nondecreasing order.
+// Duplicate policy: allowed; every successful insert stores another occurrence.
 class MySortedArrayList {
   final ListMemory memory = ListMemory(8);
   int size = 0; // Number of occupied cells; maintained by student code.

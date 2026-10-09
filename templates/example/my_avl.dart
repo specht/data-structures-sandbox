@@ -1,6 +1,7 @@
 import '../../lib/tree_sandbox.dart';
 
-// AVL tree. Duplicate keys are ignored. Height 1 means a leaf; null has height 0.
+// AVL tree. Height 1 means a leaf; null has height 0.
+// Duplicate policy: not allowed; inserting an existing value changes nothing.
 // Rotations relink existing TreeNode objects: node IDs remain stable.
 class MyAVL {
   TreeNode? root;

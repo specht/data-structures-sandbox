@@ -1,6 +1,7 @@
 import '../../lib/sandbox.dart';
 
-// Unsorted singly linked list with index-based operations and duplicates.
+// Unsorted singly linked list with index-based operations.
+// Duplicate policy: allowed; every successful insert stores another occurrence.
 class MyUnsortedLinkedList {
   ListNode? head;
   int size = 0; // Number of reachable nodes; maintained by student code.

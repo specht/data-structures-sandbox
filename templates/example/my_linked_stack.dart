@@ -1,6 +1,7 @@
 import '../../lib/sandbox.dart';
 
 // LIFO linked stack: head is the TOP. No fixed capacity or sorted ordering.
+// Duplicate policy: allowed; every push stores another occurrence.
 // The example is intentionally small enough for students to implement afresh.
 class MyLinkedStack {
   ListNode? head;

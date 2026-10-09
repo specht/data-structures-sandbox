@@ -2,6 +2,7 @@ import '../../lib/sandbox.dart';
 
 // Sorted singly linked list. Change this file, not tool/generated/.
 // Public methods with simple arguments appear automatically in the browser.
+// Duplicate policy: allowed; every insert stores another occurrence.
 class MySortedLinkedList {
   ListNode? head;
   int size = 0; // Maintained by the student, not calculated by the recorder.

@@ -3,7 +3,7 @@ import '../../lib/tree_sandbox.dart';
 // A complete, node-based MIN-heap. There is no backing array: the binary
 // representation of a 1-based position tells us which reference to follow.
 // The students can inspect both the physical pointers and the value swaps.
-// Duplicate values are allowed, and inserting a value creates a fresh node.
+// Duplicate policy: allowed; every insert creates a fresh node.
 class MyNodeHeap {
   TreeNode? root;
   int size = 0;

@@ -1,5 +1,6 @@
 /*
 Fixed-capacity array stack (LIFO).
+Duplicate policy: allowed; every successful push stores another occurrence.
 Implement the public operations below.
 */
 

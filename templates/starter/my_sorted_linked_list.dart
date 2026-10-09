@@ -1,5 +1,6 @@
 /*
 Sorted singly linked list of integers.
+Duplicate policy: allowed; every insert stores another occurrence.
 Implement the public operations below.
 */
 

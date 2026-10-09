@@ -2,6 +2,7 @@ import '../../lib/list_sandbox.dart';
 
 // Unsorted, fixed-capacity array list. The list owns its logical size.
 // Values are stored contiguously in cells 0..size-1.
+// Duplicate policy: allowed; every successful insert stores another occurrence.
 class MyUnsortedArrayList {
   final ListMemory memory = ListMemory(8);
   int size = 0; // Number of occupied cells; maintained by student code.

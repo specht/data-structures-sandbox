@@ -1,7 +1,8 @@
 import '../../lib/sandbox.dart';
 
 // FIFO queue: head is the next element to leave; tail is the newest element.
-// Empty iff BOTH references are null. Duplicate values are allowed.
+// Empty iff BOTH references are null.
+// Duplicate policy: allowed; every enqueue stores another occurrence.
 class MyLinkedQueue {
   ListNode? head;
   ListNode? tail;

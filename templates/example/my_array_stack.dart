@@ -2,6 +2,7 @@ import '../../lib/stack_sandbox.dart';
 
 // Fixed-capacity stack: no List.add(), no List.removeLast().
 // The fixed array indices stay stable; only values and top change.
+// Duplicate policy: allowed; every successful push stores another occurrence.
 class MyArrayStack {
   final FixedMemory memory = FixedMemory(8);
   // The stack owns its logical top; FixedMemory contains only its cells.

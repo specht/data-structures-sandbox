@@ -1,5 +1,6 @@
 /*
 Integer hash set with separate chaining.
+Duplicate policy: not allowed; inserting an existing key returns false.
 Choose a hash function and implement the public operations below.
 */
 

@@ -4,6 +4,7 @@ import '../../lib/queue_sandbox.dart';
 // front = index of the next item to dequeue;
 // rear  = index of the next empty cell to enqueue into.
 // Both are 0 when the queue starts. size distinguishes full from empty.
+// Duplicate policy: allowed; every successful enqueue stores another occurrence.
 class MyArrayQueue {
   final QueueMemory memory = QueueMemory(8);
 

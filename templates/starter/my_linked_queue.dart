@@ -1,5 +1,6 @@
 /*
 Linked queue (FIFO).
+Duplicate policy: allowed; every enqueue stores another occurrence.
 Implement the public operations below.
 */
 

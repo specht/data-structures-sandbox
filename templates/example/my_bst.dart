@@ -1,6 +1,7 @@
 import '../../lib/tree_sandbox.dart';
 
-// Ordinary, UNBALANCED binary search tree. Equal keys are ignored.
+// Ordinary, UNBALANCED binary search tree.
+// Duplicate policy: not allowed; inserting an existing value changes nothing.
 // Compare sorted insertion orders with other insertion orders.
 class MyBST {
   TreeNode? root;

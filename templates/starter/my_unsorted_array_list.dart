@@ -1,5 +1,6 @@
 /*
-Unsorted array list: index-based insert/get/remove, duplicate values allowed.
+Unsorted array list with index-based insert/get/remove operations.
+Duplicate policy: allowed; every successful insert stores another occurrence.
 */
 import '../../lib/list_sandbox.dart';
 

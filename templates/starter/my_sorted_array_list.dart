@@ -1,5 +1,6 @@
 /*
-Sorted ascending array list: duplicates allowed, capacity 8.
+Sorted ascending array list with capacity 8.
+Duplicate policy: allowed; every successful insert stores another occurrence.
 */
 import '../../lib/list_sandbox.dart';
 

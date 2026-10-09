@@ -1,5 +1,6 @@
 /*
-Unsorted singly linked list: index-based access; duplicate values allowed.
+Unsorted singly linked list with index-based access.
+Duplicate policy: allowed; every successful insert stores another occurrence.
 */
 import '../../lib/sandbox.dart';
 

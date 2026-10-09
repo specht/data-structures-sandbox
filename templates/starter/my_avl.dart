@@ -1,5 +1,6 @@
 /*
 Height-balanced binary search tree (AVL).
+Duplicate policy: not allowed; inserting an existing value changes nothing.
 Implement the public operations below.
 */
 
