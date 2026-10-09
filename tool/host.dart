@@ -76,6 +76,7 @@ Map<String,dynamic> _loadProgressCache(){
 final progressCache=_loadProgressCache();
 Future<void>? progressSweep;
 String progressStatusMessage='Open class progress to check current implementations.';
+String? progressStatusStudent,progressStatusStructure;
 const progressCacheVersion=2;
 
 String _progressKey(String student,String kind)=>'$student/$kind';
@@ -184,9 +185,13 @@ void broadcastProgressSnapshot(){
   for(final client in clients)client.sendRaw(json);
 }
 
-void broadcastProgressStatus(String message){
+void broadcastProgressStatus(String message,{ProgressJob? current}){
   progressStatusMessage=message;
-  final json=jsonEncode({'type':'progressStatus','message':message});
+  progressStatusStudent=current?.student;
+  progressStatusStructure=current?.kind;
+  final json=jsonEncode({'type':'progressStatus','message':message,
+    if(current!=null)'student':current.student,
+    if(current!=null)'structure':current.kind});
   for(final client in clients)client.sendRaw(json);
 }
 
@@ -418,6 +423,7 @@ Future<void> runProgressSweep(List<ProgressJob> jobs) async {
     broadcastProgressStatus(
       'Checking ${index+1} / ${jobs.length}: '
       '${job.student} · ${specFor(job.kind).label}',
+      current:job,
     );
 
     final result=await validateProgressJob(job);
@@ -442,6 +448,8 @@ void requestProgress(Client client){
   client.send({
     'type':'progressStatus',
     'message':progressStatusMessage,
+    if(progressStatusStudent!=null)'student':progressStatusStudent,
+    if(progressStatusStructure!=null)'structure':progressStatusStructure,
   });
 
   if(progressSweep!=null)return;

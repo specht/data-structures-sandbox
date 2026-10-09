@@ -355,6 +355,8 @@ const progressUI={
   head:$('progress-head'),
   body:$('progress-body'),
 };
+let progressSnapshotData=null;
+let progressChecking=null;
 
 const PROGRESS_LABELS={
   unsorted_array_list:'Unsorted list · array',
@@ -384,8 +386,11 @@ function progressDescription(cell){
 }
 
 function renderProgress(data){
+  progressSnapshotData=data;
   const structures=Array.isArray(data.structures)?data.structures:[];
   const students=Array.isArray(data.students)?data.students:[];
+  const loadedStudent=selectedStudent;
+  const loadedStructure=structure;
 
   const header=document.createElement('tr');
   const studentHeader=document.createElement('th');
@@ -393,11 +398,16 @@ function renderProgress(data){
   studentHeader.textContent='Student';
   header.append(studentHeader);
 
-  for(const structure of structures){
+  for(const structureInfo of structures){
     const th=document.createElement('th');
     th.scope='col';
-    th.textContent=PROGRESS_LABELS[structure.id]??structure.label??structure.id;
-    th.title=structure.label??structure.id;
+    th.textContent=PROGRESS_LABELS[structureInfo.id]??structureInfo.label??structureInfo.id;
+    th.title=structureInfo.label??structureInfo.id;
+    if(structureInfo.id===loadedStructure){
+      th.className='progress-loaded-column';
+      th.setAttribute('aria-current','true');
+      th.title=`${th.title} · currently loaded`;
+    }
     header.append(th);
   }
   progressUI.head.replaceChildren(header);
@@ -405,15 +415,32 @@ function renderProgress(data){
   progressUI.body.replaceChildren();
   for(const student of students){
     const row=document.createElement('tr');
+    const loadedRow=student.id===loadedStudent;
+    if(loadedRow)row.className='progress-loaded-row';
     const name=document.createElement('th');
     name.scope='row';
     name.textContent=student.id;
+    if(loadedRow){
+      name.setAttribute('aria-current','true');
+      name.title='Currently loaded student';
+    }
     row.append(name);
 
-    for(const structure of structures){
-      const cell=student.cells?.[structure.id]??{state:'missing'};
+    for(const structureInfo of structures){
+      const cell=student.cells?.[structureInfo.id]??{state:'missing'};
+      const loadedColumn=structureInfo.id===loadedStructure;
+      const checking=progressChecking?.student===student.id&&
+        progressChecking?.structure===structureInfo.id;
       const td=document.createElement('td');
       td.className=`progress-cell progress-${cell.state??'missing'}`;
+      if(cell.state==='pending')td.className+=cell.tested?
+        ' progress-incomplete':' progress-awaiting';
+      if(loadedColumn)td.className+=' progress-loaded-column';
+      if(loadedRow&&loadedColumn){
+        td.className+=' progress-loaded-cell';
+        td.setAttribute('aria-current','true');
+      }
+      if(checking)td.className+=' progress-checking';
 
       const marker=document.createElement('span');
       marker.className='progress-marker';
@@ -422,7 +449,9 @@ function renderProgress(data){
       }else{
         const icon=document.createElement('span');
         icon.className='progress-state-icon';
-        icon.innerHTML=cell.state==='complete'
+        icon.innerHTML=checking
+          ?'<svg class="ui-icon spinner-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg>'
+          :cell.state==='complete'
           ?'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg>'
           :'<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg>';
         const ratio=document.createElement('span');
@@ -432,7 +461,8 @@ function renderProgress(data){
         marker.append(icon,ratio);
       }
 
-      const description=progressDescription(cell);
+      const description=checking?
+        `Checking now · ${progressDescription(cell)}`:progressDescription(cell);
       marker.setAttribute('aria-label',description);
       marker.title=description;
       td.append(marker);
@@ -441,6 +471,9 @@ function renderProgress(data){
 
     progressUI.body.append(row);
   }
+}
+function refreshProgressHighlights(){
+  if(progressSnapshotData)renderProgress(progressSnapshotData);
 }
 
 function requestProgressOverview(){
@@ -458,7 +491,10 @@ function progressMessage(data){
     return;
   }
   if(data.type==='progressStatus'){
+    progressChecking=data.student&&data.structure?
+      {student:data.student,structure:data.structure}:null;
     progressUI.status.textContent=data.message??'Class progress updated.';
+    if(progressSnapshotData)renderProgress(progressSnapshotData);
   }
 }
 
@@ -602,6 +638,7 @@ function selectImplementation(){
   if(!socket||socket.readyState!==WebSocket.OPEN)return;
   resetValidation('Implementation changed; previous test results are outdated.');
   setRuntimeConsole([],null,{autoExpand:false});
+  refreshProgressHighlights();
   rememberChoice();
   socket.send(JSON.stringify({action:'select',student:selectedStudent,structure}));
   window.sandboxEditor?.ready();

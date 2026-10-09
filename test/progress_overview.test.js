@@ -9,7 +9,8 @@ const host=fs.readFileSync('tool/host.dart','utf8');
 
 assert.match(html,/id="progress-open"/);
 assert.match(html,/id="progress-dialog"/);
-assert.match(html,/started \/ not fully verified/);
+assert.match(html,/awaiting checks/);
+assert.match(html,/checks incomplete/);
 assert.match(html,/tabler-icons\.svg#ti-loader-2/);
 assert.match(html,/tabler-icons\.svg#ti-check/);
 assert.match(host,/\.runtime\/progress\.json/);
@@ -17,6 +18,8 @@ assert.match(host,/progressCacheVersion=2/);
 assert.match(host,/message\['action'\]=='progressOverview'/);
 assert.match(host,/pendingProgressJobs\(\)/);
 assert.match(host,/visibleStructures\(\)/);
+assert.match(host,/'student':current\.student/);
+assert.match(host,/'structure':current\.kind/);
 assert.match(host,/recordProgress\(\s*selectedStudent,\s*selectedKind,\s*selectedStamp/);
 
 const start=source.indexOf('const progressUI=');
@@ -63,7 +66,7 @@ const context=vm.createContext({
   $:document.getElementById.bind(document),
 });
 
-vm.runInContext(source.slice(start,end),context);
+vm.runInContext(`let selectedStudent='alice',structure='tree';${source.slice(start,end)}`,context);
 
 controls.get('progress-open').onclick();
 assert.equal(controls.get('progress-dialog').open,true);
@@ -108,10 +111,24 @@ assert.equal(aliceStack.children[1].textContent,'43/43');
 assert.match(aliceTree.children[0].innerHTML,/#ti-loader-2/);
 assert.equal(aliceTree.children[1].textContent,'…/33');
 assert.equal(body.children[0].children[3].children[0].textContent,'—');
+assert.match(body.children[0].children[2].className,/progress-awaiting/);
+assert.match(body.children[1].children[1].className,/progress-incomplete/);
 assert.match(
   body.children[1].children[1].children[0].attrs['aria-label'],
   /40 \/ 43/,
 );
+assert.match(head.children[0].children[2].className,/progress-loaded-column/);
+assert.match(body.children[0].className,/progress-loaded-row/);
+assert.match(body.children[0].children[2].className,/progress-loaded-cell/);
+
+vm.runInContext(
+  "progressMessage({type:'progressStatus',message:'Checking 1 / 2',student:'bob',structure:'stack'})",
+  context,
+);
+const checking=controls.get('progress-body').children[1].children[1];
+assert.match(checking.className,/progress-checking/);
+assert.match(checking.children[0].children[0].innerHTML,/spinner-icon/);
+assert.match(checking.children[0].attrs['aria-label'],/Checking now/);
 
 vm.runInContext(
   "progressMessage({type:'progressStatus',message:'Class progress is up to date.'})",
