@@ -299,11 +299,17 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 .validation-success .validation-summary{color:#a2e5bf}
 .validation-errors .validation-summary{color:#ffc1c1}
 .validation-running-button::before{content:'';width:12px;height:12px;flex:none;border:2px solid #8da3c1;border-top-color:transparent;border-radius:50%;animation:validation-spin .8s linear infinite}
-.validation-dialog{width:min(640px,calc(100vw - 28px));max-height:min(80vh,740px);overflow:auto;color:var(--text);background:#111c2d;border:1px solid #405575;border-radius:11px;padding:19px;box-shadow:0 22px 80px #0009}
-.validation-dialog::backdrop{background:#060b15ba}
-.validation-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.validation-dialog-heading h2{font-size:19px;margin:5px 0 0}
-.validation-dialog-heading button{flex:none}
+.app-dialog{max-width:none;max-height:min(90vh,820px);overflow:hidden;padding:0;color:var(--text);background:#111c2d;border:1px solid #405575;border-radius:12px;box-shadow:0 22px 80px #0009}
+.app-dialog[open]{display:flex;flex-direction:column}
+.app-dialog::backdrop{background:#060b15ba}
+.validation-dialog{width:min(640px,calc(100vw - 28px))}
+.dialog-header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none;padding:18px 19px 15px;border-bottom:1px solid var(--border)}
+.dialog-header h2{font-size:19px;margin:4px 0 0}
+.dialog-header .dialog-close{width:34px;height:34px;min-width:34px;padding:0;flex:none;border-color:transparent;background:transparent;color:#aebfd6}
+.dialog-header .dialog-close:hover{border-color:#48627f;background:#203149;color:#fff;filter:none}
+.dialog-header .dialog-close:focus-visible{outline:2px solid #ffd080;outline-offset:2px}
+.dialog-header .dialog-close .ui-icon{width:19px;height:19px}
+.dialog-body{min-height:0;overflow:auto;padding:0 19px}
 #validation-status{display:block;color:var(--muted);font-size:13px;margin:15px 0 10px}
 #validation-progress{width:100%;height:8px;accent-color:#6ccc9a}
 .validation-results{list-style:none;padding:12px 0 0;margin:11px 0 0;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr;gap:7px}
@@ -318,10 +324,19 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 @keyframes validation-spin{to{transform:rotate(360deg)}}
 .validation-icon{display:inline-flex;flex:none;width:16px;height:16px}
 .validation-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round}
-.validation-dialog-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:15px;padding-top:12px;border-top:1px solid var(--border)}
-.validation-dialog-footer span{font-size:11px;color:var(--muted);line-height:1.5}
-.validation-dialog-footer button{flex:none}
-@media(max-width:600px){.validation-dialog{padding:14px}.validation-dialog-footer{flex-wrap:wrap}.validation-button{font-size:12px}}
+.dialog-footer{display:flex;align-items:center;gap:16px;flex:none;margin-top:15px;padding:12px 19px 14px;border-top:1px solid var(--border);background:#101a2a}
+.dialog-note{flex:1 1 auto;margin:0;font-size:11px;color:var(--muted);line-height:1.5}
+.dialog-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:none;margin-left:auto}
+.dialog-actions button{flex:none}
+.dialog-primary-action{background:#3776c7;border-color:#609be6}
+@media(max-width:600px){
+  .dialog-header{padding:14px 14px 12px}
+  .dialog-body{padding:0 14px}
+  .dialog-footer{align-items:flex-end;flex-wrap:wrap;padding:11px 14px 13px}
+  .dialog-note{flex-basis:100%}
+  .dialog-actions{width:100%}
+  .validation-button{font-size:12px}
+}
 
 /* v1.3: coherent control bar, larger readable source and restrained chrome. */
 .topright{gap:10px}
@@ -660,25 +675,21 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 /* Shared, student-visible class progress matrix. */
 .progress-dialog{
   width:min(96vw,1600px);
-  max-width:none;
   max-height:90vh;
-  padding:0;
   border:1px solid #405778;
   border-radius:14px;
   background:#101b2b;
   color:#edf3ff;
   box-shadow:0 24px 70px #000a
 }
-.progress-dialog::backdrop{background:#050912b8}
-.progress-dialog>.validation-dialog-heading{padding:16px 18px 12px}
-.progress-dialog>#progress-status{
+.progress-dialog .dialog-body{display:flex;flex-direction:column;padding:0 18px 12px}
+.progress-dialog #progress-status{
   margin:0;
-  padding:0 18px 12px;
+  padding:12px 0;
   color:#9fb5d2;
   font-size:12px
 }
 .progress-table-wrap{
-  margin:0 18px;
   max-height:66vh;
   overflow:auto;
   border:1px solid #2d405b;
@@ -767,7 +778,7 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   display:flex;
   gap:18px;
   flex-wrap:wrap;
-  padding:12px 18px 0;
+  padding:12px 0 0;
   color:#99aec8;
   font-size:11px
 }
@@ -782,10 +793,7 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .progress-legend .ui-icon{width:14px;height:14px;stroke-width:2.5}
 .progress-legend .progress-pending-icon{color:#f2c36e}
 .progress-legend .progress-complete-icon{color:#a6e6be}
-.progress-dialog>.validation-dialog-footer{
-  margin-top:12px;
-  padding:12px 18px 0
-}
+.progress-dialog .dialog-footer{margin-top:0}
 
 @media(max-width:700px){
   .progress-dialog{width:98vw}

@@ -14,42 +14,50 @@
     <div id="method-suggestions" class="suggestion-rows" aria-label="One-click method calls"></div>
     <form id="invoke" hidden><select id="method"></select><span id="single-argument"><label id="arg-label" for="values"></label><input id="values"></span><span id="multi-arguments"></span><button id="invoke-button"></button></form>
   </section>
-  <dialog id="validation-dialog" class="validation-dialog" aria-labelledby="validation-title">
-    <div class="validation-dialog-heading">
+  <dialog id="validation-dialog" class="app-dialog validation-dialog" aria-labelledby="validation-title">
+    <div class="dialog-header">
       <div><span class="eyebrow">AUTOMATED TESTS</span><h2 id="validation-title">Implementation tests</h2></div>
-      <button type="button" id="validation-close" class="subtle" aria-label="Close test results"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg> Close</button>
+      <button type="button" id="validation-close" class="icon-button dialog-close" title="Close test results" aria-label="Close test results"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg></button>
     </div>
-    <p id="validation-status" role="status" aria-live="polite">Run tests on the selected implementation.</p>
-    <progress id="validation-progress" value="0" max="1" hidden aria-label="Test progress"></progress>
-    <ol id="validation-results" class="validation-results" hidden aria-label="Individual test results"></ol>
-    <div class="validation-dialog-footer">
-      <span>Tests use a separate worker and do not change the visualized data structure.</span>
-      <button type="button" id="validation-rerun" disabled><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Run tests again</button>
+    <div class="dialog-body">
+      <p id="validation-status" role="status" aria-live="polite">Run tests on the selected implementation.</p>
+      <progress id="validation-progress" value="0" max="1" hidden aria-label="Test progress"></progress>
+      <ol id="validation-results" class="validation-results" hidden aria-label="Individual test results"></ol>
+    </div>
+    <div class="dialog-footer">
+      <p class="dialog-note">Tests use a separate worker and do not change the visualized data structure.</p>
+      <div class="dialog-actions">
+        <button type="button" id="validation-rerun" class="dialog-primary-action" disabled><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Run tests again</button>
+      </div>
     </div>
   </dialog>
-  <dialog id="progress-dialog" class="progress-dialog" aria-labelledby="progress-title">
-    <div class="validation-dialog-heading">
+  <dialog id="progress-dialog" class="app-dialog progress-dialog" aria-labelledby="progress-title">
+    <div class="dialog-header">
       <div>
         <span class="eyebrow">CLASS OVERVIEW</span>
         <h2 id="progress-title">Class progress</h2>
       </div>
-      <button type="button" id="progress-close" class="subtle" aria-label="Close class progress"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg> Close</button>
+      <button type="button" id="progress-close" class="icon-button dialog-close" title="Close class progress" aria-label="Close class progress"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg></button>
     </div>
-    <p id="progress-status" role="status" aria-live="polite">Loading class progress…</p>
-    <div class="progress-table-wrap">
-      <table class="progress-table" aria-label="Student progress by data structure">
-        <thead id="progress-head"></thead>
-        <tbody id="progress-body"></tbody>
-      </table>
+    <div class="dialog-body">
+      <p id="progress-status" role="status" aria-live="polite">Loading class progress…</p>
+      <div class="progress-table-wrap">
+        <table class="progress-table" aria-label="Student progress by data structure">
+          <thead id="progress-head"></thead>
+          <tbody id="progress-body"></tbody>
+        </table>
+      </div>
+      <div class="progress-legend" aria-label="Progress legend">
+        <span><strong class="progress-missing">—</strong> no implementation</span>
+        <span><svg class="ui-icon progress-pending-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg> started / not fully verified</span>
+        <span><svg class="ui-icon progress-complete-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg> all checks pass</span>
+      </div>
     </div>
-    <div class="progress-legend" aria-label="Progress legend">
-      <span><strong class="progress-missing">—</strong> no implementation</span>
-      <span><svg class="ui-icon progress-pending-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg> started / not fully verified</span>
-      <span><svg class="ui-icon progress-complete-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg> all checks pass</span>
-    </div>
-    <div class="validation-dialog-footer">
-      <span>Current source revisions are checked automatically when no result is cached yet.</span>
-      <button type="button" id="progress-refresh"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Refresh</button>
+    <div class="dialog-footer">
+      <p class="dialog-note">Current source revisions are checked automatically when no result is cached yet.</p>
+      <div class="dialog-actions">
+        <button type="button" id="progress-refresh" class="dialog-primary-action"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Refresh</button>
+      </div>
     </div>
   </dialog>
   <main class="workspace">
