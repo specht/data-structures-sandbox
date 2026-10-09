@@ -655,6 +655,38 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .source-completion.selected,.source-completion:hover{background:#31517a;color:white}
 @media(max-width:600px){.source-shortcuts{font-size:10px}}
 
+/* Student print output and execution failures follow the trace position. */
+.runtime-console{flex:none;border-top:1px solid #2a3d57;background:#0d1726;color:#dce9f9}
+.console-toolbar{display:flex;align-items:center;gap:9px;min-height:36px;padding:3px 11px;background:#111d2f}
+.console-toggle{height:29px;min-height:29px;padding:0 7px;border:0;background:transparent;color:#dbe8f9;font-size:11px}
+.console-toggle:hover:not(:disabled){background:#20344f;filter:none}
+.console-toggle:focus-visible,.console-clear:focus-visible,.console-line:focus-visible{outline:2px solid #ffd080;outline-offset:1px}
+.console-chevron{width:15px;height:15px;transition:transform .14s ease}
+.runtime-console.expanded .console-chevron{transform:rotate(90deg)}
+.console-count{min-width:18px;padding:1px 5px;border:1px solid #4b6688;border-radius:999px;color:#bcd1ec;font:700 10px "0xProto Nerd Font",ui-monospace,monospace;text-align:center}
+.console-context{flex:1;min-width:0;color:#8198b6;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.console-context code{font-family:"0xProto Nerd Font",ui-monospace,monospace;color:#a8bfdd}
+.console-clear{width:28px;height:28px;min-width:28px;padding:0;border-color:transparent;background:transparent;color:#8fa6c3}
+.console-clear:hover:not(:disabled){border-color:#405a7a;background:#1c2d44;color:#fff;filter:none}
+.console-clear .ui-icon{width:16px;height:16px}
+.console-output{max-height:150px;overflow:auto;padding:7px 11px 9px;background:#09121e;font:11px/1.55 "0xProto Nerd Font",ui-monospace,monospace;scrollbar-color:#425c7c #0b1522}
+.console-output[hidden]{display:none}
+.console-entry{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;padding:3px 0;color:#cbd9ea}
+.console-entry+.console-entry{border-top:1px solid #17263a}
+.console-line{min-width:54px;padding:1px 4px;border:0;border-radius:3px;background:transparent;color:#7faeea;font:10px/1.45 "0xProto Nerd Font",ui-monospace,monospace;text-align:left}
+.console-line:hover{background:#203753;color:#b8d8ff;filter:none}
+.console-line:disabled{opacity:1;cursor:default;color:#627895}
+.console-message{min-width:0;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.console-entry.warning .console-message{color:#f2c36e}
+.console-entry.error .console-message,.console-entry.timeout .console-message{color:#ffaaa6}
+.console-stack{grid-column:2;margin:2px 0 4px;color:#91a7c2;white-space:pre-wrap;font-size:10px}
+.console-empty{padding:7px 0;color:#7187a3;font-style:italic}
+@media(prefers-reduced-motion:reduce){.console-chevron{transition:none}}
+@media(max-width:600px){
+  .console-context{display:none}
+  .console-output{max-height:125px}
+}
+
 /* Keep Class progress with the other command controls. The generic
    button.subtle rule uses margin-left:auto, which otherwise pushes this
    button into the middle of the command bar. */

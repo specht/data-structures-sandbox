@@ -50,8 +50,18 @@ The method-call box accepts only methods exposed by your selected class.
 Use Step and the arrow keys to inspect writes; Home/End jump through the
 trace when focus is outside a text editor or slider. The source display
 highlights your Dart file; the instrumented worker lives outside your student
-repository. Commit your file in the **separate** `structures/` repository when
-your implementation passes its checks.
+repository.
+
+For temporary debugging output, use ordinary Dart `print(...)` calls. Open the
+Console below the visualization to see those messages. Each message appears at
+the step where it was printed, so moving backward through the trace also hides
+messages that had not happened yet. Runtime errors and the last active source
+line of a timed-out call appear in the same Console. Select a line number there
+to jump to that source line. A failed or timed-out worker is stopped; use
+**Retry** after fixing or inspecting the problem.
+
+Commit your file in the **separate** `structures/` repository when your
+implementation passes its checks.
 
 Run `./new-structure` without arguments to see every supported choice.
 Creating a file without `--example` copies an unfinished **starter**. For a

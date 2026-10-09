@@ -150,6 +150,9 @@ const ui = {
   singleArg:$('single-argument'), argLabel:$('arg-label'), multiArgs:$('multi-arguments'),
   zoomIn:$('zoom-in'),zoomOut:$('zoom-out'),fitScene:$('fit-scene'),
   student:$('student'),structure:$('structure'),retry:$('retry'), callForm:$('call-form'),callInput:$('call-input'),returnValue:$('return-value'),stackView:$('stack-view'),
+  runtimeConsole:$('runtime-console'),consoleToggle:$('console-toggle'),
+  consoleOutput:$('console-output'),consoleCount:$('console-count'),
+  consoleContext:$('console-context'),consoleClear:$('console-clear'),
   playbackModes:[...document.querySelectorAll('[data-playback-mode]')],
 };
 const validationUI={
@@ -491,7 +494,80 @@ function showReturnValue(frame){
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
 let focusAfterCommand = false, stopped = false;
+let runtimeConsoleEntries=[],consoleExpanded=false;
 function showCompiling(compiling){ui.compileSpinner.hidden=!compiling;}
+function setConsoleExpanded(expanded){
+  consoleExpanded=expanded;
+  ui.runtimeConsole.classList.toggle('expanded',expanded);
+  ui.consoleToggle.setAttribute('aria-expanded',String(expanded));
+  ui.consoleOutput.hidden=!expanded;
+}
+function setRuntimeConsole(entries=[],error=null,{autoExpand=true,forceVisible=false}={}){
+  runtimeConsoleEntries=(Array.isArray(entries)?entries:[]).map(entry=>({
+    kind:['warning','error','timeout'].includes(entry?.kind)?entry.kind:'stdout',
+    text:String(entry?.text??''),
+    line:Number.isInteger(entry?.line)?entry.line:null,
+    traceIndex:Number.isInteger(entry?.traceIndex)?entry.traceIndex:null,
+    stack:Array.isArray(entry?.stack)?entry.stack.map(String):[],
+    forceVisible:entry?.forceVisible===true||forceVisible,
+  }));
+  if(error&&typeof error==='object'){
+    const kind=error.kind==='timeout'?'timeout':'error';
+    const where=Number.isInteger(error.line)?` at line ${error.line}`:'';
+    runtimeConsoleEntries.push({kind,
+      text:`${kind==='timeout'?'Timed out':'Runtime error'}${where}: ${error.message??'Student execution failed.'}`,
+      line:Number.isInteger(error.line)?error.line:null,
+      traceIndex:Number.isInteger(error.traceIndex)?error.traceIndex:null,
+      stack:Array.isArray(error.stack)?error.stack.map(String):[],
+      forceVisible:forceVisible,
+    });
+  }
+  if(autoExpand&&runtimeConsoleEntries.length)setConsoleExpanded(true);
+  renderRuntimeConsole();
+}
+function consoleTraceBoundary(){
+  if(stepIndex<=0||!frames.length)return -1;
+  return frames[Math.min(stepIndex,frames.length)-1]?.rawEnd??Number.MAX_SAFE_INTEGER;
+}
+function renderRuntimeConsole(){
+  const boundary=consoleTraceBoundary();
+  const visible=runtimeConsoleEntries.filter(entry=>entry.forceVisible||
+    entry.traceIndex===null||entry.traceIndex<=boundary);
+  ui.consoleOutput.replaceChildren();
+  for(const entry of visible){
+    const row=document.createElement('div');row.className=`console-entry ${entry.kind}`;
+    const location=document.createElement('button');location.type='button';location.className='console-line';
+    location.textContent=entry.line===null?'output':`line ${entry.line}`;
+    location.disabled=entry.line===null;
+    if(entry.line!==null){
+      location.title=`Show source line ${entry.line}`;
+      location.addEventListener('click',()=>window.sandboxEditor?.highlight(entry.line));
+    }
+    const message=document.createElement('p');message.className='console-message';message.textContent=entry.text;
+    row.append(location,message);
+    if(entry.stack.length){
+      const stack=document.createElement('pre');stack.className='console-stack';
+      stack.textContent=entry.stack.join('\n');row.append(stack);
+    }
+    ui.consoleOutput.append(row);
+  }
+  if(!visible.length&&consoleExpanded){
+    const empty=document.createElement('div');empty.className='console-empty';
+    empty.textContent=runtimeConsoleEntries.length?
+      'No console output at this step. Step forward to reveal it.':
+      'No output yet. Use print(...) in your Dart methods.';
+    ui.consoleOutput.append(empty);
+  }
+  ui.consoleCount.hidden=runtimeConsoleEntries.length===0;
+  ui.consoleCount.textContent=visible.length===runtimeConsoleEntries.length?
+    String(runtimeConsoleEntries.length):`${visible.length}/${runtimeConsoleEntries.length}`;
+  ui.consoleContext.textContent=runtimeConsoleEntries.length?
+    `${visible.length} of ${runtimeConsoleEntries.length} messages visible at step ${stepIndex}`:
+    'Output from print() appears here.';
+  ui.consoleClear.disabled=runtimeConsoleEntries.length===0;
+}
+ui.consoleToggle.addEventListener('click',()=>setConsoleExpanded(!consoleExpanded));
+ui.consoleClear.addEventListener('click',()=>setRuntimeConsole([],null,{autoExpand:false}));
 // These preferences are local to this browser, not to the student's repository.
 const playbackPreferencesKey='data-structure-sandbox.v1.playback';
 function loadPlaybackPreferences(){
@@ -525,6 +601,7 @@ function rememberChoice(){try{localStorage.setItem(preferenceKey,JSON.stringify(
 function selectImplementation(){
   if(!socket||socket.readyState!==WebSocket.OPEN)return;
   resetValidation('Implementation changed; previous test results are outdated.');
+  setRuntimeConsole([],null,{autoExpand:false});
   rememberChoice();
   socket.send(JSON.stringify({action:'select',student:selectedStudent,structure}));
   window.sandboxEditor?.ready();
@@ -1004,25 +1081,30 @@ function makeFrames(raw, mode='conceptual'){
     const s=raw[i];
     if(s.kind==='line'){
       pendingLine=s.line;
-      if(mode==='detailed')result.push({...s});
+      if(mode==='detailed')result.push({...s,rawEnd:i});
       continue;
     }
-    if(s.kind==='retire'&&raw[i+1]?.kind==='snapshot'){result.push({...s,kind:'retireAndSettle',snapshot:raw[++i],line:s.line??pendingLine});pendingLine=null;continue;}
+    if(s.kind==='retire'&&raw[i+1]?.kind==='snapshot'){result.push({...s,kind:'retireAndSettle',snapshot:raw[++i],line:s.line??pendingLine,rawEnd:i});pendingLine=null;continue;}
     if(s.kind==='snapshot'){
-      result.push({kind:'snapshot',snapshot:s,line:pendingLine});
+      result.push({kind:'snapshot',snapshot:s,line:pendingLine,rawEnd:i});
       pendingLine=null;
       continue;
     }
     if(s.kind==='localsClear')continue;
     if((s.kind==='pointerWrite'||s.kind==='bucketWrite'||s.kind==='cellWrite'||s.kind==='indexWrite'||s.kind==='heightWrite'||['heapWrite','heapAppend','heapRemove','heapSwap'].includes(s.kind))&&raw[i+1]?.kind==='snapshot'){
-      result.push({...s,kind:s.kind==='pointerWrite'?'writeAndSettle':s.kind==='heightWrite'?'heightAndSettle':'memoryWriteAndSettle',snapshot:raw[++i],line:s.line??pendingLine});
-    } else result.push({...s,line:s.line??pendingLine});
+      result.push({...s,kind:s.kind==='pointerWrite'?'writeAndSettle':s.kind==='heightWrite'?'heightAndSettle':'memoryWriteAndSettle',snapshot:raw[++i],line:s.line??pendingLine,rawEnd:i});
+    } else result.push({...s,line:s.line??pendingLine,rawEnd:i});
     pendingLine=null;
   }
   return result;
 }
 function instant(frame){
   if(frame.line!=null)showLine(frame.line);
+  if(frame.kind==='executionError'){
+    lastResult=`Runtime error: ${frame.message}`;ui.result.textContent=lastResult;
+    ui.operation.textContent='Execution stopped';ui.phase.textContent='RUNTIME ERROR';
+    ui.phase.classList.add('hot');ui.status.textContent=lastResult;renderAll();return;
+  }
   if(isArrayList()){instantArrayList(frame);return;}
   if(structure==='stack'){instantStack(frame);return;}
   if(structure==='array_queue'){instantQueue(frame);return;}
@@ -1059,6 +1141,11 @@ function restore(index){clearView();applySnapshot(traceInitial);
 let traceInitial=null;
 async function animate(frame){
   if(frame.line!=null)showLine(frame.line);
+  if(frame.kind==='executionError'){
+    lastResult=`Runtime error: ${frame.message}`;ui.result.textContent=lastResult;
+    ui.operation.textContent='Execution stopped';ui.phase.textContent='RUNTIME ERROR';
+    ui.phase.classList.add('hot');ui.status.textContent=lastResult;renderAll();return;
+  }
   if(isArrayList()){await animateArrayList(frame);return;}
   if(structure==='stack'){await animateStack(frame);return;}
   if(structure==='array_queue'){await animateQueue(frame);return;}
@@ -1102,6 +1189,7 @@ function sync(){
   ui.stepLabel.textContent=`Step ${stepIndex} / ${frames.length}`;
   ui.seek.max=String(frames.length);
   ui.seek.value=String(stepIndex);
+  renderRuntimeConsole();
 }
 // The logical trace position is updated immediately. A second navigation input
 // invalidates the old requestAnimationFrame tween and restores the requested
@@ -1393,6 +1481,8 @@ function acceptTrace(data){
   if(data.methods)updateMethodCatalog(data.methods);
   source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
   frames=makeFrames(rawSteps,ui.traceMode.value);
+  setRuntimeConsole(data.console??[],data.error??null,
+    {autoExpand:(data.console?.length??0)>0||data.error!=null});
   // Reframe once at the command boundary, using the final reachable state.
   // The SVG viewBox then stays unchanged throughout the entire recorded trace.
   ensureViewport(structure);
@@ -1411,11 +1501,32 @@ function acceptTrace(data){
   ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready · ${structure} · [${data.values.join(', ')}]. Use ← / →.`:
     'Ready. Choose an operation above.';
 }
+function acceptExecutionError(data){
+  showCompiling(false);focusAfterCommand=false;
+  stopPlayback();
+  const hasTrace=data.source?.lines&&Array.isArray(data.steps)&&data.steps[0]?.kind==='snapshot';
+  if(hasTrace){
+    acceptTrace(data);
+    // Errors belong to the final recorded step. Start there so the synchronized
+    // Console and source highlight show the failure immediately; rewinding will
+    // still hide it until that step is reached again.
+    jumpTo(frames.length);
+  }else{
+    setRuntimeConsole(data.console??[],data.error??null,
+      {autoExpand:true,forceVisible:true});
+    const line=Number.isInteger(data.error?.line)?data.error.line:null;
+    if(line!==null)window.sandboxEditor?.highlight(line);
+  }
+  ui.connection.textContent='Runner stopped';
+  ui.cmdStatus.textContent='Execution stopped · details are in the Console.';
+  ui.cmdStatus.classList.remove('error');
+}
 function send(payload){
   if(!socket||socket.readyState!==WebSocket.OPEN){ui.cmdStatus.textContent='Dart server is not connected.';return;}
   // Even if the user is halfway through an animation, allow another command.
   animationGeneration++;animating=false;playbackToken++;
   if(frames.length)restore(stepIndex);
+  setRuntimeConsole([],null,{autoExpand:false});
   focusAfterCommand=true;
   socket.send(JSON.stringify(payload));ui.cmdStatus.textContent='Dart is executing…';
 }
@@ -1609,6 +1720,9 @@ function connect(){
         ui.cmdStatus.textContent=data.message+' Previous trace may be out of date.';
         ui.connection.textContent=data.type==='building'&&data.recompiling===true?
           'Recompiling…':'Starting…';return;
+      }
+      if(data.type==='executionError'){
+        acceptExecutionError(data);return;
       }
       if(data.type==='error'){
         showCompiling(false);

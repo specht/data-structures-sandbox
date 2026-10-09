@@ -172,17 +172,32 @@ class BodyInstrumenter extends RecursiveAstVisitor<void> {
 
   @override
   void visitWhileStatement(WhileStatement s) {
-    instrument(s);
+    _instrumentLoop(s,s.body);
+    super.visitWhileStatement(s);
+  }
+
+  @override
+  void visitForStatement(ForStatement s) {
+    _instrumentLoop(s,s.body);
+    super.visitForStatement(s);
+  }
+
+  @override
+  void visitDoStatement(DoStatement s) {
+    _instrumentLoop(s,s.body);
+    super.visitDoStatement(s);
+  }
+
+  void _instrumentLoop(Statement loop,Statement body) {
+    instrument(loop);
     // This event occurs for every successful loop iteration, including when
-    // the original while statement is written on a single line.
-    final body = s.body;
+    // the original loop is written on a single line or has an empty body.
     if (body is Block) {
-      at(body.leftBracket.end, ' trace.atLine(${line(s.offset)}); ');
+      at(body.leftBracket.end, ' trace.atLine(${line(loop.offset)}); ');
     } else {
-      at(body.offset, '{ trace.atLine(${line(s.offset)}); ', -10);
+      at(body.offset, '{ trace.atLine(${line(loop.offset)}); ', -10);
       at(body.end, ' }', 10);
     }
-    super.visitWhileStatement(s);
   }
 
   void instrument(Statement s, {String before = '', String after = ''}) {

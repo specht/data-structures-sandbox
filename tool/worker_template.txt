@@ -9,6 +9,7 @@ import 'package:data_structure_sandbox_browser/heap_sandbox.dart' as heap_api;
 import 'package:data_structure_sandbox_browser/node_heap_sandbox.dart' as node_heap_api;
 import 'package:data_structure_sandbox_browser/hash_sandbox.dart' as hash_api;
 import 'package:data_structure_sandbox_browser/list_sandbox.dart' as list_memory_api;
+import 'package:data_structure_sandbox_browser/trace_budget.dart' as trace_runtime;
 import 'generated/@@ID@@/my_sorted_linked_list.dart' as sorted_linked_list_student;
 import 'generated/@@ID@@/sorted_linked_list_methods.dart' as sorted_linked_list_methods;
 import 'generated/@@ID@@/my_unsorted_array_list.dart' as unsorted_array_list_student;
@@ -744,6 +745,8 @@ class BrowserSession {
       final args=command['args'] as List<Object?>;
       r.begin(name,args);
       Object? result;
+      Object? executionError;
+      StackTrace? executionStack;
       try {
         switch(kind){
           case 'tree':case 'avl':case 'node_heap':tree_api.TreeRecorder.active=r as tree_api.TreeRecorder;break;
@@ -756,8 +759,27 @@ class BrowserSession {
           default:list_api.Recorder.active=r as list_api.Recorder;
         }
         result=invoke(name,args);
+      } catch (error, stack) {
+        executionError=error;
+        executionStack=stack;
       } finally {
         list_api.Recorder.active=null;tree_api.TreeRecorder.active=null;stack_api.StackRecorder.active=null;queue_api.QueueRecorder.active=null;heap_api.HeapRecorder.active=null;list_memory_api.ListRecorder.active=null;
+      }
+      if(executionError!=null){
+        final failure=runtimeFailure(executionError,executionStack!);
+        final failureIndex=failure['traceIndex'];
+        if(failureIndex is int&&failureIndex>=r.steps.length&&r.steps.isNotEmpty){
+          failure['traceIndex']=r.steps.length-1;
+        }
+        try {
+          r.steps.add({'kind':'executionError','message':failure['message'],
+            'line':failure['line']??trace_runtime.ExecutionDiagnostics.currentLine});
+        } catch (_) {
+          // A trace-budget error already filled the event log. The failure
+          // metadata still carries its last source line to the browser.
+        }
+        return {...envelope(r.steps.cast<Map<String,Object?>>()),
+          'type':'executionError','error':failure};
       }
       final actual=actualValues();
       final standard=kind=='hash' ? {'insert','remove','contains','isEmpty','loadFactor'} :
@@ -815,6 +837,34 @@ class BrowserSession {
     }
     return envelope(r.steps.cast<Map<String,Object?>>());
   }
+
+  Map<String,Object?> runtimeFailure(Object error,StackTrace stack){
+    final sourceName=paths[kind]!.replaceAll('\\','/').split('/').last;
+    int? line=trace_runtime.ExecutionDiagnostics.currentLine;
+    int? column;
+    final studentFrames=<String>[];
+    for(final frame in stack.toString().split('\n')){
+      if(!frame.contains('/$sourceName:')&&!frame.contains('\\$sourceName:'))continue;
+      final match=RegExp(r':(\d+):(\d+)\)?$').firstMatch(frame.trim());
+      if(match!=null){
+        line??=int.tryParse(match.group(1)!);
+        column??=int.tryParse(match.group(2)!);
+      }
+      if(studentFrames.length<8){
+        final function=RegExp(r'^#\d+\s+([^\s(]+)').firstMatch(frame.trim())?.group(1);
+        studentFrames.add('${function??'student code'} ($sourceName:${match?.group(1)??'?'}:${match?.group(2)??'?'})');
+      }
+    }
+    final message='$error';
+    return {
+      'kind':'runtime','message':message.length>2000?message.substring(0,2000):message,
+      if(line!=null)'line':line,
+      if(column!=null)'column':column,
+      if(trace_runtime.ExecutionDiagnostics.currentTraceIndex!=null)
+        'traceIndex':trace_runtime.ExecutionDiagnostics.currentTraceIndex,
+      if(studentFrames.isNotEmpty)'stack':studentFrames,
+    };
+  }
 }
 
 // This file is generated for exactly one selected student/structure. It is a
@@ -823,14 +873,47 @@ Future<void> main() async {
   final session = BrowserSession('@@KIND@@');
   stdout.writeln(jsonEncode({'type':'hello','trace':session.initial()}));
   await for (final line in stdin.transform(utf8.decoder).transform(const LineSplitter())) {
+    final progressClock=Stopwatch()..start();
+    var lastProgressMicros=-100000,printCount=0,printBytes=0;
+    var printTruncated=false;
+    trace_runtime.ExecutionDiagnostics.reset();
     try {
       final message=jsonDecode(line);
       if (message is! Map<String,dynamic>) throw const FormatException('Invalid request');
       if (message['action']=='ping') { stdout.writeln('{"type":"pong"}'); continue; }
-      stdout.writeln(jsonEncode(session.execute(message)));
+      if(message['_diagnostics']==true){
+        trace_runtime.ExecutionDiagnostics.onLine=(sourceLine,traceIndex){
+          final now=progressClock.elapsedMicroseconds;
+          if(now-lastProgressMicros<50000)return;
+          lastProgressMicros=now;
+          stdout.writeln(jsonEncode({'type':'executionProgress','line':sourceLine,
+            'traceIndex':traceIndex}));
+        };
+      }
+      final response=runZoned<Map<String,Object?>>(
+        ()=>session.execute(message),
+        zoneSpecification:ZoneSpecification(print:(self,parent,zone,text){
+          final encoded=utf8.encode(text);
+          if(printCount<200&&printBytes+encoded.length<=65536){
+            printCount++;printBytes+=encoded.length;
+            stdout.writeln(jsonEncode({'type':'studentOutput','kind':'stdout',
+              'text':text,'line':trace_runtime.ExecutionDiagnostics.currentLine,
+              'traceIndex':trace_runtime.ExecutionDiagnostics.currentTraceIndex}));
+          }else if(!printTruncated){
+            printTruncated=true;
+            stdout.writeln(jsonEncode({'type':'studentOutput','kind':'warning',
+              'text':'Further print output was truncated.','line':trace_runtime.ExecutionDiagnostics.currentLine,
+              'traceIndex':trace_runtime.ExecutionDiagnostics.currentTraceIndex}));
+          }
+        }),
+      );
+      stdout.writeln(jsonEncode(response));
     } catch (error, stack) {
       stderr.writeln('Student execution failed: $error\n$stack');
-      stdout.writeln(jsonEncode({'type':'error','message':'$error'}));
+      stdout.writeln(jsonEncode({'type':'error',
+        'error':session.runtimeFailure(error,stack),'message':'$error'}));
+    } finally {
+      trace_runtime.ExecutionDiagnostics.onLine=null;
     }
   }
 }

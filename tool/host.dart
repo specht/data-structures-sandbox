@@ -204,6 +204,18 @@ void saveSelection(String student,String kind){
   File('.runtime/selection.json').writeAsStringSync(jsonEncode({'student':student,'structure':kind}));
 }
 
+class StudentExecutionTimeout implements Exception {
+  final Duration limit;
+  final int? line;
+  final int? traceIndex;
+  final List<Map<String,Object?>> console;
+  const StudentExecutionTimeout(this.limit,{this.line,this.traceIndex,
+    this.console=const []});
+  String get message=>'Student code timed out after ${limit.inSeconds} seconds.';
+  @override String toString()=>line==null?message:
+    '$message Last active source line: $line.';
+}
+
 class StudentWorker {
   final Process process;
   final _responses=Queue<Completer<Map<String,dynamic>>>();
@@ -213,6 +225,9 @@ class StudentWorker {
   bool dead=false;
   late final StreamSubscription<String> _out;
   late final StreamSubscription<List<int>> _err;
+  final List<Map<String,Object?>> _console=[];
+  int? _lastLine,_lastTraceIndex;
+  bool _consoleTruncated=false;
 
   StudentWorker(this.process){
     _out=utf8.decoder.bind(process.stdout).listen((chunk){
@@ -234,8 +249,25 @@ class StudentWorker {
         }catch(_){
           // Student print() output is diagnostic, not a protocol response.
           diagnostic='${diagnostic.length>10000?diagnostic.substring(diagnostic.length-10000):diagnostic}$line\n';
+          _addConsole({'kind':'stdout','text':line,
+            if(_lastLine!=null)'line':_lastLine,
+            if(_lastTraceIndex!=null)'traceIndex':_lastTraceIndex});
           continue;
         }
+        if(message['type']=='executionProgress'){
+          if(message['line'] is int)_lastLine=message['line'] as int;
+          if(message['traceIndex'] is int)_lastTraceIndex=message['traceIndex'] as int;
+          continue;
+        }
+        if(message['type']=='studentOutput'){
+          _addConsole({'kind':message['kind']=='warning'?'warning':'stdout',
+            'text':message['text']?.toString()??'',
+            if(message['line'] is int)'line':message['line'],
+            if(message['traceIndex'] is int)'traceIndex':message['traceIndex']});
+          continue;
+        }
+        final output=_takeConsole();
+        if(output.isNotEmpty)message['console']=output;
         if(_responses.isNotEmpty){final pending=_responses.removeFirst();if(!pending.isCompleted)pending.complete(message);}
         else _backlog.add(message);
       }
@@ -249,18 +281,40 @@ class StudentWorker {
       _fail(StateError('Student worker exited with status $code. $diagnostic'));
     }));
   }
-  Future<Map<String,dynamic>> next(Duration limit) async {
+  void _addConsole(Map<String,Object?> entry){
+    if(_console.length<250){_console.add(entry);return;}
+    if(!_consoleTruncated){
+      _consoleTruncated=true;
+      _console.add({'kind':'warning','text':'Further console output was truncated.',
+        if(_lastLine!=null)'line':_lastLine,
+        if(_lastTraceIndex!=null)'traceIndex':_lastTraceIndex});
+    }
+  }
+  List<Map<String,Object?>> _takeConsole(){
+    final result=[for(final entry in _console)Map<String,Object?>.from(entry)];
+    _console.clear();_consoleTruncated=false;return result;
+  }
+  void _beginRequest(){
+    _console.clear();_consoleTruncated=false;_lastLine=null;_lastTraceIndex=null;
+  }
+  Future<Map<String,dynamic>> next(Duration limit,{bool execution=false}) async {
     if(dead)throw StateError('Student worker is not running. $diagnostic');
     if(_backlog.isNotEmpty)return _backlog.removeFirst();
     final pending=Completer<Map<String,dynamic>>();_responses.add(pending);
     try{return await pending.future.timeout(limit);}on TimeoutException {
-      kill();throw TimeoutException('Student code exceeded ${limit.inSeconds}s. Worker stopped; previous trace retained.');
+      _responses.remove(pending);
+      final output=_takeConsole(),line=_lastLine,traceIndex=_lastTraceIndex;
+      kill();
+      if(execution)throw StudentExecutionTimeout(limit,line:line,
+        traceIndex:traceIndex,console:output);
+      throw TimeoutException('Student worker did not start within ${limit.inSeconds}s.');
     }
   }
   Future<Map<String,dynamic>> request(Map<String,dynamic> message) async {
     if(dead)throw StateError('Worker is not available; choose the implementation again.');
-    final response=next(executionTimeout);
-    process.stdin.writeln(jsonEncode(message));
+    _beginRequest();
+    final response=next(executionTimeout,execution:true);
+    process.stdin.writeln(jsonEncode({...message,'_diagnostics':true}));
     await process.stdin.flush();
     return response;
   }
@@ -712,10 +766,23 @@ class Client {
     if(runner==null){error('Select a valid student implementation first.');return;}
     try{
       final result=await runner.request(message);
-      if(result['type']=='error'){
+      if(result['type']=='error'||result['type']=='executionError'){
         runner.kill();if(identical(worker,runner))worker=null;
-        send({'type':'error','message':'${result['message']} · Runner stopped; choose the implementation again to reset it.'});
+        final details=result['error'] is Map?
+          Map<String,dynamic>.from(result['error'] as Map):<String,dynamic>{
+            'kind':'runtime','message':result['message']?.toString()??'Student code failed.'};
+        send({...result,'type':'executionError','error':details,
+          'message':'${details['message']} · Runner stopped; use Retry to start a fresh instance.'});
       }else send(result);
+    }on StudentExecutionTimeout catch(e){
+      stderr.writeln('[sandbox] Student execution timed out ($student/$kind): $e');
+      runner.kill();if(identical(worker,runner))worker=null;
+      send({'type':'executionError','error':{
+        'kind':'timeout','message':e.message,
+        if(e.line!=null)'line':e.line,
+        if(e.traceIndex!=null)'traceIndex':e.traceIndex,
+      },'console':e.console,
+        'message':'${e.message} Runner stopped; use Retry to start a fresh instance.'});
     }catch(e){
       stderr.writeln('[sandbox] Student execution failed ($student/$kind):\n$e');
       runner.kill();if(identical(worker,runner))worker=null;
