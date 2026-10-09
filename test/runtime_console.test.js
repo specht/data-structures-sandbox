@@ -93,10 +93,39 @@ run(`acceptExecutionError(${JSON.stringify({
 })})`);
 assert.equal(run('stepIndex'),run('frames.length'),
   'A failed run should open at its synchronized error step.');
-assert.equal(elements.get('console-count').textContent,'1');
-assert.match(elements.get('console-output').children[0].children[1].textContent,/Runtime error at line 14/);
+assert.equal(elements.get('console-count').textContent,'2');
+assert.match(elements.get('console-output').children[0].children[1].textContent,/Timed out at line 17/,
+  'Earlier console entries must remain visible across commands.');
+assert.match(elements.get('console-output').children[1].children[1].textContent,/Runtime error at line 14/);
 assert.equal(elements.get('command-status').classList.contains('error'),false,
   'The command bar must not duplicate the detailed runtime error in red.');
 assert.equal(elements.get('command-status').textContent,'Execution stopped · details are in the Console.');
 
-console.log('PASS: print output follows trace steps; runtime failures and timeout locations use one console.');
+run(`discovered=new Map([
+  ['push',{name:'push',params:[{name:'value',type:'int'}]}],
+  ['pop',{name:'pop',params:[]}],
+  ['contains',{name:'contains',params:[{name:'value',type:'int'}]}],
+]);`);
+assert.deepEqual(
+  JSON.parse(run(`JSON.stringify(commandRequest(${JSON.stringify(
+    'push(30); push(20)\npush(10); contains(20); pop()',
+  )}))`)),
+  {action:'run',commands:[
+    {method:'push',arguments:[30]},
+    {method:'push',arguments:[20]},
+    {method:'push',arguments:[10]},
+    {method:'contains',arguments:[20]},
+    {method:'pop',arguments:[]},
+  ]},
+);
+run(`ui.callInput.value='push(30)';setSequenceMode(true);appendSequenceCall('push(20)')`);
+assert.equal(elements.get('call-input').value,'push(30); push(20)');
+assert.equal(elements.get('call-input').rows,1,'A semicolon sequence should keep the toolbar compact.');
+assert.equal(elements.get('sequence-count').textContent,'2');
+assert.equal(elements.get('call-run-label').textContent,'Run 2');
+run(`socket.readyState=WebSocket.OPEN;
+  setRuntimeConsole([{kind:'stdout',text:'session output'}]);
+  ui.reset.onclick()`);
+assert.equal(run('runtimeConsoleEntries.length'),0,'Reset must clear the Console session history.');
+
+console.log('PASS: step-synced persistent console, runtime diagnostics and command-sequence composer.');

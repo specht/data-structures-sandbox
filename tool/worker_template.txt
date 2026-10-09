@@ -173,21 +173,29 @@ class BrowserSession {
 
   List<Map<String,Object?>> plan(Map<String,dynamic> message) {
     if(message['action']!='run')throw const FormatException('Unknown command.');
+    Map<String,Object?> checkedCall(String name,List<Object?> args){
+      final params=(descriptor(name)['params'] as List).cast<Map<String,dynamic>>();
+      if(args.length!=params.length)throw const FormatException('Wrong number of arguments.');
+      return <String,Object?>{'method':name,
+        'args':[for(var i=0;i<args.length;i++)scalar(args[i],params[i]['type'] as String)]};
+    }
+    final sequence=message['commands'];
+    if(sequence is List){
+      if(sequence.isEmpty||sequence.length>maxOperations)throw const FormatException('Use 1–12 calls.');
+      return [for(final command in sequence)
+        if(command is Map&&command['method'] is String&&command['arguments'] is List)
+          checkedCall(command['method'] as String,(command['arguments'] as List).cast<Object?>())
+        else throw const FormatException('Invalid command in sequence.')];
+    }
     final name=message['method'] as String;
     final params=(descriptor(name)['params'] as List).cast<Map<String,dynamic>>();
-    final raw=message['arguments'], legacy=message['values'];
-    final List<List<Object?>> calls;
-    if(raw is List) {calls=[raw.cast<Object?>()];}
-    else if(legacy is List && params.length==1 && params.single['type']=='int'){
-      calls=legacy.map((value)=><Object?>[value]).toList();
-    }else{throw const FormatException('Supply the method arguments.');}
-    if(calls.isEmpty||calls.length>maxOperations)throw const FormatException('Use 1–12 calls.');
-    for(final args in calls){
-      if(args.length!=params.length)throw const FormatException('Wrong number of arguments.');
+    final raw=message['arguments'],legacy=message['values'];
+    if(raw is List)return [checkedCall(name,raw.cast<Object?>())];
+    if(legacy is List&&params.length==1&&params.single['type']=='int'){
+      if(legacy.isEmpty||legacy.length>maxOperations)throw const FormatException('Use 1–12 calls.');
+      return [for(final value in legacy)checkedCall(name,<Object?>[value])];
     }
-    return [for(final args in calls)<String,Object?>{
-      'method':name,'args':[for(var i=0;i<args.length;i++)scalar(args[i],params[i]['type'] as String)],
-    }];
+    throw const FormatException('Supply the method arguments.');
   }
 
   Object? invoke(String name,List<Object?> args) => switch(kind){

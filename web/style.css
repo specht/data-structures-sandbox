@@ -356,6 +356,42 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 }
 .command-line .validation-button:hover:not(:disabled){background:#234368}
 .command-line .validation-button .validation-summary{line-height:1.3}
+.call-form textarea{
+  width:clamp(240px,29vw,520px);
+  min-width:220px;
+  min-height:34px;
+  max-height:78px;
+  box-sizing:border-box;
+  resize:none;
+  overflow:auto;
+  white-space:pre;
+  border:1px solid #395377;
+  border-radius:6px;
+  background:#0e192a;
+  color:#e5f1ff;
+  padding:7px 10px;
+  font:13px/18px "0xProto Nerd Font",ui-monospace,monospace
+}
+.call-form .sequence-mode{background:#172a43;border-color:#3b587a;color:#afc4df}
+.call-form .sequence-mode.selected{
+  background:#294e78;
+  border-color:#72a8e7;
+  color:#fff;
+  box-shadow:inset 0 0 0 1px #4d82bf
+}
+.sequence-count{
+  min-width:17px;
+  padding:1px 4px;
+  border-radius:999px;
+  background:#0f2034;
+  color:#dcecff;
+  font:700 10px/1.4 "0xProto Nerd Font",ui-monospace,monospace
+}
+.sequence-count[hidden]{display:none}
+.call-form textarea:focus-visible,.call-form .sequence-mode:focus-visible{
+  outline:2px solid #ffd080;
+  outline-offset:2px
+}
 .command-status{
   margin-left:auto;flex:1 1 175px;max-width:min(38vw,480px);
   text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -385,6 +421,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 @media(max-width:800px){
   .command-line .call-form{flex:1 1 100%;flex-wrap:wrap}
   .command-line .call-form input{flex:1 1 150px;width:auto;max-width:none;min-width:0}
+  .command-line .call-form textarea{flex:1 1 260px;width:auto;max-width:none;min-width:180px}
   .command-line .validation-button{margin-left:0}
   .command-status{flex:1 1 100%;max-width:none;text-align:left}
   .suggestion-rows{max-height:125px}

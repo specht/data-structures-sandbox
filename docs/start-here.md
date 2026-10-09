@@ -46,7 +46,11 @@ You write the logic, **not** the drawing code. `top == -1` means empty, and
    values too. Check that the ninth push returns `false` without changing the
    stored values or the highlighted top position.
 
-The method-call box accepts only methods exposed by your selected class.
+The method-call box accepts only methods exposed by your selected class. To
+reproduce a longer scenario, separate up to twelve calls with semicolons or new
+lines, for example `insert(30); insert(20); insert(10)`. Select **Sequence** to
+make the suggestion buttons add calls to the box, then run the entire list with
+the Run button or Ctrl/Cmd+Enter.
 Use Step and the arrow keys to inspect writes; Home/End jump through the
 trace when focus is outside a text editor or slider. The source display
 highlights your Dart file; the instrumented worker lives outside your student
@@ -57,8 +61,10 @@ Console below the visualization to see those messages. Each message appears at
 the step where it was printed, so moving backward through the trace also hides
 messages that had not happened yet. Runtime errors and the last active source
 line of a timed-out call appear in the same Console. Select a line number there
-to jump to that source line. A failed or timed-out worker is stopped; use
-**Retry** after fixing or inspecting the problem.
+to jump to that source line. Console output is retained between calls and is
+cleared when you select **Reset** (or explicitly use the Console's clear
+button). A failed or timed-out worker is stopped; use **Retry** after fixing or
+inspecting the problem.
 
 Commit your file in the **separate** `structures/` repository when your
 implementation passes its checks.

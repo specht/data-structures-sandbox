@@ -150,6 +150,7 @@ const ui = {
   singleArg:$('single-argument'), argLabel:$('arg-label'), multiArgs:$('multi-arguments'),
   zoomIn:$('zoom-in'),zoomOut:$('zoom-out'),fitScene:$('fit-scene'),
   student:$('student'),structure:$('structure'),retry:$('retry'), callForm:$('call-form'),callInput:$('call-input'),returnValue:$('return-value'),stackView:$('stack-view'),
+  sequenceMode:$('sequence-mode'),sequenceCount:$('sequence-count'),callRunLabel:$('call-run-label'),
   runtimeConsole:$('runtime-console'),consoleToggle:$('console-toggle'),
   consoleOutput:$('console-output'),consoleCount:$('console-count'),
   consoleContext:$('console-context'),consoleClear:$('console-clear'),
@@ -538,8 +539,9 @@ function setConsoleExpanded(expanded){
   ui.consoleToggle.setAttribute('aria-expanded',String(expanded));
   ui.consoleOutput.hidden=!expanded;
 }
-function setRuntimeConsole(entries=[],error=null,{autoExpand=true,forceVisible=false}={}){
-  runtimeConsoleEntries=(Array.isArray(entries)?entries:[]).map(entry=>({
+function setRuntimeConsole(entries=[],error=null,{autoExpand=true,forceVisible=false,append=false}={}){
+  const retained=append?runtimeConsoleEntries.map(entry=>({...entry,forceVisible:true})):[];
+  const incoming=(Array.isArray(entries)?entries:[]).map(entry=>({
     kind:['warning','error','timeout'].includes(entry?.kind)?entry.kind:'stdout',
     text:String(entry?.text??''),
     line:Number.isInteger(entry?.line)?entry.line:null,
@@ -547,6 +549,7 @@ function setRuntimeConsole(entries=[],error=null,{autoExpand=true,forceVisible=f
     stack:Array.isArray(entry?.stack)?entry.stack.map(String):[],
     forceVisible:entry?.forceVisible===true||forceVisible,
   }));
+  runtimeConsoleEntries=[...retained,...incoming];
   if(error&&typeof error==='object'){
     const kind=error.kind==='timeout'?'timeout':'error';
     const where=Number.isInteger(error.line)?` at line ${error.line}`:'';
@@ -637,7 +640,6 @@ function rememberChoice(){try{localStorage.setItem(preferenceKey,JSON.stringify(
 function selectImplementation(){
   if(!socket||socket.readyState!==WebSocket.OPEN)return;
   resetValidation('Implementation changed; previous test results are outdated.');
-  setRuntimeConsole([],null,{autoExpand:false});
   refreshProgressHighlights();
   rememberChoice();
   socket.send(JSON.stringify({action:'select',student:selectedStudent,structure}));
@@ -1420,6 +1422,7 @@ document.addEventListener('keydown',event=>{
 // Method signatures are supplied by the Dart AST-based generator; no method
 // names or argument counts are hardcoded in the browser.
 let discovered = new Map();
+let sequenceMode=false;
 function selectedDescriptor(){return discovered.get(ui.method.value)??null;}
 function renderArguments(){
   const descriptor=selectedDescriptor();if(!descriptor)return;
@@ -1443,7 +1446,11 @@ function renderArguments(){
 }
 function updateMethodCatalog(catalog){
   if(!Array.isArray(catalog))return;
-  const typedName=/^\s*([A-Za-z_]\w*)\s*\(/.exec(ui.callInput.value)?.[1]??null;
+  let typedNames=[];
+  try{
+    typedNames=splitCommandText(ui.callInput.value).map(call=>
+      /^\s*([A-Za-z_]\w*)\s*\(/.exec(call)?.[1]??null);
+  }catch(_){ }
   const selected=ui.method.value;
   discovered=new Map(catalog.map(m=>[m.name,m]));
   ui.method.replaceChildren();
@@ -1455,13 +1462,14 @@ function updateMethodCatalog(catalog){
   ui.method.value=discovered.has(selected)?selected:(catalog[0]?.name??'');
   // New structure/student may not have the previously displayed method.
   // Preserve a custom call only if the chosen implementation exposes it.
-  if(!typedName||!discovered.has(typedName)){
+  if(!typedNames.length||typedNames.some(name=>!name||!discovered.has(name))){
     const preferred=catalog.find(m=>['push','enqueue','insert','addVertex','contains'].includes(m.name))??catalog[0];
     const example=preferred?.params?.map(p=>p.type==='String'?'"hello"':
       p.type==='bool'?'true':p.type==='double'?'1.5':'25')??[];
     ui.callInput.value=preferred?`${preferred.name}(${example.join(', ')})`:'';
     ui.callInput.placeholder=preferred?'Enter a Dart method call':'No callable methods available';
   }
+  updateCommandComposer();
   ui.invoke.disabled=!catalog.length;renderArguments();
   renderSuggestions();
 }
@@ -1519,7 +1527,7 @@ function acceptTrace(data){
   source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
   frames=makeFrames(rawSteps,ui.traceMode.value);
   setRuntimeConsole(data.console??[],data.error??null,
-    {autoExpand:(data.console?.length??0)>0||data.error!=null});
+    {autoExpand:(data.console?.length??0)>0||data.error!=null,append:true});
   // Reframe once at the command boundary, using the final reachable state.
   // The SVG viewBox then stays unchanged throughout the entire recorded trace.
   ensureViewport(structure);
@@ -1550,7 +1558,7 @@ function acceptExecutionError(data){
     jumpTo(frames.length);
   }else{
     setRuntimeConsole(data.console??[],data.error??null,
-      {autoExpand:true,forceVisible:true});
+      {autoExpand:true,forceVisible:true,append:true});
     const line=Number.isInteger(data.error?.line)?data.error.line:null;
     if(line!==null)window.sandboxEditor?.highlight(line);
   }
@@ -1563,7 +1571,6 @@ function send(payload){
   // Even if the user is halfway through an animation, allow another command.
   animationGeneration++;animating=false;playbackToken++;
   if(frames.length)restore(stepIndex);
-  setRuntimeConsole([],null,{autoExpand:false});
   focusAfterCommand=true;
   socket.send(JSON.stringify(payload));ui.cmdStatus.textContent='Dart is executing…';
 }
@@ -1705,7 +1712,10 @@ function renderSuggestions(){
       button.dataset.scenario=suggestion.hint;
       // Batch size is not the data-structure capacity. Keep suggestions usable
       // after 12 (or more) successful insertions into a persistent worker.
-      button.addEventListener('click',()=>send({action:'run',method:method.name,arguments:suggestion.args}));
+      button.addEventListener('click',()=>{
+        if(sequenceMode){appendSequenceCall(callLabel(method,suggestion.args));return;}
+        send({action:'run',method:method.name,arguments:suggestion.args});
+      });
       group.append(button);
     }
     if(!group.children.length){const empty=document.createElement('span');empty.className='suggestions-empty';empty.textContent='Use the custom argument form for this signature.';group.append(empty);}
@@ -1713,7 +1723,10 @@ function renderSuggestions(){
   }
 }
 
-ui.reset.addEventListener('click',()=>send({action:'reset'}));
+ui.reset.addEventListener('click',()=>{
+  setRuntimeConsole([],null,{autoExpand:false});
+  send({action:'reset'});
+});
 // The browser connection is not the Dart process. Workspace proxies may close
 // idle WebSockets even while Dart keeps listening. Reconnect without discarding
 // the student's saved list, trace, or current playback position.
@@ -2433,7 +2446,84 @@ function commandParts(text){
   });
   return {action:'run',method:match[1],arguments:arguments_};
 }
+function splitCommandText(text){
+  const calls=[];
+  let start=0,depth=0,quote=null,escaped=false;
+  const flush=end=>{
+    const call=text.slice(start,end).trim();
+    if(call)calls.push(call);
+    start=end+1;
+  };
+  for(let i=0;i<text.length;i++){
+    const char=text[i];
+    if(quote){
+      if(escaped){escaped=false;continue;}
+      if(char==='\\'){escaped=true;continue;}
+      if(char===quote)quote=null;
+      continue;
+    }
+    if(char==='"'||char==="'"){quote=char;continue;}
+    if(char==='('){depth++;continue;}
+    if(char===')'){depth--;if(depth<0)throw Error('Unexpected closing parenthesis.');continue;}
+    if(depth===0&&(char===';'||char==='\n'))flush(i);
+  }
+  if(quote)throw Error('Close the quoted string in the command list.');
+  if(depth!==0)throw Error('Close every method-call parenthesis.');
+  const tail=text.slice(start).trim();
+  if(tail)calls.push(tail);
+  return calls;
+}
+function commandRequest(text){
+  const calls=splitCommandText(text);
+  if(!calls.length)throw Error('Enter at least one method call.');
+  if(calls.length>12)throw Error('Use at most 12 calls in one sequence.');
+  const parsed=calls.map((call,index)=>{
+    try{return commandParts(call);}catch(error){throw Error(`Call ${index+1}: ${error.message}`);}
+  });
+  if(parsed.length===1)return parsed[0];
+  return {action:'run',commands:parsed.map(call=>({
+    method:call.method,arguments:call.arguments,
+  }))};
+}
+function updateCommandComposer(){
+  let count=1;
+  try{count=Math.max(1,splitCommandText(ui.callInput.value).length);}catch(_){
+    count=Math.max(1,ui.callInput.value.split(/[;\n]/).filter(Boolean).length);
+  }
+  const lines=Math.max(1,ui.callInput.value.split('\n').length);
+  ui.callInput.rows=Math.min(3,lines);
+  ui.callForm.classList.toggle('has-multiline',lines>1);
+  ui.sequenceCount.hidden=count<2;
+  ui.sequenceCount.textContent=String(count);
+  ui.callRunLabel.textContent=count>1?`Run ${count}`:'Run';
+}
+function setSequenceMode(enabled){
+  sequenceMode=enabled;
+  ui.sequenceMode.classList.toggle('selected',enabled);
+  ui.sequenceMode.setAttribute('aria-pressed',String(enabled));
+  ui.sequenceMode.title=enabled?
+    'Suggestion buttons now add calls to the sequence':'Build a sequence by choosing method suggestions';
+}
+function appendSequenceCall(call){
+  try{
+    const current=ui.callInput.value.trim();
+    if(current&&splitCommandText(current).length>=12)throw Error('Use at most 12 calls in one sequence.');
+    ui.callInput.value=current?`${current.replace(/;\s*$/,'')}; ${call}`:call;
+    updateCommandComposer();
+    ui.callInput.focus();
+  }catch(error){
+    ui.cmdStatus.textContent=error.message;ui.cmdStatus.classList.add('error');
+  }
+}
+ui.sequenceMode.addEventListener('click',()=>setSequenceMode(!sequenceMode));
+ui.callInput.addEventListener('input',updateCommandComposer);
+ui.callInput.addEventListener('keydown',event=>{
+  if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){
+    event.preventDefault();ui.callForm.requestSubmit();
+  }
+});
+updateCommandComposer();
 ui.callForm.addEventListener('submit',event=>{
   event.preventDefault();
-  try{send(commandParts(ui.callInput.value));}catch(error){ui.cmdStatus.textContent=error.message;ui.cmdStatus.classList.add('error');}
+  try{send(commandRequest(ui.callInput.value));}catch(error){ui.cmdStatus.textContent=error.message;ui.cmdStatus.classList.add('error');}
 });
