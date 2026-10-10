@@ -7,7 +7,7 @@ if ! command -v dart >/dev/null 2>&1; then echo 'Dart SDK is required in PATH.' 
 if [[ ! -f .dart_tool/package_config.json || pubspec.yaml -nt .dart_tool/package_config.json || ( -f pubspec.lock && pubspec.lock -nt .dart_tool/package_config.json ) ]]; then
   dart pub get
 fi
-# Generated workers are content-addressed and intentionally survive restarts.
-# To reclaim space manually, stop ./run and remove tool/generated/ and
-# tool/generated_worker_*; they will be regenerated on demand.
+# Old content-addressed workers are pruned automatically when the host starts.
+# To remove stale caches without starting the host, stop ./run and execute:
+# dart run tool/cache_cleanup.dart
 exec dart run tool/host.dart "$@"

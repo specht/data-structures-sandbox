@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'source_editor.dart';
 import 'prepare.dart';
+import 'cache_cleanup.dart';
 import 'instrument_client.dart';
 import 'registry.dart';
 import 'student_validation.dart';
@@ -809,6 +810,13 @@ Future<void> main(List<String> args) async {
       case '--students':if(i+1>=args.length)throw FormatException('Missing --students path');repoPath=args[++i];break;
       default:throw FormatException('Usage: ./run [--port PORT] [--no-open] [--students PATH]');
     }
+  }
+  // No student workers have started yet; leave young/in-progress builds alone.
+  final cleaned=pruneWorkerCache();
+  if(cleaned.revisionsRemoved>0){
+    stdout.writeln('[cache] Removed ${cleaned.revisionsRemoved} stale worker '
+      'revisions (${cleaned.kernelsRemoved} kernels, '
+      '${(cleaned.bytesRemoved/(1024*1024)).toStringAsFixed(1)} MiB).');
   }
   warmInstrumenter();
   // Missing class repository is an intentional empty first-run state.

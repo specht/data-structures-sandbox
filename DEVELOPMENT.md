@@ -5,6 +5,14 @@ Dart HTTP/WebSocket host serves the JavaScript/SVG frontend and selects an
 implementation from the **separate** `structures/` student Git repository.
 The original student source is displayed and edited in the browser; generated
 instrumented copies and compiled workers live under ignored `tool/generated*`.
+At startup the host prunes old content-addressed workers, keeping the newest
+**two completed revisions per student/structure**. Revisions written in the
+last ten minutes are protected, as are incomplete builds from that interval.
+The cleanup removes each retired `.dill` together with its generated `.dart`
+and instrumented metadata. It runs **only at startup**, not while students'
+workers are running. To prune without launching the web app, stop `./run` and
+run `dart run tool/cache_cleanup.dart`. Removing a cache never alters student
+sources: if an older revision is selected again, it will simply be recompiled.
 A fresh `./run` does **not** create `structures/` or a demo student. Create the
 student repository separately. No student file is replaced by a template.
 
