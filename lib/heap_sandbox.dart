@@ -71,7 +71,7 @@ class HeapRecorder {
   void swap(int a, int b, int oldA, int oldB) => change('heapSwap',
     {'a':a,'b':b,'oldA':oldA,'oldB':oldB});
   Map<String,Object?> snapshot() {
-    final cells = memory?.call()?.copy() ?? <int>[];
+    final cells = memory?.call().copy() ?? <int>[];
     return {'kind':'snapshot','cells':cells,'size':cells.length,
       'heapOrder':heapOrderValid(cells)};
   }

@@ -86,6 +86,23 @@ void main(){
     if(customAudit['placement']!=true || customAudit['sizeOk']!=true){
       throw StateError('Audit rejected an alternative student hash: $customAudit');
     }
+    // In the browser the student's hash method is instrumented and starts
+    // with `final trace = Recorder.active!;`. The audit must keep a (silent)
+    // recorder active, or every placement looks wrong.
+    final instrumented=HashBuckets(4,(key,capacity){
+      final trace=Recorder.active!;
+      trace.atLine(1);
+      return key%capacity;
+    });
+    instrumented[1]=ListNode(5);
+    final eventsBefore=record.steps.length;
+    final instrumentedAudit=auditHash(instrumented,1);
+    if(instrumentedAudit['placement']!=true){
+      throw StateError('Audit could not call an instrumented hash: $instrumentedAudit');
+    }
+    if(!identical(Recorder.active,record) || record.steps.length!=eventsBefore){
+      throw StateError('The audit must not record events or replace the active recorder');
+    }
     final outOfRange=HashBuckets(3,(key,capacity)=>capacity);
     try {
       outOfRange.indexFor(5);

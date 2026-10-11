@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'sandbox.dart';
 
 // The student chooses the bucket count AND the hash function. The sandbox
@@ -73,7 +75,7 @@ class HashRecorder extends Recorder {
     // A bucket is an owning reference. Do not retire nodes that are reachable
     // from another bucket; only nodes detached from ALL buckets may disappear.
     final alive=<int>{};
-    for (final start in memory?.call()?.heads ?? <ListNode?>[]) {
+    for (final start in memory?.call().heads ?? <ListNode?>[]) {
       var cursor=start;
       while(cursor!=null && alive.add(cursor.id)) cursor=cursor.next;
     }
@@ -92,9 +94,11 @@ class HashRecorder extends Recorder {
 // Independently audit physical placement using the STUDENT'S hash function.
 // A valid alternative hash algorithm or bucket count must not fail the audit.
 // Temporarily disable recording: an invariant check is NOT a student traversal.
+// The student's hash method is instrumented like every other method and
+// expects an active recorder, so a silent one stands in during the audit.
 Map<String,Object?> auditHash(HashBuckets buckets, int size) {
   final previous=Recorder.active;
-  Recorder.active=null;
+  Recorder.active=_SilentRecorder();
   try {
     final seen=<int>{},keys=<int>{},values=<int>[];
     var acyclic=true, placement=true, unique=true;
@@ -121,4 +125,25 @@ Map<String,Object?> auditHash(HashBuckets buckets, int size) {
       'sizeOk':size==values.length,'size':size,'capacity':buckets.length,
       'loadFactor':size/buckets.length,'lengths':lengths,'values':values};
   } finally { Recorder.active=previous; }
+}
+
+/// Accepts the instrumented calls of student code and records nothing.
+class _SilentRecorder extends Recorder {
+  _SilentRecorder() : super(const []);
+  static final _discarded = _DiscardedEvents();
+  @override
+  List<Map<String, Object?>> get steps => _discarded;
+}
+
+class _DiscardedEvents extends ListBase<Map<String, Object?>> {
+  @override
+  int get length => 0;
+  @override
+  set length(int value) {}
+  @override
+  Map<String, Object?> operator [](int index) => throw RangeError.index(index, this);
+  @override
+  void operator []=(int index, Map<String, Object?> value) {}
+  @override
+  void add(Map<String, Object?> element) {}
 }
