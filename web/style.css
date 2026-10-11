@@ -7,12 +7,9 @@ body { background:linear-gradient(#10131bc4,#10131bc4),url('/background.jpg') ce
 .shell { margin:auto; min-height:100vh; display:flex; flex-direction:column; padding:0 23px; }
 .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border); }
 .brand { display:flex; align-items:center; }
-.brand-icon { display:grid; place-items:center; width:38px; height:38px; border:1px solid #638ac6; border-radius:12px; background:#1a2e4c; color:#acd4ff; font-size:25px; }
-.brand div { display:flex; flex-direction:column; gap:4px; }
-.brand strong { font-size:14px; letter-spacing:.11em; }
-.brand div>span { color:var(--muted); font-size:12px; }
+.brand strong { font-size:12.5px; letter-spacing:.12em; }
 .topright { display:flex; align-items:center; }
-.pill,.lang-chip,.phase { font-size:10px; font-weight:750; letter-spacing:.08em; border-radius:7px; padding:7px 10px; white-space:nowrap; }
+.lang-chip,.phase { font-size:10px; font-weight:750; letter-spacing:.08em; border-radius:7px; padding:7px 10px; white-space:nowrap; }
 .demo { background:#322b1c; color:#e7c68b; border:1px solid #68502a; }
 .connection { font-size:12px; color:#a4bbd7; }
 .workspace { flex:1; min-height:0; display:grid; padding:18px 0; }
@@ -20,7 +17,6 @@ body { background:linear-gradient(#10131bc4,#10131bc4),url('/background.jpg') ce
 .code-panel { display:flex; flex-direction:column; }
 .section-heading { display:flex; align-items:center; justify-content:space-between; padding:20px 19px 16px; border-bottom:1px solid var(--border); }
 .section-heading>div { display:flex; flex-direction:column; gap:6px; min-width:0; }
-.eyebrow { color:#7e9cbf; font-size:10px; font-weight:750; letter-spacing:.12em; }
 .section-heading strong { font-size:14px; font-weight:630; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lang-chip { background:#19365b; color:#a6cdff; }
 .code-scroll { flex:1; background:#0c1422; overflow:auto; padding:20px 0; scrollbar-color:#405677 transparent; scrollbar-gutter:stable; }
@@ -32,8 +28,6 @@ body { background:linear-gradient(#10131bc4,#10131bc4),url('/background.jpg') ce
 .line-number { padding:0 14px 0 16px; color:#58708f; text-align:right; user-select:none; border-left:3px solid transparent; width:42px; }
 .line-text { padding:0 22px 0 3px; }
 .syntax-keyword { color:#cbabff; } .syntax-type { color:#8cd8ef; } .syntax-string { color:#b6d992; } .syntax-number { color:#f2b98a; } .syntax-comment { color:#748baa; }
-.code-footer { display:flex; gap:8px; align-items:center; color:var(--muted); border-top:1px solid var(--border); min-height:47px; padding:0 18px; font-size:11px; }
-.key-dot { width:8px; height:8px; background:#ffc66b; border-radius:50%; flex:0 0 auto; }
 .visual-panel { display:flex; flex-direction:column; }
 .operation-banner { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); }
 .operation-banner p { font-size:12px; color:var(--muted); margin:0; line-height:1.5; }
@@ -41,7 +35,6 @@ body { background:linear-gradient(#10131bc4,#10131bc4),url('/background.jpg') ce
 .phase.hot { background:#49331b; color:#ffd08c; border-color:#866136; }
 .scene-wrap { flex:1; min-height:365px; position:relative; display:flex; flex-direction:column; background:rgba(11,18,29,.7); }
 .scene-top { display:flex; color:#7d99bb; }
-.scene-title { font-size:10px; letter-spacing:.12em; font-weight:750; }
 .legend-amber,.legend-blue { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--gold); margin-left:8px; }
 .legend-blue { background:var(--blue); }
 #scene { width:100%; flex:1; display:block; overflow:hidden; cursor:grab; touch-action:none; min-height:340px; }
@@ -75,16 +68,14 @@ button:disabled { opacity:.5; cursor:not-allowed; }
 button:not(:disabled):hover,select:hover { border-color:#8fbffb; filter:brightness(1.12); }
 .controls label { color:#90a9ca; font-size:12px; }
 .control-spacer { flex:1; }
-.footnote { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; border-top:1px solid var(--border); padding:13px 0 18px; font-size:11px; color:#7892b4; }
 kbd { padding:3px 5px; background:#1d2c42; border:1px solid #3b506d; border-radius:4px; font:10px var(--mono); }
 @media(max-width:940px){.code-panel,.visual-panel{min-height:0}.scene-wrap{min-height:380px}.visual-panel{min-height:610px}
   .code-scroll{scrollbar-gutter:auto}}
-@media(max-width:560px){.shell{padding:0 9px}.brand strong{font-size:11px}.brand div>span{font-size:10px}.connection{max-width:90px;font-size:10px}.footnote{font-size:10px}.timeline{padding:13px}.scene-status{font-size:11px}}
+@media(max-width:560px){.shell{padding:0 9px}.brand strong{font-size:11px}.connection{max-width:90px;font-size:10px}.timeline{padding:13px}.scene-status{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.progress{transition:none}}
 /* v0.4: interactive commands, named reference variables and manual playback */
 .shell { max-width: 1800px; }
 .topbar { min-height: 68px; }
-.live { background:#173a31; color:#b2e7c3; border:1px solid #346752; }
 .commands { border:1px solid var(--border); background:#121e30; display:flex; flex-direction:column; }
 .invoke,.presets { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
 .invoke label,.presets>span { color:#93adcc; font-size:12px; }
@@ -190,19 +181,16 @@ button.subtle { margin-left:auto; background:#262c3d; }
  html,body{height:100%;overflow:hidden}
  .shell{height:100dvh;min-height:0;padding:0 14px}
  .topbar{min-height:47px;max-height:47px}
- .brand-icon{width:30px;height:30px;font-size:20px}.brand strong{font-size:12px}
- .brand div>span{font-size:10px}.brand div{gap:1px}
  .workspace{flex:1;min-height:0;padding:8px 0}
  .code-panel,.visual-panel{min-height:0;height:100%;border-radius:11px}
  .section-heading{padding:9px 12px 8px}.section-heading>div{gap:2px}
  .code-scroll{flex:1;min-height:0;max-height:none;padding:6px 0}
- .source{font-size:12px;line-height:1.45}.code-footer{min-height:24px;padding:0 11px;font-size:10px}
+ .source{font-size:12px;line-height:1.45}
  .scene-wrap{flex:1;min-height:0}
  #scene{flex:1;min-height:0;overflow:hidden}
  .timeline{padding:6px 12px 8px}.seek{height:14px;margin:3px 0 6px}.controls button,.controls select{font-size:11px;min-width:0}
  .controls label{font-size:10px}.timeline-labels{font-size:10px}
  .scene-status{bottom:5px;left:10px;font-size:10px}
- .footnote{display:none}
   .playback-modes button{font-size:11px}
 }
 @media(max-height:720px) and (min-width:1100px){.suggestion-rows{overflow:auto}.commands{padding:5px 8px}}
@@ -325,7 +313,6 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 
 /* v1.3: coherent control bar, larger readable source and restrained chrome. */
 .topright{gap:10px}
-.topright .live{display:none} /* The connection status already says Dart connected. */
 .connection{white-space:nowrap}
 .command-line{gap:7px 9px}
 .command-line .call-form input,
@@ -415,7 +402,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 #source-textarea{width:100%;min-width:0;min-height:0;flex:1;resize:none;tab-size:2;
   border:0;border-radius:0;outline-offset:-2px;padding:12px;color:#e8f0ff;
   background:transparent;font:inherit;line-height:1.55;white-space:pre;overflow:auto}
-#source-edit-status{margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9bc7ee}
+#source-edit-status{margin-left:auto;flex:0 1 auto!important;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9bc7ee}
 #source-edit-status.source-edit-error{color:#ffbdad}
 @media(max-width:600px){.source-actions{gap:4px}.source-actions button{padding:0 7px}
   .code-panel .source-actions button{padding:0 7px}}
@@ -466,7 +453,6 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 @media(max-width:600px){.command-line button .ui-icon,.source-actions button .ui-icon{width:14px;height:14px}}
 
 /* UI refinement: compact headers, coherent controls and consistent ink. */
-.code-panel .section-heading .eyebrow,.operation-banner .eyebrow,
 .operation-banner #description,.operation-banner #phase{display:none!important}
 .code-panel .section-heading{min-height:56px;display:grid;
   grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
@@ -481,7 +467,6 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 #return-value{color:#a8c9f7;gap:5px;font-size:16px}
 #return-value .return-arrow{color:#80adf1;width:17px;height:17px}
 .scene-top{align-items:center;justify-content:flex-start;gap:12px;padding:10px 15px 0}
-.scene-title{white-space:nowrap;flex:none}
 .scene-hint{margin:0;display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#9db3d1}
 .scene-hint .legend-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .scene-zoom{margin-left:auto;display:inline-flex;align-items:center;gap:2px;
