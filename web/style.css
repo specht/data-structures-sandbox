@@ -833,3 +833,6 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 ::-webkit-scrollbar-thumb{background:#3d679f;border:2px solid transparent;border-radius:8px;background-clip:padding-box}
 ::-webkit-scrollbar-thumb:hover{background:#5a8dd3;background-clip:padding-box}
 .CodeMirror-scrollbar-filler,.CodeMirror-gutter-filler{background:transparent!important}
+/* The theme switch: a square icon button as tall as Retry next to it. */
+.topright .theme-toggle{width:30px;height:30px;min-width:30px;padding:0;flex:none}
+.topright .theme-toggle .ui-icon{width:16px;height:16px}
