@@ -119,8 +119,9 @@ function renderSuggestions(){
       button.dataset.scenario=suggestion.hint;
       // Batch size is not the data-structure capacity. Keep suggestions usable
       // after 12 (or more) successful insertions into a persistent worker.
-      button.addEventListener('click',()=>{
-        if(sequenceMode){appendSequenceCall(callLabel(method,suggestion.args));return;}
+      button.addEventListener('click',event=>{
+        // Collect mode or Shift+click: add the call to the field instead.
+        if(sequenceMode||event?.shiftKey){appendSequenceCall(callLabel(method,suggestion.args));return;}
         send({action:'run',method:method.name,arguments:suggestion.args});
       });
       group.append(button);

@@ -30,7 +30,13 @@ run(`structure='hash';ensureViewport(structure);hashState=hashSnapshot(${JSON.st
 const pane=elements.get('stack-view');
 assert.equal(pane.querySelectorAll('.hash-bucket').length,8);
 assert.equal(pane.querySelectorAll('.hash-node').length,3);
-assert.equal(pane.querySelectorAll('.hash-edge').length,3);
+const links=pane.querySelectorAll('.hash-link');
+assert.equal(links.length,3,'Bucket and next pointers are arrows');
+// Each arrow aims at the centre of the next node and stops on its outline.
+const tips=links.map(link=>link.querySelector('.arrow-tip').getAttribute('points').split(' ')[0].split(',').map(Number));
+const bucketX=run('SCENE_WIDTH/2+(7-(8-1)/2)*126');
+assert.deepEqual(tips.map(([x])=>x),[bucketX,bucketX,bucketX]);
+assert.deepEqual(tips.map(([,y])=>y),[192,304,416]);
 assert.equal(run('hashChains(hashState).chains[7].length'),3);
 run(`instantHash({kind:'bucketRead',index:7,to:3});`);
 assert.equal(run('hashHotBucket'),7);

@@ -12,10 +12,10 @@ import 'dart:io';
 import '../trace_budget.dart' as trace_runtime;
 import 'adapter.dart';
 
-// Batching is bounded for trace readability; a structure is not capped at 12
-// nodes. A runaway program is still bounded by the event log, the host
-// deadline and the WebSocket message-size limit.
-const maxOperations = 12, maxValue = 999;
+// One run is bounded for trace readability; a structure is not capped at 20
+// nodes (students build larger ones over several runs). A runaway program is
+// still bounded by the event log, the host deadline and the message size.
+const maxOperations = 20, maxValue = 999;
 
 class BrowserSession {
   BrowserSession(this.adapter, {required this.sourcePath, required this.generatedFile}) {
@@ -82,7 +82,7 @@ class BrowserSession {
     final sequence = message['commands'];
     if (sequence is List) {
       if (sequence.isEmpty || sequence.length > maxOperations) {
-        throw const FormatException('Use 1–12 calls.');
+        throw const FormatException('Use 1–$maxOperations calls.');
       }
       return [
         for (final command in sequence)
@@ -98,7 +98,7 @@ class BrowserSession {
     if (raw is List) return [checkedCall(name, raw.cast<Object?>())];
     if (legacy is List && params.length == 1 && params.single['type'] == 'int') {
       if (legacy.isEmpty || legacy.length > maxOperations) {
-        throw const FormatException('Use 1–12 calls.');
+        throw const FormatException('Use 1–$maxOperations calls.');
       }
       return [for (final value in legacy) checkedCall(name, <Object?>[value])];
     }
@@ -191,9 +191,15 @@ class BrowserSession {
     }
     if (message['action'] == 'validateCall') return validateCall(message);
     final commands = plan(message);
+    // "Repeat" in the browser: the calls describe a scenario that always
+    // starts from an empty structure. Reset only after the request is valid.
+    final fromEmpty = message['reset'] == true;
+    if (fromEmpty) adapter.reset();
     final r = adapter.createRecorder(lines);
     r.steps.add(r.snapshot());
+    var completed = 0, stoppedEarly = false;
     for (final command in commands) {
+      completed++;
       final name = command['method'] as String;
       final args = command['args'] as List<Object?>;
       r.begin(name, args);
@@ -250,9 +256,18 @@ class BrowserSession {
               : 'not automatically verified';
       final message = '$label ${returnsVoid ? 'completed' : '⇒ $result'} · $verdict';
       r.end(result, ok, returnedVoid: returnsVoid, message: message);
-      if (!ok) break;
+      if (!ok) {
+        stoppedEarly = completed < commands.length;
+        break;
+      }
     }
-    return envelope(r.steps.cast<Map<String, Object?>>());
+    return {
+      ...envelope(r.steps.cast<Map<String, Object?>>()),
+      'calls': {
+        'planned': commands.length, 'completed': completed,
+        'stoppedEarly': stoppedEarly, 'fromEmpty': fromEmpty,
+      },
+    };
   }
 
   Map<String, Object?> runtimeFailure(Object error, StackTrace stack) {

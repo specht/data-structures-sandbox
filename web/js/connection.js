@@ -69,12 +69,13 @@ function connect(){
         if(typeof data.variant==='string')variant=data.variant;
         rememberChoice();
         restoreValidation(data.validationRevision);
-        if(savedValues===null){acceptTrace(initial);return;}
+        if(savedValues===null){acceptTrace(initial);repeatAfterFreshStart();return;}
         if(savedSessionId===(initial.sessionId??null) && JSON.stringify(savedValues)===JSON.stringify(initial.values)){
           ui.connection.textContent='Connected';return;
         }
         acceptTrace(initial);
         ui.cmdStatus.textContent='Dart session restarted; current list has been reset.';
+        repeatAfterFreshStart();
         return;
       }
       if(data.type==='trace')acceptTrace(data);

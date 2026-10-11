@@ -40,12 +40,16 @@ async function animateWrite(step){
   const field=parsed[2];
   if(node[field]!==step.oldTo)throw Error(`Pointer mismatch: ${step.from} was ${node[field]}, trace expected ${step.oldTo}`);
   const nullPoint={x:node.x+WIDTH+26,y:node.y+HEIGHT/2};
-  const start=isTree()?treeTargetPoint(step.oldTo,field,treeCentre(node)):pointFor(step.oldTo,nullPoint);
-  const end=isTree()?treeTargetPoint(step.to,field,treeCentre(node)):pointFor(step.to,nullPoint);
-  override={from:step.from,...start};hotLink=step.from;hotNode=node.id;
+  // Lists: morph the target outline, so the arrow keeps aiming at a centre and
+  // starts and ends exactly like the static drawing.
+  const from=isTree()?null:linkTarget(step.oldTo,nullPoint),to=isTree()?null:linkTarget(step.to,nullPoint);
+  const start=isTree()?treeTargetPoint(step.oldTo,field,treeCentre(node)):{x:from.cx,y:from.cy};
+  const end=isTree()?treeTargetPoint(step.to,field,treeCentre(node)):{x:to.cx,y:to.cy};
+  override={from:step.from,...start,...(isTree()?{}:{target:from})};hotLink=step.from;hotNode=node.id;
   ui.phase.textContent='POINTER CHANGE';ui.phase.classList.add('hot');
   ui.status.textContent=`${step.from}: ${step.oldTo==null?'null':'#'+step.oldTo} → ${step.to==null?'null':'#'+step.to}. The layout is unchanged.`;
-  await tween(700,t=>{override={from:step.from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t)};
+  await tween(700,t=>{override={from:step.from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t),
+      ...(isTree()?{}:{target:mixTargets(from,to,t)})};
     if(isTree())treeEdgeMotion=Math.sin(Math.PI*t);
     renderEdges();});
   node[field]=step.to;override=null;treeEdgeMotion=0;renderAll();

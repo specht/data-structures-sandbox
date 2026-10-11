@@ -93,6 +93,13 @@ App übersetzt neu und setzt die Datenstruktur zurück. Rufe dann Methoden auf,
 etwa `push(5)`, und verfolge sie mit **Step**, **Play** oder **Show result**.
 Fehlermeldungen und `print`-Ausgaben erscheinen unter der Darstellung.
 
+Mehrere Aufrufe trennst du mit `;`, zum Beispiel
+`insert(1); insert(2); insert(3)` (bis zu 20 auf einmal); **Enter** führt sie
+aus. Die Eingabe merkt sich die App für jede Datenstruktur. Schalte
+**Repeat** ein, damit diese Aufrufe jedes Mal mit einer leeren Datenstruktur
+beginnen und nach jedem Speichern von selbst erneut laufen. So musst du dein
+Testszenario nicht immer wieder eintippen.
+
 **Run tests** prüft deine Implementierung mit einem Referenzmodell, einschließlich
 der Speicherstruktur. **Class progress** zeigt den Stand der ganzen Klasse.
 Was die Methoden tun sollen, steht in den Kommentaren der Vorlage, in

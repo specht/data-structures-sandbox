@@ -54,7 +54,12 @@ function renderHash(){
     index.textContent=`[${i}]`;ui.stackView.append(index);
     const key=svg('text',{x,y:153,class:'hash-key','text-anchor':'middle'});
     key.textContent=head?`#${head.id}`:'null';ui.stackView.append(key);
-    if(head)ui.stackView.append(svg('line',{x1:x,y1:167,x2:x,y2:190,class:'hash-edge'}));
+    // A bucket and each `next` field point at the centre of the following node.
+    const nodeBox=j=>boxTarget(x-43,220+j*112-27,86,57,12);
+    if(head){
+      const arrow=makeArrow('hash-link');ui.stackView.append(arrow);
+      drawArrowTo(arrow,{x,y:168},nodeBox(0));
+    }
     for(let j=0;j<chains[i].length;j++){
       const node=chains[i][j],y=220+j*112;
       const cls=`hash-node${hashHotNode===node.id?' selected':''}`;
@@ -63,7 +68,10 @@ function renderHash(){
       value.textContent=String(node.value);ui.stackView.append(value);
       const id=svg('text',{x,y:y+19,class:'hash-id','text-anchor':'middle'});
       id.textContent=`#${node.id}`;ui.stackView.append(id);
-      if(j+1<chains[i].length)ui.stackView.append(svg('line',{x1:x,y1:y+30,x2:x,y2:y+85,class:'hash-edge'}));
+      if(j+1<chains[i].length){
+        const arrow=makeArrow('hash-link');ui.stackView.append(arrow);
+        drawArrowTo(arrow,{x,y:y+31},nodeBox(j+1));
+      }
     }
   }
   if(orphans.length){

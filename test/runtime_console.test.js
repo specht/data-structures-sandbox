@@ -122,8 +122,38 @@ assert.deepEqual(
 run(`ui.callInput.value='push(30)';setSequenceMode(true);appendSequenceCall('push(20)')`);
 assert.equal(elements.get('call-input').value,'push(30); push(20)');
 assert.equal(elements.get('call-input').rows,1,'A semicolon sequence should keep the toolbar compact.');
-assert.equal(elements.get('sequence-count').textContent,'2');
 assert.equal(elements.get('call-run-label').textContent,'Run 2');
+// Repeat: Run starts from an empty structure; after a fresh start (save,
+// another implementation, Retry) the remembered calls run again by themselves.
+assert.deepEqual(JSON.parse(run(`JSON.stringify(commandRequest('push(1)',{reset:true}))`)),
+  {action:'run',method:'push',arguments:[1],reset:true});
+const storage=new Map();
+context.localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,String(value))};
+context.sent=[];
+run(`socket.readyState=WebSocket.OPEN;socket.send=message=>globalThis.sent.push(JSON.parse(message));
+  frames=[];structure='linked_stack';callsKind='linked_stack';
+  ui.callInput.value='push(1); push(2)';ui.callInput.oninput();setRepeatCalls(true);ui.callForm.onsubmit({preventDefault(){}});`);
+assert.equal(context.sent.at(-1).reset,true,'Run with Repeat must start from an empty structure');
+assert.equal(context.sent.at(-1).commands.length,2);
+assert.equal(JSON.parse(storage.get('data-structure-sandbox.v1.calls')).linked_stack,'push(1); push(2)');
+assert.equal(storage.get('data-structure-sandbox.v1.repeat'),'1');
+run(`repeatAfterFreshStart()`);
+assert.equal(context.sent.length,2,'A fresh structure repeats the remembered calls');
+assert.equal(context.sent.at(-1).reset,undefined,'A fresh worker needs no reset');
+assert.equal(run('commandTakesFocus'),false,'Repeating after a save keeps the focus in the editor');
+run(`ui.callInput.value='push(1); push(';repeatAfterFreshStart()`);
+assert.equal(context.sent.length,2,'Edited, not yet remembered text is not repeated');
+let submitted=0;
+run(`ui.callInput.value='push(1)';ui.callInput.oninput();ui.callForm.requestSubmit=()=>globalThis.submitted();`);
+context.submitted=()=>submitted++;
+const key=init=>({key:'Enter',shiftKey:false,ctrlKey:false,metaKey:false,isComposing:false,
+  prevented:false,preventDefault(){this.prevented=true;},...init});
+const enter=key({}),shiftEnter=key({shiftKey:true});
+context.ui_event=enter;run(`ui.callInput.onkeydown(globalThis.ui_event)`);
+context.ui_event=shiftEnter;run(`ui.callInput.onkeydown(globalThis.ui_event)`);
+assert.equal(submitted,1,'Enter runs, Shift+Enter only starts a new line');
+assert.equal(enter.prevented,true);assert.equal(shiftEnter.prevented,false);
+run(`setRepeatCalls(false)`);
 run(`socket.readyState=WebSocket.OPEN;
   setRuntimeConsole([{kind:'stdout',text:'session output'}]);
   ui.reset.onclick()`);

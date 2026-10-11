@@ -96,9 +96,54 @@ function renderNode(node){
   pointer.textContent=isTree()?'':(nil?'null':'→');
   pointer.classList.toggle('is-null',nil);
 }
-function pointFor(id, fallback) {
+// The outline an arrow to this node aims at (see geometry.js).
+function nodeTarget(node){
+  if(isTree()){const c=treeCentre(node);return circleTarget(c.x,c.y,TREE_RADIUS);}
+  return boxTarget(node.x,node.y,WIDTH,HEIGHT,10);
+}
+// The target of a `next` pointer: the node, or a point for null.
+function linkTarget(id,fallback){
   const node=nodes.get(id);
-  return node?{x:node.x-1,y:node.y+HEIGHT/2}:fallback;
+  return node?nodeTarget(node):pointTarget(fallback.x,fallback.y);
+}
+// A `next` arrow. It leaves the pointer field to the right and arrives from
+// the most natural side: from the left when the target lies to the right,
+// from above when it lies in a lower row, from below when it sits above the
+// pointer field, and with a loop when it points back to an earlier node. The last stretch
+// always runs straight towards the target's centre, and the tip sits where
+// it meets the outline.
+function linkGeometry(start,target){
+  if(insideTarget(target,start))return null;
+  const left=target.cx-target.w/2,right=target.cx+target.w/2;
+  let c1,direction,reach=null,alignedAt=null;
+  if(left>=start.x+24){
+    const bend=Math.max(28,(left-start.x)*.45);
+    c1={x:start.x+bend,y:start.y};direction={x:1,y:0};reach=bend;
+  }else if(target.cy-start.y>target.h/2+24||
+      (right>start.x-24&&start.y-target.cy>target.h/2+24)){
+    // In a lower row, or above the pointer field: come in vertically.
+    const down=target.cy>start.y,gap=Math.abs(target.cy-start.y)-target.h/2;
+    // Drop (or rise) beside the source first, so the curve clears its card.
+    c1={x:start.x+40,y:start.y+(down?1:-1)*gap*.8};direction={x:0,y:down?1:-1};reach=Math.max(30,gap*.5);
+  }else if(target.cy<start.y-HEIGHT/2){
+    // Back to an earlier node higher up: loop over the top, come down into it.
+    const top=Math.min(start.y-HEIGHT/2,target.cy-target.h/2)-50;
+    c1={x:start.x+48,y:top};direction={x:0,y:1};alignedAt=top;
+  }else{
+    // Back to an earlier node in the same row: loop underneath, come up into it.
+    const bottom=Math.max(start.y,target.cy+target.h/2)+50;
+    c1={x:start.x+48,y:bottom};direction={x:0,y:-1};alignedAt=bottom;
+  }
+  return arrowGeometry(start,approachTarget(target,direction),c1,
+    approachControl(target,direction,reach,alignedAt));
+}
+function drawLink(group,start,target){
+  const geometry=linkGeometry(start,target);
+  group.setAttribute('visibility',geometry?'visible':'hidden');
+  if(!geometry)return null;
+  group.querySelector('.arrow-shaft').setAttribute('d',geometry.d);
+  group.querySelector('.arrow-tip').setAttribute('points',geometry.points);
+  return geometry.tip;
 }
 // A shaft plus an explicit closed triangle avoids browser-specific SVG marker
 // offsets/scaling. The triangle TIP is the endpoint supplied by the layout:
@@ -146,13 +191,14 @@ function renderEdges(){
     const from=`node:${node.id}.next`;
     const event=override?.from===from?override:null;
     const fallback={x:node.x+WIDTH+26,y:node.y+HEIGHT/2};
-    const target=event?{x:event.x,y:event.y}:pointFor(node.next,fallback);
+    // During a pointer animation the target morphs from the old to the new one.
+    const target=event?(event.target??pointTarget(event.x,event.y)):linkTarget(node.next,fallback);
     if(!event&&node.next===null)continue;
     active.add(node.id);
     let edge=links.get(node.id);
     if(!edge){edge=makeArrow('edge');ui.edges.append(edge);links.set(node.id,edge);}
     const src={x:node.x+WIDTH+1,y:node.y+HEIGHT/2};
-    drawArrow(edge,src,target,'edge',target.x<src.x+12);
+    drawLink(edge,src,target);
     edge.setAttribute('opacity',Math.min(1,node.opacity*(nodes.get(node.next)?.opacity??1)).toFixed(3));
     edge.classList.toggle('hot',hotLink===from);
   }
@@ -210,16 +256,20 @@ function referenceAnchors(actual){
   }
   return anchors;
 }
+// Where a reference arrow starts: just below its label.
+function referenceStart(name,id){
+  const n=nodes.get(id);
+  const anchor=referenceAnchors(referenceValues()).get(name)??
+    {x:n.x+(isTree()?TREE_RADIUS:WIDTH/2),y:n.y-(isTree()?65:50)};
+  return {x:anchor.x,y:anchor.y+10};
+}
+// The tip of a reference arrow: aimed from the label at the node's centre and
+// clipped at its outline. Labels side by side therefore get separate tips.
 function referencePoint(name,id){
   const n=nodes.get(id),dock=dockFor(name);
   if(!n)return {x:dock.x,y:NULL_RAIL_TOP};
-  const centre=n.x+(isTree()?TREE_RADIUS:WIDTH/2);
-  const anchor=referenceAnchors(referenceValues()).get(name);
-  // Separate arrowheads when two labels point to the same object. A single
-  // pointer retains its centered target, including the tree root arrow.
-  const limit=(isTree()?TREE_RADIUS:WIDTH/2)-14;
-  const offset=anchor?Math.max(-limit,Math.min(limit,(anchor.x-centre)*.45)):0;
-  return {x:centre+offset,y:n.y-1};
+  const geometry=arrowGeometry(referenceStart(name,id),nodeTarget(n));
+  return geometry?.tip??{x:n.x+(isTree()?TREE_RADIUS:WIDTH/2),y:n.y-1};
 }
 function pointerBounds(actual=referenceValues()){
   const anchors=referenceAnchors(actual),bounds={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};
@@ -280,7 +330,8 @@ function renderReferences(){
       ?{x:override.x,y:override.y}:referencePoint(name,id);
     const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'hot':''}`);
     const stationary=id!=null&&nodes.has(id)&&override?.from!==`root:${name}`&&override?.from!==`var:${name}`;
-    drawArrow(arrow,{x:anchor.x,y:anchor.y+10},target,stationary?'straight':'reference');
+    if(stationary)drawArrowTo(arrow,{x:anchor.x,y:anchor.y+10},nodeTarget(nodes.get(id)));
+    else drawArrow(arrow,{x:anchor.x,y:anchor.y+10},target,'reference');
     ui.references.append(arrow);
   }
   ui.references.append(...labels); // Text stays above intersecting pointer paths.

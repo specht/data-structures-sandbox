@@ -920,7 +920,11 @@ class Client {
       }else{
         if(result['type']=='trace'){
           if(message['action']=='reset') _clearHistory();
-          else if(message['action']=='run') _remember(message);
+          else if(message['action']=='run'){
+            // A run with reset:true ("Repeat") starts from an empty structure.
+            if(message['reset']==true) _clearHistory();
+            _remember(message);
+          }
         }
         send(result);
       }

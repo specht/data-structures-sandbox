@@ -27,6 +27,12 @@ function renderArguments(){
 }
 function updateMethodCatalog(catalog){
   if(!Array.isArray(catalog))return;
+  // Another structure kind: bring back the calls remembered for it.
+  if(callsKind!==structure){
+    callsKind=structure;
+    const saved=savedCallsFor(structure);
+    if(saved!==null)ui.callInput.value=saved;
+  }
   let typedNames=[];
   try{
     typedNames=splitCommandText(ui.callInput.value).map(call=>
@@ -121,11 +127,21 @@ function acceptTrace(data){
   if(playbackMode==='result')jumpTo(frames.length);
   else if(playbackMode==='play'&&focusAfterCommand)void playTrace(playbackToken);
   savedValues=[...data.values];savedCapacity=data.capacity??8;savedSessionId=data.sessionId??null;renderSuggestions();
-  if(focusAfterCommand){focusAfterCommand=false;ui.next.focus({preventScroll:true});}
+  if(focusAfterCommand){focusAfterCommand=false;if(commandTakesFocus)ui.next.focus({preventScroll:true});}
   ui.connection.textContent='Connected';ui.cmdStatus.classList.remove('error');
   showCompiling(false);
   ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready · ${structure} · [${data.values.join(', ')}]. Use ← / →.`:
     'Ready. Choose an operation above.';
+  const calls=data.calls;
+  if(calls?.stoppedEarly){
+    const skipped=calls.planned-calls.completed;
+    ui.cmdStatus.textContent=`Stopped at call ${calls.completed} of ${calls.planned}: its check failed, `+
+      `so the remaining ${skipped===1?'call was':`${skipped} calls were`} not run.`;
+    ui.cmdStatus.classList.add('error');
+  }else if(calls&&(calls.planned>1||calls.fromEmpty)){
+    ui.cmdStatus.textContent=`Ran ${calls.planned} call${calls.planned===1?'':'s'}${calls.fromEmpty?' from empty':''}`+
+      ` · ${frames.length} steps · [${data.values.join(', ')}]. Use ← / →.`;
+  }
 }
 function acceptExecutionError(data){
   showCompiling(false);focusAfterCommand=false;
@@ -147,12 +163,14 @@ function acceptExecutionError(data){
   ui.cmdStatus.textContent='Execution stopped · details are in the Console.';
   ui.cmdStatus.classList.remove('error');
 }
-function send(payload){
+// focus:false keeps the keyboard focus where it is (Repeat after Ctrl+S in
+// the code editor must not move it to the step controls).
+function send(payload,{focus=true}={}){
   if(!socket||socket.readyState!==WebSocket.OPEN){ui.cmdStatus.textContent='Dart server is not connected.';return;}
   // Even if the user is halfway through an animation, allow another command.
   animationGeneration++;animating=false;playbackToken++;
   if(frames.length)restore(stepIndex);
-  focusAfterCommand=true;
+  focusAfterCommand=true;commandTakesFocus=focus;
   socket.send(JSON.stringify(payload));ui.cmdStatus.textContent='Dart is executing…';
 }
 ui.form.addEventListener('submit',event=>{
@@ -164,7 +182,7 @@ ui.form.addEventListener('submit',event=>{
     if(params.length===1 && params[0].type==='int'){
       const raw=ui.values.value.trim();
       const values=raw.split(',').map(part=>parseArgument(part,'int'));
-      if(!values.length||values.length>12)throw Error('Use 1–12 values.');
+      if(!values.length||values.length>MAX_CALLS)throw Error(`Use 1–${MAX_CALLS} values.`);
       send({action:'run',method:method.name,values});
     }else{
       const raw=params.length===1?[ui.values.value]:

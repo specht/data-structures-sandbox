@@ -47,10 +47,13 @@ You write the logic, **not** the drawing code. `top == -1` means empty, and
    stored values or the highlighted top position.
 
 The method-call box accepts only methods exposed by your selected class. To
-reproduce a longer scenario, separate up to twelve calls with semicolons or new
-lines, for example `insert(30); insert(20); insert(10)`. Select **Sequence** to
-make the suggestion buttons add calls to the box, then run the entire list with
-the Run button or Ctrl/Cmd+Enter.
+reproduce a longer scenario, separate up to 20 calls with semicolons (or
+Shift+Enter for a new line), for example `insert(30); insert(20); insert(10)`,
+and press Enter or Run. The box remembers its text for each structure. Switch
+on **Repeat** to replay the scenario from an empty structure: Run then starts
+empty, and the calls run again by themselves after every save. **Collect** (or
+Shift+click) makes the suggestion buttons add their call to the box instead of
+running it.
 Use Step and the arrow keys to inspect writes; Home/End jump through the
 trace when focus is outside a text editor or slider. The source display
 highlights your Dart file; the instrumented worker lives outside your student

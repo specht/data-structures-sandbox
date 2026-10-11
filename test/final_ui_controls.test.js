@@ -19,5 +19,9 @@ assert.match(css,/height:36px!important;min-height:36px/);
 assert.match(css,/\.timeline \.trace-settings #trace-mode\{[\s\S]*?border:1px solid #3e577a/);
 assert.match(css,/\.suggestion-rows \.call-suggestion\.has-present-argument\{[\s\S]*?background:#3c3157/);
 assert.match(js,/button\.classList\.add\('has-present-argument'\)/);
-assert.match(css,/\.operation-result strong,\.operation-result #return-value\{[\s\S]*?font-family:"0xProto Nerd Font"/);
+assert.match(css,/\.operation-result strong,\.operation-result #return-value\{[\s\S]*?font-family:var\(--mono\)/);
+// One monospaced face everywhere (code, console, diagram labels).
+assert.match(css,/--mono:"0xProto Nerd Font",ui-monospace,monospace/);
+assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g,'').replace(/--mono:[^;]+;/,''),/monospace/,
+  'Use var(--mono) instead of a separate monospace font stack');
 console.log('PASS: compact icon navigation, equal heights, dropdown, existing-value contrast, matching mono fonts');

@@ -21,5 +21,5 @@ function showReturnValue(frame){
 }
 let socket = null, frames = [], rawSteps = [], source = null, stepIndex = 0;
 let savedValues = null, savedSessionId = null, reconnectTimer = null, reconnectAttempt = 0, heartbeat = null;
-let focusAfterCommand = false, stopped = false;
+let focusAfterCommand = false, commandTakesFocus = true, stopped = false;
 let runtimeConsoleEntries=[],consoleExpanded=false;

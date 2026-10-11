@@ -125,7 +125,7 @@ its deadline are **not** OS-level isolation; run untrusted code on a shared
 host only with separate filesystem, network and resource restrictions.
 
 Some structures may exceed the comfortable size of an on-screen diagram. The
-browser supports Fit/zoom/pan, but the 12-call batch cap remains independent of
+browser supports Fit/zoom/pan, but the 20-call cap per run remains independent of
 the number of nodes and the worker's execution/trace limits. Source-level
 instrumentation covers an intentional Dart subset, not the complete language.
 

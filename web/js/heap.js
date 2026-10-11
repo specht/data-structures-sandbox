@@ -55,7 +55,9 @@ function renderHeap(){
   // exactly cells[i], including duplicate values at different indices.
   for(let i=1;i<n;i++){
     const parent=heapTreePosition((i-1)>>1,n),child=heapTreePosition(i,n);
-    ui.stackView.append(svg('line',{x1:parent.x,y1:parent.y+22,x2:child.x,y2:child.y-22,class:'heap-index-edge'}));
+    // Centre to centre, clipped at both circles.
+    const line=centreLine(circleTarget(parent.x,parent.y,27),circleTarget(child.x,child.y,27));
+    if(line)ui.stackView.append(svg('line',{...line,class:'heap-index-edge'}));
   }
   for(let i=0;i<n;i++){
     const {x,y}=heapTreePosition(i,n);
