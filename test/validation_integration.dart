@@ -58,5 +58,7 @@ Future<void> main() async {
     }
   } finally {
     await temporary.delete(recursive: true);
+    // The persistent instrumenter would otherwise keep this process running.
+    await shutdownInstrumenter();
   }
 }

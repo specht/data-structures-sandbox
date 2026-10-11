@@ -327,4 +327,6 @@ Future<void> main() async {
       await lines.cancel();
     }
   }
+  // The persistent instrumenter would otherwise keep this process running.
+  await shutdownInstrumenter();
 }

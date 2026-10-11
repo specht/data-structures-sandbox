@@ -104,6 +104,19 @@ class InstrumentClient {
     _pending.clear();
   }
 
+  /// Stops the daemon so that a short-lived program (a test) can exit; the
+  /// open pipes would otherwise keep it running. A later request restarts it.
+  Future<void> dispose() async {
+    final process = _process;
+    if (process == null) return;
+    _lost(process, 'disposed');
+    process.kill();
+    await process.exitCode.timeout(const Duration(seconds: 5), onTimeout: () {
+      process.kill(ProcessSignal.sigkill);
+      return -1;
+    });
+  }
+
   Future<void> instrument(String kind, String source, String output) async {
     // Retry only transport/process failures. Invalid student code must be
     // returned immediately with its original diagnostics, not retried.

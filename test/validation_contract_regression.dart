@@ -69,5 +69,7 @@ Future<void> main() async {
     print('PASS: signature, return-only and state-only contract regressions are detected separately.');
   } finally {
     temp.deleteSync(recursive:true);
+    // The persistent instrumenter would otherwise keep this process running.
+    await shutdownInstrumenter();
   }
 }

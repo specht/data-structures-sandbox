@@ -28,6 +28,10 @@ void warmInstrumenter() {
   }));
 }
 
+/// Stops the persistent instrumenter. Tests call this at the end; otherwise
+/// its open pipes keep the test process alive after the last PASS line.
+Future<void> shutdownInstrumenter() => _instrumenter.dispose();
+
 // Enable with SANDBOX_PROFILE=1 ./run. Wall-clock times include subprocess
 // startup and I/O; no student code or source contents are written to this log.
 bool get buildProfiling => Platform.environment['SANDBOX_PROFILE'] == '1';
