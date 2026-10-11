@@ -131,3 +131,17 @@ instrumentation covers an intentional Dart subset, not the complete language.
 
 See [architecture](docs/architecture.md) and the [curriculum/development
 roadmap](docs/roadmap.md) for constraints and future work.
+
+## Light theme
+
+`web/light.css` is generated from `web/style.css`: every rule that sets a color
+is repeated under `:root[data-theme="light"]` with the color mirrored in
+lightness. After changing colors in `style.css`, run
+
+```bash
+node tool/light-theme.mjs web/style.css web/light.css
+```
+
+The choice of theme is stored in `.settings.yaml` (ignored by Git, see
+`tool/settings.dart`) and written into `index.html` by the host. The same
+script and mechanism are used by the CPU and the Sorting Sandbox.

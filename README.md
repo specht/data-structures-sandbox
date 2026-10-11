@@ -61,6 +61,10 @@ cd ~/data-structures-sandbox
 Der Browser öffnet sich automatisch. Lass dieses Terminal offen und verwende
 für Git ein zweites.
 
+Der Knopf mit Sonne bzw. Mond oben rechts wechselt zwischen dunklem und hellem
+Design. Die App merkt sich die Wahl in der Datei `.settings.yaml` im
+App-Ordner; Git ignoriert sie, sie landet also in keinem Repository.
+
 ## 4. Deine Datenstruktur anlegen
 
 `./new-structure` (im App-Ordner) zeigt alle Datenstrukturen. Ersetze

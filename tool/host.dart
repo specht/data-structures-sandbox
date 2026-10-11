@@ -9,6 +9,7 @@ import 'cache_cleanup.dart';
 import 'instrument_client.dart';
 import 'registry.dart';
 import 'student_validation.dart';
+import 'settings.dart';
 
 const startupTimeout = Duration(seconds: 45);
 const executionTimeout = Duration(seconds: 4);
@@ -1000,12 +1001,14 @@ Future<void> _handleRequest(HttpRequest request) async {
       }finally{client.close();clients.remove(client);}
       return;
     }
+    if(request.uri.path=='/api/settings'){await handleSettings(request);return;}
     if(request.method!='GET'&&request.method!='HEAD'){
       request.response.statusCode=HttpStatus.methodNotAllowed;await request.response.close();return;
     }
     final path=switch(request.uri.path){
       '/' || '/index.html'=>'web/index.html',
       '/style.css'=>'web/style.css',
+      '/light.css'=>'web/light.css',
       // The browser scripts, loaded in order by index.html.
       final script when RegExp(r'^/js/[a-z0-9-]+\.js$').hasMatch(script)=>'web$script',
       '/vendor/codemirror.js'=>'web/vendor/codemirror.js',
@@ -1029,7 +1032,10 @@ Future<void> _handleRequest(HttpRequest request) async {
         ContentType('font','ttf'):path.endsWith('.svg')?
         ContentType('image','svg+xml'):ContentType('application','javascript',charset:'utf-8')
       ..set(HttpHeaders.cacheControlHeader,'no-store');
-    if(request.method=='GET')await request.response.addStream(file.openRead());
+    if(request.method=='GET'){
+      if(path=='web/index.html')request.response.write(themedPage(await file.readAsString()));
+      else await request.response.addStream(file.openRead());
+    }
     await request.response.close();
   }catch(e){stderr.writeln('Browser request error: $e');
     try{request.response.statusCode=HttpStatus.internalServerError;await request.response.close();}catch(_){}}

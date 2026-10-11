@@ -19,7 +19,7 @@ body { background:linear-gradient(#10131bc4,#10131bc4),url('/background.jpg') ce
 .section-heading>div { display:flex; flex-direction:column; gap:6px; min-width:0; }
 .section-heading strong { font-size:14px; font-weight:630; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lang-chip { background:#19365b; color:#a6cdff; }
-.code-scroll { flex:1; background:#0c1422; overflow:auto; padding:20px 0; scrollbar-color:#405677 transparent; scrollbar-gutter:stable; }
+.code-scroll { flex:1; background:#0c1422; overflow:auto; padding:20px 0; scrollbar-gutter:stable; }
 .source { display:table; min-width:100%; font:13px/1.85 var(--mono); font-variant-ligatures:none; tab-size:2; }
 .code-line { display:table-row; white-space:pre; }
 .code-line.active { background:rgba(60,123,215,.25); }
@@ -74,7 +74,6 @@ kbd { padding:3px 5px; background:#1d2c42; border:1px solid #3b506d; border-radi
 @media(max-width:560px){.shell{padding:0 9px}.brand strong{font-size:11px}.connection{max-width:90px;font-size:10px}.timeline{padding:13px}.scene-status{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.progress{transition:none}}
 /* v0.4: interactive commands, named reference variables and manual playback */
-.shell { max-width: 1800px; }
 .topbar { min-height: 68px; }
 .commands { border:1px solid var(--border); background:#121e30; display:flex; flex-direction:column; }
 .invoke,.presets { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
@@ -359,7 +358,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{
   margin-left:auto;flex:1 1 175px;max-width:min(38vw,480px);
   text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.suggestion-rows{gap:6px;max-height:80px;overflow-y:auto;scrollbar-color:#405677 transparent}
+.suggestion-rows{gap:6px;max-height:80px;overflow-y:auto}
 .call-suggestion{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px}
 .workspace{grid-template-columns:minmax(420px,38%) minmax(0,1fr);gap:12px}
 .section-heading strong{overflow-wrap:anywhere}
@@ -498,24 +497,6 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .trace-settings input[type="range"]#speed{width:112px;min-width:76px;
   max-width:112px;height:30px;flex:0 1 112px;margin:0}
 .trace-settings #speed-output{min-width:27px;width:27px;flex:none;text-align:right;white-space:nowrap}
-/* CodeMirror uses separate horizontal/vertical scrollers and a filler corner. */
-.source-editor .CodeMirror-scroll,.source-editor .CodeMirror-hscrollbar,
-.source-editor .CodeMirror-vscrollbar{scrollbar-color:#4a627f #101a29;scrollbar-width:thin}
-.source-editor .CodeMirror-scrollbar-filler,.source-editor .CodeMirror-gutter-filler{
-  background:#101a29!important}
-.source-editor .CodeMirror-scroll::-webkit-scrollbar,
-.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar,
-.source-editor .CodeMirror-vscrollbar::-webkit-scrollbar{width:10px;height:10px;background:#101a29}
-.source-editor .CodeMirror-scroll::-webkit-scrollbar-track,
-.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar-track,
-.source-editor .CodeMirror-vscrollbar::-webkit-scrollbar-track{background:#101a29}
-.source-editor .CodeMirror-scroll::-webkit-scrollbar-thumb,
-.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar-thumb,
-.source-editor .CodeMirror-vscrollbar::-webkit-scrollbar-thumb{
-  background:#4a627f;border:2px solid #101a29;border-radius:8px}
-.source-editor .CodeMirror-scroll::-webkit-scrollbar-corner,
-.source-editor .CodeMirror-hscrollbar::-webkit-scrollbar-corner{
-  background:#101a29}
 @media(max-width:1100px){
   .timeline .controls{flex-wrap:wrap}
   .controls .control-spacer{display:none}
@@ -645,7 +626,7 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .console-clear{width:28px;height:28px;min-width:28px;padding:0;border-color:transparent;background:transparent;color:#8fa6c3}
 .console-clear:hover:not(:disabled){border-color:#405a7a;background:#1c2d44;color:#fff;filter:none}
 .console-clear .ui-icon{width:16px;height:16px}
-.console-output{max-height:150px;overflow:auto;padding:7px 11px 9px;background:#09121e;font:11px/1.55 var(--mono);scrollbar-color:#425c7c #0b1522}
+.console-output{max-height:150px;overflow:auto;padding:7px 11px 9px;background:#09121e;font:11px/1.55 var(--mono)}
 .console-output[hidden]{display:none}
 .console-entry{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;padding:3px 0;color:#cbd9ea}
 .console-entry+.console-entry{border-top:1px solid #17263a}
@@ -704,8 +685,7 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   overflow:auto;
   border:1px solid #2d405b;
   border-radius:9px;
-  background:#0c1523;
-  scrollbar-color:#4a627f #101a29
+  background:#0c1523
 }
 .progress-table{
   width:100%;
@@ -845,3 +825,11 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
   .progress-table thead th:first-child,
   .progress-table tbody th{min-width:116px}
 }
+
+/* Slim blue scrollbars, the same in all sandboxes */
+*{scrollbar-width:thin;scrollbar-color:#3d679f transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-thumb{background:#3d679f;border:2px solid transparent;border-radius:8px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#5a8dd3;background-clip:padding-box}
+.CodeMirror-scrollbar-filler,.CodeMirror-gutter-filler{background:transparent!important}

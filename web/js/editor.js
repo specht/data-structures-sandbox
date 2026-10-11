@@ -29,12 +29,13 @@
     readOnly: 'nocursor', viewportMargin: 15,
     extraKeys: {
       'Ctrl-S': () => saveChanges(), 'Cmd-S': () => saveChanges(),
-      'Ctrl-Shift-K': cm => cm.execCommand('deleteLine'),
-      'Cmd-Shift-K': cm => cm.execCommand('deleteLine'),
-      'Alt-Shift-K': cm => cm.execCommand('deleteLine'), // If Chrome owns Ctrl+Shift+K.
+      // CodeMirror matches key names only in the order Shift-Cmd-Ctrl-Alt.
+      'Shift-Ctrl-K': cm => cm.execCommand('deleteLine'),
+      'Shift-Cmd-K': cm => cm.execCommand('deleteLine'),
+      'Shift-Alt-K': cm => cm.execCommand('deleteLine'), // If the browser owns Ctrl+Shift+K.
       'Ctrl-/': cm => toggleLineComment(cm), 'Cmd-/': cm => toggleLineComment(cm),
       'Ctrl-#': cm => toggleLineComment(cm), 'Cmd-#': cm => toggleLineComment(cm),
-      'Ctrl-Shift-7': cm => toggleLineComment(cm), // German keyboard: / is Shift+7.
+      'Shift-Ctrl-7': cm => toggleLineComment(cm), // German keyboard: / is Shift+7.
       'Ctrl-Space': cm => showSuggestions(cm, true),
       'Cmd-Space': cm => showSuggestions(cm, true),
       'Tab': cm => cm.somethingSelected() ? cm.indentSelection('add') : cm.execCommand('insertSoftTab'),

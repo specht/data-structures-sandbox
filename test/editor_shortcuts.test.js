@@ -31,14 +31,14 @@ const key=k=>{assert.equal(typeof cm.options.extraKeys[k],'function',k);cm.optio
 editor.ready();assert.equal(sent.at(-1).action,'readSource');
 editor.receive({type:'sourceFile',student:'alice',structure:'stack',revision:'r1',content:'class A {\n  int value;\n  void work() {}\n}'});
 assert.equal(button('source-format').disabled,false);
-assert.equal(typeof cm.options.extraKeys['Ctrl-Shift-K'],'function');
+assert.equal(typeof cm.options.extraKeys['Shift-Ctrl-K'],'function','CodeMirror key names: Shift-Cmd-Ctrl-Alt order');
 assert.equal(cm.wrapper.capture,true,'Chrome shortcut must run before CodeMirror input handling');
 let prevented=false,stopped=false;
 cm.wrapper.events.keydown({ctrlKey:true,shiftKey:true,altKey:false,metaKey:false,
   code:'KeyK',key:'K',preventDefault(){prevented=true;},stopImmediatePropagation(){stopped=true;}});
 assert.equal(cm.lastCommand,'deleteLine');assert.equal(prevented,true);assert.equal(stopped,true);
-assert.equal(typeof cm.options.extraKeys['Alt-Shift-K'],'function','Fallback delete-line shortcut');
-key('Alt-Shift-K');assert.equal(cm.lastCommand,'deleteLine');
+assert.equal(typeof cm.options.extraKeys['Shift-Alt-K'],'function','Fallback delete-line shortcut');
+key('Shift-Alt-K');assert.equal(cm.lastCommand,'deleteLine');
 assert.equal(cm.options.extraKeys['Shift-Alt-A'],undefined,'Block comment shortcut is removed');
 const html=fs.readFileSync(path.join(__dirname,'../web/index.html'),'utf8');
 assert.doesNotMatch(html,/source-suggest|Ctrl\+Space Suggestions|Block comment/);

@@ -7,3 +7,5 @@
 /.runtime/
 /tool/generated_worker_*.dart
 /tool/generated_worker_*.dill
+# Local settings (the theme); they belong to this computer, not to Git.
+.settings.yaml
