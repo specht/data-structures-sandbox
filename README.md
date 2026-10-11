@@ -1,273 +1,133 @@
 # Data Structure Sandbox
 
-Mit der Data Structure Sandbox könnt ihr Datenstrukturen in Dart selbst
-implementieren, im Browser bearbeiten, beobachten und mit automatischen Tests
-überprüfen.
+Mit der Data Structure Sandbox implementiert ihr Datenstrukturen in Dart,
+bearbeitet sie im Browser, beobachtet jeden Schritt und prüft sie mit
+automatischen Tests.
 
-## Was liegt wo?
+Ihr arbeitet mit **zwei Git-Repositories**:
 
-Ihr arbeitet mit **zwei getrennten Git-Repositories**:
+| Ordner | Inhalt | Wer ändert es? |
+| --- | --- | --- |
+| `~/data-structures-sandbox/` | die App | nur die Lehrkraft |
+| `~/data-structures-sandbox/structures/` | das **Klassen-Repository** mit euren Implementierungen | ihr, jeweils im eigenen Unterordner |
 
-- `~/data-structures-sandbox/` enthält die App, die Vorlagen und die Tests.
-  Dieses Repository wird von der Lehrkraft gepflegt.
-- `~/data-structures-sandbox/structures/` enthält die Implementierungen der
-  Klasse. **Hier** bearbeitet und veröffentlicht ihr eure Dateien.
+## 1. Einmalig: Zugang zu GitLab einrichten
 
-Jede Person arbeitet in einem eigenen Unterordner von `structures/`. Ändert
-keine Dateien anderer Personen und keine Dateien der App. Falls die App in
-eurem Workspace unter einem anderen Namen liegt, verwendet ihr diesen Pfad
-anstelle von `~/data-structures-sandbox`.
-
-## 1. Bei GitLab anmelden
-
-Öffne [git.nhcham.org](https://git.nhcham.org/) im Browser und melde dich an.
-
-## 2. SSH-Schlüssel erstellen
-
-Prüfe zunächst, ob dein Workspace bereits einen öffentlichen SSH-Schlüssel hat:
-
-```bash
-ls ~/.ssh/id_ed25519.pub
-```
-
-Falls die Datei nicht existiert, erzeuge einen Schlüssel:
+Melde dich auf [git.nhcham.org](https://git.nhcham.org/) an. Erzeuge dann im
+Terminal einen SSH-Schlüssel (falls `ls ~/.ssh/id_ed25519.pub` noch keinen
+findet; alle Rückfragen mit Enter bestätigen) und zeige ihn an:
 
 ```bash
 ssh-keygen -t ed25519 -C "Vorname Nachname"
-```
-
-Bestätige den vorgeschlagenen Speicherort mit Enter. Im Schul-Workspace kannst
-du die Passphrase leer lassen und die nächsten Rückfragen mit Enter bestätigen.
-Zeige danach deinen **öffentlichen** Schlüssel an:
-
-```bash
 cat ~/.ssh/id_ed25519.pub
 ```
 
-Kopiere die gesamte Zeile, die mit `ssh-ed25519` beginnt. Öffne in GitLab
-**Edit profile → Access → SSH keys → Add new key**, füge den Schlüssel ein und
-speichere ihn. **Gib niemals deine private Datei** `~/.ssh/id_ed25519` weiter.
-
-Teste die Verbindung:
-
-```bash
-ssh -T git@git.nhcham.org
-```
-
-Bestätige bei der ersten Verbindung den angezeigten Hostschlüssel nur, wenn er
-zu eurem GitLab-Server gehört. Danach sollte GitLab dich begrüßen.
-
-## 3. Git einmalig einrichten
-
-Trage deinen Namen und die E-Mail-Adresse deines GitLab-Kontos ein:
+Kopiere die ganze Zeile, die mit `ssh-ed25519` beginnt, nach GitLab unter
+**Edit profile → Access → SSH keys → Add new key**. Die private Datei
+`~/.ssh/id_ed25519` gibst du nie weiter. Trage zum Schluss deinen Namen und
+deine GitLab-E-Mail-Adresse ein und teste die Verbindung:
 
 ```bash
 git config --global user.name "Vorname Nachname"
 git config --global user.email "deine.mail@example.org"
+ssh -T git@git.nhcham.org
 ```
 
-Das ist in jedem Workspace nur einmal nötig.
+## 2. App und Klassen-Repository klonen
 
-## 4. Das Klassen-Repository klonen
-
-Falls die App noch nicht in deinem Workspace vorhanden ist, klone sie zuerst:
+<!--
+  Lehrkraft: Jedes Schuljahr nur die URL des Klassen-Repositorys in der
+  letzten Zeile des folgenden Blocks anpassen. Alles andere bleibt gleich.
+-->
 
 ```bash
 cd ~
-git clone https://github.com/specht/data-structures-sandbox.git data-structures-sandbox
-```
-
-Wechsle in das **äußere** App-Verzeichnis und klone das gemeinsame
-Klassen-Repository über SSH:
-
-```bash
-cd ~/data-structures-sandbox
+git clone https://github.com/specht/data-structures-sandbox.git
+cd data-structures-sandbox
 git clone git@git.nhcham.org:specht/data-structure-sandbox-structures-2026.git structures
 ```
 
-Der Zielordner muss **genau** `structures` heißen. Klone das Klassen-Repository
-nicht in einen Ordner neben der App und nicht in den Ordner eines Mitschülers.
-Falls `structures/` bereits existiert, klone es **nicht erneut** und lösche
-keine vorhandenen Dateien. Prüfe mit der Lehrkraft, ob es schon das gemeinsame
-Klassen-Repository oder nur ein lokal angelegter Beispielordner ist.
+Das Klassen-Repository muss **in** der App liegen und genau `structures`
+heißen. Existiert `structures/` schon, klone es nicht noch einmal und lösche
+nichts, sondern frag nach.
 
-Wenn das Klassen-Repository bereits eingerichtet ist, aktualisiere es so:
-
-```bash
-cd ~/data-structures-sandbox/structures
-git pull
-```
-
-## 5. Die App starten
-
-Starte die App im **äußeren** Verzeichnis:
+## 3. Die App starten
 
 ```bash
 cd ~/data-structures-sandbox
 ./run
 ```
 
-Der Browser öffnet sich automatisch. Bei einer frischen Installation bleibt die
-App zunächst **leer**: Sie erstellt weder einen Beispielnutzer noch den Ordner
-`structures/`. Klone das Klassen-Repository wie in Schritt 4 beschrieben,
-bevor du eine eigene Datenstruktur anlegst. Lass das App-Terminal geöffnet;
-für Git verwendest du weiterhin ein zweites Terminal.
+Der Browser öffnet sich automatisch. Lass dieses Terminal offen und verwende
+für Git ein zweites.
 
-## 6. Deine Datenstruktur hinzufügen
+## 4. Deine Datenstruktur anlegen
 
-Hole zunächst im zweiten Terminal den aktuellen Stand des Klassen-Repositories:
-
-```bash
-cd ~/data-structures-sandbox/structures
-git pull
-```
-
-Wechsle dann zurück in das **äußere App-Verzeichnis** und zeige die verfügbaren
-Datenstrukturen und Varianten an:
+`./new-structure` (im App-Ordner) zeigt alle Datenstrukturen. Ersetze
+`DEIN_NAME` durch deinen Ordnernamen, zum Beispiel für einen Stack mit festem
+Array:
 
 ```bash
 cd ~/data-structures-sandbox
-./new-structure
-```
-
-Ersetze `DEIN_NAME` durch deinen vereinbarten Ordnernamen. Um beispielsweise
-einen Stack mit festem Array zu erstellen, führe aus:
-
-```bash
 ./new-structure DEIN_NAME stack array
 ```
 
-Der Befehl legt die Datei
-`structures/DEIN_NAME/my_array_stack.dart` an. Sie enthält eine **unfertige
-Vorlage**: Du implementierst die Methoden selbst. Bereits vorhandene Dateien
-werden nicht überschrieben.
+Das legt `structures/DEIN_NAME/my_array_stack.dart` mit einer unfertigen
+Vorlage an; vorhandene Dateien werden nie überschrieben. Weitere Beispiele:
+`stack nodes`, `queue circular`, `list sorted-nodes`, `tree bst`, `tree avl`,
+`heap array`, `hash`.
 
-Du kannst auf dieselbe Weise weitere Datenstrukturen anlegen, zum Beispiel:
+Möchtest du eine Datenstruktur **zweimal** implementieren (etwa rekursiv und
+iterativ), lege eine Variante an. Sie erscheint im Browser als eigener
+Eintrag:
 
 ```bash
-./new-structure DEIN_NAME stack nodes
-./new-structure DEIN_NAME queue circular
-./new-structure DEIN_NAME queue nodes
-./new-structure DEIN_NAME list unsorted-array
-./new-structure DEIN_NAME list unsorted-nodes
-./new-structure DEIN_NAME list sorted-array
-./new-structure DEIN_NAME list sorted-nodes
-./new-structure DEIN_NAME tree bst
-./new-structure DEIN_NAME tree avl
-./new-structure DEIN_NAME heap array
-./new-structure DEIN_NAME hash
+./new-structure DEIN_NAME tree bst --variant recursive   # my_bst_recursive.dart
 ```
 
-Die Varianten sind eigenständige Dateien. Wenn du einen Stack mit Knoten
-implementieren möchtest, verwende `stack nodes` statt `stack array`.
-Bei Listen wählst du ausdrücklich `unsorted-array`, `unsorted-nodes`,
-`sorted-array` oder `sorted-nodes`. `list` ohne Variante ist ungültig.
-Die vier Listen und ihre Schnittstellen sind in
-[docs/list-exercises.md](docs/list-exercises.md) beschrieben. Bei allen vier
-Listen gehört `int size = 0` zur **eigenen Implementierung**: Ihr ändert den
-Wert nach erfolgreichen Einfüge- und Löschoperationen. `memory.length` ist
-bei Array-Listen nur die Kapazität, nicht die aktuelle Anzahl der Elemente.
-
-Wähle im Browser deine Datei. Der lokal mitgelieferte CodeMirror-Editor ist
-sofort bearbeitbar, unterstützt Einrückung, **Ctrl+S** (Speichern),
-**Ctrl+Shift+K** (Zeile löschen; alternativ **Alt+Shift+K** in Chrome), **Ctrl+#** (Zeilenkommentar umschalten)
-und **Shift+Alt+F** (Dart-Formatierung). Die Kurzbefehle stehen unter dem
-Editor. Die automatische Wortvervollständigung ergänzt vorhandene Bezeichner
-und Dart-Schlüsselwörter, fügt aber keine Codevorlagen ein.
-**Revert** verwirft ungespeicherte Änderungen. Der Format-Befehl formatiert
-nur den aktuellen Entwurf. Erst Save bzw. Ctrl+S speichert ihn in der Datei
-unter `structures/`, die du auch im Workspace-Editor öffnen
-kannst. Ein Dateikonflikt wird gemeldet, statt fremde Änderungen zu
-überschreiben. Die Visualisierung zeigt stets die zuletzt gespeicherte
-Codeversion. Git-Commits und Pushes führst du wie bisher im Terminal aus.
-
-Die Kommentare in der Dart-Datei erläutern die geforderte Wirkung der Methoden
-und die bereitgestellte Speicher-API. Hinweise
-zu den Schnittstellen und zulässigen Zuständen stehen außerdem in
-[docs/contracts.md](docs/contracts.md) und
-[docs/storage-api.md](docs/storage-api.md). Die Darstellung im Browser musst
-du nicht selbst programmieren.
-
-## 7. Deine Implementierung ausprobieren und testen
+## 5. Bearbeiten, ausprobieren, testen
 
 Wähle im Browser unter **Student** deinen Ordner und unter **Structure** deine
-Datenstruktur aus. Führe einzelne Methoden aus, etwa `push(5)` oder `pop()`.
-Mit **Step**, **Play** und **Show result** kannst du die Ausführung verfolgen.
+Datei. Bearbeite den Code direkt im Editor und speichere mit **Ctrl+S**; die
+App übersetzt neu und setzt die Datenstruktur zurück. Rufe dann Methoden auf,
+etwa `push(5)`, und verfolge sie mit **Step**, **Play** oder **Show result**.
+Fehlermeldungen und `print`-Ausgaben erscheinen unter der Darstellung.
 
-Speichere deine Änderungen im Browser mit **Save** (oder im Workspace-Editor).
-Die laufende App lädt die geänderte Implementierung automatisch neu; dabei
-wird der Zustand der ausgewählten
-Datenstruktur zurückgesetzt. Bei einem Kompilierungsfehler korrigiere die im
-Browser bzw. Terminal angezeigte Fehlermeldung.
+**Run tests** prüft deine Implementierung mit einem Referenzmodell, einschließlich
+der Speicherstruktur. **Class progress** zeigt den Stand der ganzen Klasse.
+Was die Methoden tun sollen, steht in den Kommentaren der Vorlage, in
+[docs/contracts.md](docs/contracts.md) und [docs/storage-api.md](docs/storage-api.md).
 
-Klicke auf **Test implementation**, um das Testfenster zu öffnen. Dort siehst
-du den Fortschritt, die Ergebnisse der einzelnen Testgruppen und das
-Gesamtergebnis. Mit **Run tests again** kannst du die Tests erneut ausführen.
-Die Schaltfläche zeigt das zuletzt gespeicherte Gesamtergebnis für genau diese
-Codeversion an. Nach einer Änderung am Quelltext gilt das alte Ergebnis nicht
-mehr. Die Tests vergleichen das beobachtbare Verhalten mit einem Referenzmodell;
-wo vorgesehen, prüfen sie auch die physische Speicherstruktur (bei Listen
-beispielsweise `size`, Reihenfolge und Knotenverkettung). Sie laufen in einem
-**separaten Testprozess** und verändern die Datenstruktur im normalen
-Visualisierungsbereich nicht. Auch bestandene Tests beweisen nicht, dass ein
-Programm in jeder Situation korrekt ist.
-
-## 8. Deine Datenstruktur veröffentlichen
-
-Wechsle in das **Klassen-Repository** und prüfe die Änderungen:
+## 6. Veröffentlichen
 
 ```bash
 cd ~/data-structures-sandbox/structures
-git status
-```
-
-Füge nur deine eigene Datei hinzu (hier das Beispiel mit dem Array-Stack):
-
-```bash
-git add DEIN_NAME/my_array_stack.dart
-git commit -m "Add array stack by DEIN_NAME"
+git pull
+git add DEIN_NAME/
+git commit -m "Array-Stack von DEIN_NAME"
 git push
 ```
 
-Verwendest du eine andere Datenstruktur, ersetze den Dateinamen im `git add`-
-Befehl entsprechend. Nach dem Push können andere eure Änderungen mit
-`git pull` erhalten. Überschreibe keine fremden Dateien.
+Füge nur Dateien aus deinem eigenen Ordner hinzu. Lehnt Git den Push ab,
+lösche nichts und frag nach.
 
-Falls Git den Push wegen neuer Änderungen im Klassen-Repository ablehnt, lösche
-nichts und bitte um Hilfe beim Zusammenführen.
-
-## 9. Beim nächsten Mal weiterarbeiten
-
-Aktualisiere zuerst die App und anschließend das Klassen-Repository:
+## 7. Beim nächsten Mal
 
 ```bash
-cd ~/data-structures-sandbox
-git pull
-cd structures
-git pull
-cd ..
-./run
+cd ~/data-structures-sandbox && git pull
+cd structures && git pull
+cd .. && ./run
 ```
-
-Arbeite immer an deiner Datei im eigenen Ordner unter `structures/`.
 
 ## Häufige Probleme
 
-- **`Permission denied (publickey)`**: Prüfe deinen öffentlichen SSH-Schlüssel
-  in GitLab und teste `ssh -T git@git.nhcham.org` erneut.
-- **`structures` existiert bereits**: Klone nicht darüber. Prüfe zuerst, ob
-  dort schon das Klassen-Repository oder vorhandene Arbeit liegt.
-- **`File exists; not overwriting`**: Deine Starter-Datei existiert bereits.
-  Öffne und bearbeite sie; der Befehl löscht oder überschreibt sie nicht.
-- **Deine Datenstruktur erscheint nicht**: Prüfe den Dateinamen, den
-  persönlichen Unterordner und eventuelle Dart-Fehler im Browser oder Terminal.
-- **`git push` wird abgelehnt**: Überschreibe nichts und lass dir beim
-  Zusammenführen helfen.
+- **`Permission denied (publickey)`**: Der SSH-Schlüssel fehlt in GitLab
+  (Schritt 1).
+- **Deine Datei erscheint nicht**: Liegt sie in `structures/DEIN_NAME/` und
+  heißt sie wie von `./new-structure` angelegt?
+- **`File exists; not overwriting`**: Die Datei gibt es schon; bearbeite sie
+  einfach weiter.
 
-Die aktuelle technische Dokumentation steht in [DEVELOPMENT.md](DEVELOPMENT.md),
-die geplanten Erweiterungen in [docs/roadmap.md](docs/roadmap.md). Für einen
-ersten Einstieg in den Array-Stack gibt es [docs/start-here.md](docs/start-here.md),
-für die vier Listen [docs/list-exercises.md](docs/list-exercises.md).
-
-Der Browser-Editor verwendet die lokal mitgelieferte CodeMirror-Version unter
-`web/vendor/`; er benötigt dafür keine externe CDN-Verbindung.
+Mehr: [docs/start-here.md](docs/start-here.md) (erster Einstieg mit dem
+Array-Stack), [docs/list-exercises.md](docs/list-exercises.md) (die vier
+Listen), [DEVELOPMENT.md](DEVELOPMENT.md) (Technik).

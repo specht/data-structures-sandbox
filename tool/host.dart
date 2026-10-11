@@ -12,16 +12,21 @@ import 'student_validation.dart';
 
 const startupTimeout = Duration(seconds: 45);
 const executionTimeout = Duration(seconds: 4);
+// An open browser tab keeps one Dart process alive. After this long without
+// a call, the process is stopped to save memory; the next call restarts it
+// and silently replays the successful calls, so the structure is unchanged.
+const idleLimit = Duration(minutes: 10);
+const maxReplayedCalls = 200;
 const maxResponseBytes = 8 * 1024 * 1024;
 
 String repoPath = 'structures';
 final clients = <Client>{};
 
-String _studentPath(String student, String kind) =>
-    '${Directory(repoPath).absolute.path}/$student/${specFor(kind).filename}';
+String _studentPath(String student, String kind, [String variant='']) =>
+    '${Directory(repoPath).absolute.path}/$student/${implementationFile(specFor(kind),variant)}';
 
-String stamp(String student,String kind){
-  final f=File(_studentPath(student,kind));
+String stamp(String student,String kind,[String variant='']){
+  final f=File(_studentPath(student,kind,variant));
   if(!f.existsSync()) return 'missing';
   return studentStamp(f);
 }
@@ -39,13 +44,33 @@ List<Map<String,Object?>> catalog(){
     ..sort((a,b)=>a.path.compareTo(b.path));
   for(final directory in dirs){
     final student=directory.uri.pathSegments.where((s)=>s.isNotEmpty).last;
-    if(!RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$').hasMatch(student))continue;
-    final available=[for(final spec in visibleStructures())
-      if(File('${directory.path}/${spec.filename}').existsSync()) spec.id];
-    if(available.isNotEmpty)result.add({'id':student,'structures':available});
+    if(!studentFolder.hasMatch(student))continue;
+    final visible={for(final spec in visibleStructures()) spec.id};
+    final implementations=<({String kind,String variant})>[];
+    for(final file in directory.listSync(followLinks:false).whereType<File>()){
+      final found=implementationForFile(file.uri.pathSegments.last);
+      if(found!=null&&visible.contains(found.kind))implementations.add(found);
+    }
+    // Registry order first, then the base file before its variants.
+    final order=[for(final spec in visibleStructures()) spec.id];
+    implementations.sort((a,b){
+      final byKind=order.indexOf(a.kind).compareTo(order.indexOf(b.kind));
+      return byKind!=0?byKind:a.variant.compareTo(b.variant);
+    });
+    final available=<String>[];
+    for(final item in implementations){if(!available.contains(item.kind))available.add(item.kind);}
+    if(available.isNotEmpty)result.add({'id':student,'structures':available,
+      'implementations':[for(final item in implementations)
+        {'structure':item.kind,'variant':item.variant,
+         'label':implementationLabel(item.kind,item.variant)}]});
   }
   return result;
 }
+
+/// Variants of [kind] that [entry] (one catalog() row) provides.
+List<String> variantsOf(Map<String,Object?> entry,String kind)=>[
+  for(final item in (entry['implementations'] as List? ?? const []))
+    if(item is Map&&item['structure']==kind) item['variant'] as String];
 
 void broadcastCatalog(){
   final json=jsonEncode({'type':'catalog','students':catalog(), 'default':lastSelection()});
@@ -53,8 +78,8 @@ void broadcastCatalog(){
 }
 
 class ProgressJob {
-  final String student, kind, revision;
-  const ProgressJob(this.student,this.kind,this.revision);
+  final String student, kind, revision, variant;
+  const ProgressJob(this.student,this.kind,this.revision,[this.variant='']);
 }
 
 class ProgressResult {
@@ -80,13 +105,14 @@ String progressStatusMessage='Open class progress to check current implementatio
 String? progressStatusStudent,progressStatusStructure;
 const progressCacheVersion=2;
 
-String _progressKey(String student,String kind)=>'$student/$kind';
+String _progressKey(String student,String kind,[String variant=''])=>
+    variant.isEmpty?'$student/$kind':'$student/$kind:$variant';
 
 int progressCheckCount(String kind)=>validationCases(kind)
     .fold<int>(0,(total,scenario)=>total+scenario.calls.length);
 
-Map<String,dynamic>? _cachedProgress(String student,String kind,String revision){
-  final raw=progressCache[_progressKey(student,kind)];
+Map<String,dynamic>? _cachedProgress(String student,String kind,String revision,[String variant='']){
+  final raw=progressCache[_progressKey(student,kind,variant)];
   if(raw is Map && raw['version']==progressCacheVersion &&
       raw['revision']==revision){
     return Map<String,dynamic>.from(raw);
@@ -106,10 +132,11 @@ void recordProgress(
   int passed,
   int total, {
   String? error,
+  String variant='',
 }){
   final safeError=error==null?null:
       (error.length>600?error.substring(0,600):error);
-  progressCache[_progressKey(student,kind)]={
+  progressCache[_progressKey(student,kind,variant)]={
     'version':progressCacheVersion,
     'revision':revision,
     'passed':passed,
@@ -124,34 +151,37 @@ Map<String,Object?> progressSnapshot(){
   final rows=<Map<String,Object?>>[];
   for(final entry in catalog()){
     final student=entry['id'] as String;
-    final available=(entry['structures'] as List).whereType<String>().toSet();
     final cells=<String,Object?>{};
     for(final spec in visibleStructures()){
-      if(!available.contains(spec.id)){
+      final variants=variantsOf(entry,spec.id);
+      if(variants.isEmpty){
         cells[spec.id]={'state':'missing'};
         continue;
       }
-
-      final revision=stamp(student,spec.id);
-      final cached=_cachedProgress(student,spec.id,revision);
-      if(cached==null){
-        cells[spec.id]={
-          'state':'pending',
-          'tested':false,
-          'total':progressCheckCount(spec.id),
-        };
-        continue;
+      // One cell per structure: the best of the student's implementations.
+      Map<String,Object?>? best;
+      for(final variant in variants){
+        final revision=stamp(student,spec.id,variant);
+        final cached=_cachedProgress(student,spec.id,revision,variant);
+        final Map<String,Object?> cell;
+        if(cached==null){
+          cell={'state':'pending','tested':false,'total':progressCheckCount(spec.id)};
+        }else{
+          final passed=(cached['passed'] as num?)?.toInt()??0;
+          final total=(cached['total'] as num?)?.toInt()??0;
+          cell={
+            'state':total>0&&passed==total?'complete':'pending',
+            'tested':true,'passed':passed,'total':total,
+            if(cached['error'] is String)'error':cached['error'],
+          };
+        }
+        cell['variant']=variant;
+        double score(Map<String,Object?> c)=>c['tested']==true&&(c['total'] as int)>0
+            ?(c['passed'] as int)/(c['total'] as int):-1;
+        if(best==null||score(cell)>score(best))best=cell;
       }
-
-      final passed=(cached['passed'] as num?)?.toInt()??0;
-      final total=(cached['total'] as num?)?.toInt()??0;
-      cells[spec.id]={
-        'state':total>0&&passed==total?'complete':'pending',
-        'tested':true,
-        'passed':passed,
-        'total':total,
-        if(cached['error'] is String)'error':cached['error'],
-      };
+      best!['implementations']=variants.length;
+      cells[spec.id]=best;
     }
     rows.add({'id':student,'cells':cells});
   }
@@ -172,9 +202,11 @@ List<ProgressJob> pendingProgressJobs(){
     final student=entry['id'] as String;
     final available=(entry['structures'] as List).whereType<String>();
     for(final kind in available){
-      final revision=stamp(student,kind);
-      if(_cachedProgress(student,kind,revision)==null){
-        result.add(ProgressJob(student,kind,revision));
+      for(final variant in variantsOf(entry,kind)){
+        final revision=stamp(student,kind,variant);
+        if(_cachedProgress(student,kind,revision,variant)==null){
+          result.add(ProgressJob(student,kind,revision,variant));
+        }
       }
     }
   }
@@ -200,14 +232,16 @@ Map<String,String> lastSelection(){
   try {
     final data=jsonDecode(File('.runtime/selection.json').readAsStringSync());
     if(data is Map && data['student'] is String && data['structure'] is String){
-      return {'student':data['student'] as String,'structure':data['structure'] as String};
+      return {'student':data['student'] as String,'structure':data['structure'] as String,
+        'variant':data['variant'] is String?data['variant'] as String:''};
     }
   }catch(_){ }
-  return {'student':'','structure':''};
+  return {'student':'','structure':'','variant':''};
 }
-void saveSelection(String student,String kind){
+void saveSelection(String student,String kind,[String variant='']){
   Directory('.runtime').createSync(recursive:true);
-  File('.runtime/selection.json').writeAsStringSync(jsonEncode({'student':student,'structure':kind}));
+  File('.runtime/selection.json').writeAsStringSync(jsonEncode(
+    {'student':student,'structure':kind,'variant':variant}));
 }
 
 class StudentExecutionTimeout implements Exception {
@@ -342,8 +376,8 @@ Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
   String? runError;
 
   try{
-    final path=await prepare(job.student,job.kind,repoPath);
-    if(stamp(job.student,job.kind)!=job.revision){
+    final path=await prepare(job.student,job.kind,repoPath,variant:job.variant);
+    if(stamp(job.student,job.kind,job.variant)!=job.revision){
       return ProgressResult(0,totalChecks,stale:true);
     }
 
@@ -406,7 +440,7 @@ Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
 }
 
 Future<ProgressResult> validateProgressJob(ProgressJob job){
-  final key='${job.student}\u0000${job.kind}\u0000${job.revision}';
+  final key='${job.student}\u0000${job.kind}\u0000${job.variant}\u0000${job.revision}';
   final existing=progressRuns[key];
   if(existing!=null)return existing;
 
@@ -423,12 +457,12 @@ Future<void> runProgressSweep(List<ProgressJob> jobs) async {
     final job=jobs[index];
     broadcastProgressStatus(
       'Checking ${index+1} / ${jobs.length}: '
-      '${job.student} · ${specFor(job.kind).label}',
+      '${job.student} · ${implementationLabel(job.kind,job.variant)}',
       current:job,
     );
 
     final result=await validateProgressJob(job);
-    if(!result.stale&&stamp(job.student,job.kind)==job.revision){
+    if(!result.stale&&stamp(job.student,job.kind,job.variant)==job.revision){
       recordProgress(
         job.student,
         job.kind,
@@ -436,6 +470,7 @@ Future<void> runProgressSweep(List<ProgressJob> jobs) async {
         result.passed,
         result.total,
         error:result.error,
+        variant:job.variant,
       );
     }
     broadcastProgressSnapshot();
@@ -479,12 +514,97 @@ class Client {
   bool validationRunning=false;
   int validationEpoch=0;
   String? student,kind,currentStamp;
+  String variant='';
   bool closed=false;
   bool refreshing=false;
   int selectionEpoch=0;
   String? _pendingSelectionKey;
   Future<void>? _pendingSelection;
+  Timer? _idleTimer;
+  bool idleStopped=false;
+  // Successful calls since the last reset or source change, for idle replay.
+  final List<Map<String,dynamic>> _history=[];
+  bool _historyOverflow=false;
   Client(this.socket);
+
+  void touchIdle(){
+    _idleTimer?.cancel();
+    if(closed) return;
+    _idleTimer=Timer(idleLimit,(){
+      if(closed||worker==null||refreshing) return;
+      worker?.kill();worker=null;idleStopped=true;
+      stdout.writeln('[sandbox] Paused idle worker ($student/$kind).');
+      send({'type':'workerIdle','message':'Paused after ${idleLimit.inMinutes} idle '
+        'minutes to save memory. Your next call resumes it with the same contents.'});
+    });
+  }
+
+  /// Resumes a paused worker before a call that needs it. False on failure
+  /// (the browser has then received an error).
+  Future<bool> _resumeIfIdle() async {
+    if(worker!=null||!idleStopped) return true;
+    send({'type':'workerResuming','message':'Resuming after a break…'});
+    try{
+      await _resumeIdle();
+      return true;
+    }catch(e){
+      stderr.writeln('[sandbox] Could not resume idle worker ($student/$kind): $e');
+      error(e);
+      return false;
+    }
+  }
+
+  void _clearHistory(){_history.clear();_historyOverflow=false;}
+
+  void _remember(Map<String,dynamic> message){
+    if(_historyOverflow) return;
+    if(_history.length>=maxReplayedCalls){_historyOverflow=true;_history.clear();return;}
+    _history.add(Map<String,dynamic>.from(message));
+  }
+
+  /// Restarts the paused worker. Replays the remembered calls when possible;
+  /// otherwise the browser receives a normal "hello" for an empty structure.
+  Future<void> _resumeIdle() async {
+    final selected=student, selectedKind=kind;
+    idleStopped=false;
+    if(selected==null||selectedKind==null) return;
+    final selectedVariant=variant;
+    if(stamp(selected,selectedKind,selectedVariant)!=currentStamp){
+      await select(selected,selectedKind,variant:selectedVariant); // Source changed during the break.
+      return;
+    }
+    Future<StudentWorker> start(String path) async {
+      final process=await Process.start(Platform.resolvedExecutable,[path],
+        workingDirectory:Directory.current.path);
+      final fresh=StudentWorker(process);
+      final hello=await fresh.next(startupTimeout);
+      if(hello['type']!='hello'){fresh.kill();throw StateError('Student runner failed to initialize.');}
+      return fresh;
+    }
+    final path=await prepare(selected,selectedKind,repoPath,variant:selectedVariant);
+    if(closed) return;
+    if(!_historyOverflow && _history.isNotEmpty){
+      final fresh=await start(path);
+      var restored=true;
+      for(final call in _history){
+        try{
+          final reply=await fresh.request(call);
+          if(reply['type']!='trace'){restored=false;break;}
+        }catch(_){restored=false;break;}
+      }
+      if(restored&&!fresh.dead){
+        if(closed){fresh.kill();return;}
+        worker=fresh;preparedPath=path;
+        stdout.writeln('[sandbox] Resumed idle worker ($selected/$selectedKind), '
+          'replayed ${_history.length} call(s).');
+        return;
+      }
+      fresh.kill();
+    }
+    // Nothing to replay, too many calls, or the replay failed: start empty.
+    _clearHistory();
+    await select(selected,selectedKind,variant:selectedVariant);
+  }
 
   void cancelValidation() {
     validationEpoch++;
@@ -496,7 +616,7 @@ class Client {
   void sendRaw(String data){if(!closed && socket.readyState==WebSocket.open)socket.add(data);}
   void error(Object e){
     if(e is StudentDiagnosticsException && student!=null && kind!=null){
-      send({'type':'compileDiagnostics', 'student':student, 'structure':kind,
+      send({'type':'compileDiagnostics', 'student':student, 'structure':kind, 'variant':variant,
         'revision':currentStamp, 'message':e.message,
         'diagnostics':e.diagnostics});
       return;
@@ -506,24 +626,24 @@ class Client {
   void markChanged(){
     if(refreshing || student==null || kind==null)return;
     final detected = Stopwatch()..start();
-    final next=stamp(student!,kind!);
+    final next=stamp(student!,kind!,variant);
     if(next==currentStamp)return;
     buildProfile('$student/$kind', 'watcher stamp', detected.elapsed);
     currentStamp=next;
     refreshing=true;
     worker?.kill();worker=null;
     send({'type':'sourceChanged','message':'Student source changed; checking Dart…'});
-    unawaited(select(student!,kind!, detectedAt:detected)
+    unawaited(select(student!,kind!,variant:variant,detectedAt:detected)
       .whenComplete(()=>refreshing=false));
   }
-  Future<void> select(String selected,String structure,{Stopwatch? detectedAt}) {
+  Future<void> select(String selected,String structure,{String variant='',Stopwatch? detectedAt}) {
     // A save notification and a concurrent select for the SAME revision
     // must join one startup, rather than each starting its own worker. Other
     // browser sessions retain their intentionally independent worker state.
-    final key = '$selected\u0000$structure\u0000${stamp(selected,structure)}';
+    final key = '$selected\u0000$structure\u0000$variant\u0000${stamp(selected,structure,variant)}';
     final existing = _pendingSelection;
     if(existing!=null && _pendingSelectionKey==key) return existing;
-    final pending = _selectOnce(selected,structure,detectedAt:detectedAt);
+    final pending = _selectOnce(selected,structure,variant,detectedAt:detectedAt);
     _pendingSelectionKey = key;
     _pendingSelection = pending;
     unawaited(pending.then((_) {
@@ -537,29 +657,31 @@ class Client {
     }));
     return pending;
   }
-  Future<void> _selectOnce(String selected,String structure,{Stopwatch? detectedAt}) async {
+  Future<void> _selectOnce(String selected,String structure,String selectedVariant,{Stopwatch? detectedAt}) async {
     final selection = Stopwatch()..start();
     final subject = '$selected/$structure';
     final epoch=++selectionEpoch;
     cancelValidation();
     preparedPath=null;
     try{
-      if(!catalog().any((s)=>s['id']==selected && (s['structures'] as List).contains(structure))){
-        throw FormatException('Implementation not found: $selected / $structure');
+      if(!catalog().any((s)=>s['id']==selected && variantsOf(s,structure).contains(selectedVariant))){
+        throw FormatException('Implementation not found: $selected / '
+          '${implementationFile(specFor(structure),selectedVariant)}');
       }
       worker?.kill();worker=null;
-      student=selected;kind=structure;currentStamp=stamp(selected,structure);
+      student=selected;kind=structure;variant=selectedVariant;
+      currentStamp=stamp(selected,structure,selectedVariant);
       final probe=Stopwatch()..start();
-      final recompiling=workerNeedsBuild(selected,structure,repoPath);
+      final recompiling=workerNeedsBuild(selected,structure,repoPath,variant:selectedVariant);
       buildProfile(subject, 'cache probe', probe.elapsed);
       send({'type':'building','recompiling':recompiling,
         'message':recompiling?'Compiling $selected / $structure…':
           'Starting cached $selected / $structure…'});
       final preparing=Stopwatch()..start();
-      final path=await prepare(selected,structure,repoPath);
+      final path=await prepare(selected,structure,repoPath,variant:selectedVariant);
       buildProfile(subject, 'prepare await', preparing.elapsed);
       // If a later selection overtook this compilation, do not start its worker.
-      if(closed || epoch!=selectionEpoch || currentStamp!=stamp(selected,structure))return;
+      if(closed || epoch!=selectionEpoch || currentStamp!=stamp(selected,structure,selectedVariant))return;
       final launching=Stopwatch()..start();
       final process=await Process.start(Platform.resolvedExecutable,[path],
         workingDirectory:Directory.current.path);
@@ -572,8 +694,11 @@ class Client {
       if(hello['type']!='hello')throw StateError('Student runner failed to initialize: $hello');
       worker=newWorker;
       preparedPath=path;
-      saveSelection(selected,structure);
-      send({...hello,'student':selected,'validationRevision':path});
+      idleStopped=false;
+      _clearHistory();
+      touchIdle();
+      saveSelection(selected,structure,selectedVariant);
+      send({...hello,'student':selected,'variant':selectedVariant,'validationRevision':path});
     }catch(e){
       if(closed)return;
       if(epoch==selectionEpoch){
@@ -600,7 +725,7 @@ class Client {
 
     bool current() => !closed && validationEpoch==epoch &&
         currentStamp==selectedStamp && kind==selectedKind &&
-        student!=null && stamp(student!,selectedKind)==selectedStamp;
+        student!=null && stamp(student!,selectedKind,variant)==selectedStamp;
     Future<StudentWorker> startIsolated() async {
       final process=await Process.start(Platform.resolvedExecutable,[path],
         workingDirectory:Directory.current.path);
@@ -716,20 +841,26 @@ class Client {
   Future<void> handle(Map<String,dynamic> message) async {
     if(message['action']=='ping'){send({'type':'pong'});return;}
     if(message['action']=='progressOverview'){requestProgress(this);return;}
-    if(message['action']=='validate') {unawaited(validate());return;}
+    if(message['action']=='validate') {
+      if(await _resumeIfIdle()) unawaited(validate());
+      return;
+    }
     if(message['action']=='select'){
       final requestedStudent=message['student'];
       final requestedStructure=message['structure'];
+      final requestedVariant=message['variant'];
       final selected=requestedStudent is String ? requestedStudent : lastSelection()['student']!;
       final chosen=requestedStructure is String ? requestedStructure : 'list';
-      await select(selected,chosen);return;
+      final chosenVariant=requestedVariant is String ? requestedVariant : '';
+      checkVariant(chosenVariant);
+      await select(selected,chosen,variant:chosenVariant);return;
     }
     if(message['action']=='formatSource') {
       final requestId=message['requestId'];
-      final selected=student, selectedKind=kind;
+      final selected=student, selectedKind=kind, selectedVariant=variant;
       final response=<String,dynamic>{
         'requestId':requestId,'revision':message['revision'],
-        'student':selected,'structure':selectedKind,
+        'student':selected,'structure':selectedKind,'variant':selectedVariant,
       };
       try {
         if(requestId is! int || requestId<1 ||
@@ -738,7 +869,7 @@ class Client {
           throw const FormatException('Invalid source format request.');
         }
         // Never accept a client-supplied path or rewrite the student's saved file.
-        final file=editableSource(repoPath, selected, selectedKind);
+        final file=editableSource(repoPath, selected, selectedKind, selectedVariant);
         final formatted=await formatEditableDraft(file.path, message['content'] as String);
         send({'type':'sourceFormatted',...response,'content':formatted});
       } catch(error) {
@@ -755,13 +886,13 @@ class Client {
           throw const FormatException('Select a student implementation first.');
         }
         if(message['action']=='readSource'){
-          send(readEditableSource(repoPath,selected,selectedKind));
+          send(readEditableSource(repoPath,selected,selectedKind,variant));
         }else {
           final content=message['content'], revision=message['revision'];
           if(content is! String || revision is! String){
             throw const FormatException('Invalid source save request.');
           }
-          send(saveEditableSource(repoPath,selected,selectedKind,revision,content));
+          send(saveEditableSource(repoPath,selected,selectedKind,revision,content,variant));
           markChanged(); // Existing watcher recompiles the saved student file.
         }
       } on FormatException catch(error){
@@ -771,8 +902,12 @@ class Client {
       }
       return;
     }
+    if(worker==null&&idleStopped){
+      if(!await _resumeIfIdle()) return;
+    }
     final runner=worker;
     if(runner==null){error('Select a valid student implementation first.');return;}
+    touchIdle();
     try{
       final result=await runner.request(message);
       if(result['type']=='error'||result['type']=='executionError'){
@@ -782,7 +917,13 @@ class Client {
             'kind':'runtime','message':result['message']?.toString()??'Student code failed.'};
         send({...result,'type':'executionError','error':details,
           'message':'${details['message']} · Runner stopped; use Retry to start a fresh instance.'});
-      }else send(result);
+      }else{
+        if(result['type']=='trace'){
+          if(message['action']=='reset') _clearHistory();
+          else if(message['action']=='run') _remember(message);
+        }
+        send(result);
+      }
     }on StudentExecutionTimeout catch(e){
       stderr.writeln('[sandbox] Student execution timed out ($student/$kind): $e');
       runner.kill();if(identical(worker,runner))worker=null;
@@ -798,7 +939,7 @@ class Client {
       error(e);
     }
   }
-  void close(){closed=true;cancelValidation();worker?.kill();worker=null;}
+  void close(){closed=true;_idleTimer?.cancel();cancelValidation();worker?.kill();worker=null;}
 }
 
 Future<void> main(List<String> args) async {
@@ -861,8 +1002,8 @@ Future<void> _handleRequest(HttpRequest request) async {
     final path=switch(request.uri.path){
       '/' || '/index.html'=>'web/index.html',
       '/style.css'=>'web/style.css',
-      '/app.js'=>'web/app.js',
-      '/editor.js'=>'web/editor.js',
+      // The browser scripts, loaded in order by index.html.
+      final script when RegExp(r'^/js/[a-z0-9-]+\.js$').hasMatch(script)=>'web$script',
       '/vendor/codemirror.js'=>'web/vendor/codemirror.js',
       '/vendor/codemirror.css'=>'web/vendor/codemirror.css',
       '/vendor/fonts/OpenSans.ttf'=>'web/vendor/fonts/OpenSans.ttf',

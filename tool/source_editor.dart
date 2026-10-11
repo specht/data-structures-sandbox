@@ -8,13 +8,11 @@ import 'registry.dart';
 // Filesystem writes are limited to an existing, recognized student Dart file.
 // Keep --students as the only root authority; never accept a client file path.
 const maxSourceBytes = 256 * 1024;
-final _studentName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$');
-
-File editableSource(String root, String student, String kind) {
-  if (!_studentName.hasMatch(student)) {
+File editableSource(String root, String student, String kind, [String variant = '']) {
+  if (!studentFolder.hasMatch(student)) {
     throw const FormatException('Invalid student name.');
   }
-  final filename = specFor(kind).filename;
+  final filename = implementationFile(specFor(kind), variant);
   final directory = Directory('${Directory(root).absolute.path}/$student');
   final source = File('${directory.path}/$filename');
   // A symbolic link must not turn a selected class file into an arbitrary write.
@@ -27,24 +25,26 @@ File editableSource(String root, String student, String kind) {
   return source;
 }
 
-Map<String, Object?> readEditableSource(String root, String student, String kind) {
-  final file = editableSource(root, student, kind);
+Map<String, Object?> readEditableSource(String root, String student, String kind,
+    [String variant = '']) {
+  final file = editableSource(root, student, kind, variant);
   if (file.lengthSync() > maxSourceBytes) {
     throw const FormatException('Source is too large for the browser editor.');
   }
   return {
-    'type': 'sourceFile', 'student': student, 'structure': kind,
+    'type': 'sourceFile', 'student': student, 'structure': kind, 'variant': variant,
     'content': file.readAsStringSync(encoding: utf8),
     'revision': studentStamp(file),
   };
 }
 
 Map<String, Object?> saveEditableSource(
-    String root, String student, String kind, String baseRevision, String content) {
+    String root, String student, String kind, String baseRevision, String content,
+    [String variant = '']) {
   if (utf8.encode(content).length > maxSourceBytes || content.contains('\u0000')) {
     throw const FormatException('Source must be UTF-8 text smaller than 256 KiB.');
   }
-  final file = editableSource(root, student, kind);
+  final file = editableSource(root, student, kind, variant);
   if (studentStamp(file) != baseRevision) {
     throw const FormatException(
         'Source changed since editing began. Your draft was kept; review the latest file before saving.');
@@ -53,7 +53,7 @@ Map<String, Object?> saveEditableSource(
     file.writeAsStringSync(content, encoding: utf8, flush: true);
   }
   return {
-    'type': 'sourceSaved', 'student': student, 'structure': kind,
+    'type': 'sourceSaved', 'student': student, 'structure': kind, 'variant': variant,
     'content': content, 'revision': studentStamp(file),
   };
 }

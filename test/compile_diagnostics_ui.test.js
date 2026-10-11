@@ -60,7 +60,7 @@ const ctx = vm.createContext({
   socket: {readyState: 1, send: data => requests.push(JSON.parse(data))},
   WebSocket: {OPEN: 1},
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/editor.js'), 'utf8'), ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/js/editor.js'), 'utf8'), ctx);
 const editor = window.sandboxEditor;
 const problems = document.getElementById('source-problems');
 const list = document.getElementById('source-problem-list');

@@ -1,19 +1,20 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 
 const html=fs.readFileSync('web/index.html','utf8');
 const host=fs.readFileSync('tool/host.dart','utf8');
-const worker=fs.readFileSync('tool/worker_template.txt','utf8');
+const worker=fs.readFileSync('lib/worker/session.dart','utf8');
 const diagnostics=fs.readFileSync('lib/trace_budget.dart','utf8');
 
 for(const id of ['runtime-console','console-toggle','console-output','console-clear'])
   assert.match(html,new RegExp(`id="${id}"`),`Missing ${id}`);
 assert.match(worker,/ZoneSpecification\(print:/,'Student print() must be captured safely.');
-assert.match(worker,/'type':'studentOutput'/);
-assert.match(worker,/'type':'executionProgress'/);
-assert.match(worker,/'type':'executionError'/);
+assert.match(worker,/'type': ?'studentOutput'/);
+assert.match(worker,/'type': ?'executionProgress'/);
+assert.match(worker,/'type': ?'executionError'/);
 assert.match(host,/class StudentExecutionTimeout/);
 assert.match(host,/Last active source line/);
 assert.match(diagnostics,/ExecutionDiagnostics\.atLine\(line,\s*_events\.length\)/);
@@ -44,7 +45,7 @@ const context=vm.createContext({document,console,location:{protocol:'http:',host
   setInterval:()=>0,clearInterval(){},setTimeout:()=>0,clearTimeout(){},
   performance:{now:()=>0},requestAnimationFrame(){},HTMLInputElement:class{},
   HTMLTextAreaElement:class{},HTMLSelectElement:class{},HTMLButtonElement:class{}});
-vm.runInContext(fs.readFileSync('web/app.js','utf8'),context);
+loadApp(context);
 const run=source=>vm.runInContext(source,context);
 
 const initial={kind:'snapshot',cells:[null,null,null,null],top:-1};

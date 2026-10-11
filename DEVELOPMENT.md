@@ -33,6 +33,13 @@ outer app repository, start the server and use another terminal for the CLI:
 ./new-structure example list unsorted-array --example
 ```
 
+A student may keep several implementations of one structure, e.g. a recursive
+and an iterative BST: `./new-structure alice tree bst --variant recursive`
+creates `my_bst_recursive.dart` next to `my_bst.dart`. A variant keeps the
+starter's class name; the Structure picker lists it separately and it has its
+own worker, editor state and test results. Class progress shows the best of a
+student's implementations per structure.
+
 `./new-structure` without arguments lists all supported exercise choices.
 `list` requires an explicit variant. All four list files and class names
 follow the same naming scheme. See [list exercises](docs/list-exercises.md),
@@ -48,11 +55,21 @@ follow the same naming scheme. See [list exercises](docs/list-exercises.md),
   Dart syntax, closures or user-defined data models.
 - `lib/*_sandbox.dart`: observable storage APIs. Students maintain invariants;
   they do not write drawing or recorder calls.
-- `tool/worker_template.txt` and `tool/specialize_worker.dart`: create a
-  per-kind runner with an independent reference model, structural checks and
-  immutable snapshots. Source versions are cached by content fingerprint.
-- `web/app.js` renders indexed cells, linked nodes, trees, heaps and hash
-  chains. Source editing uses bundled CodeMirror in `web/editor.js`, with
+- `lib/worker/session.dart`: the structure-independent worker (request
+  parsing, tracing, verification, runtime errors, stdin/stdout protocol).
+- `lib/structures/*.dart`: one adapter per structure (`lib/worker/adapter.dart`
+  describes the hooks): its recorder, independent reference model, expected
+  returns and structural checks.
+- `tool/specialize_worker.dart`: generates the few lines of worker entry point
+  that connect a student's instrumented class to its adapter. Adding a
+  structure means a registry entry, an adapter and one line in
+  `workerAdapters`. Source versions are cached by content fingerprint.
+- `web/js/*.js` render indexed cells, linked nodes, trees, heaps and hash
+  chains. They are plain scripts without a build step, loaded in the order
+  listed in `web/index.html` (`main.js` last starts the connection); each
+  file starts with a one-line summary. `test/helpers/browser.js` loads them
+  the same way for the Node.js tests. Source editing uses bundled CodeMirror
+  in `web/js/editor.js`, with
   Ctrl+S, Ctrl+Shift+K and Revert Unsaved Edits. Saving changes the file in
   `structures/STUDENT/` and refreshes the worker and its initially empty state.
   The UI does not create or commit files in the Git repository by itself.
@@ -73,9 +90,10 @@ dart test/node_heap_model.dart
 dart test/hash_model.dart
 dart test/avl_model.dart
 dart test/student_validation.test.dart
+dart test/implementation_variants.test.dart
 dart test/specialized_worker_test.dart
 dart test/validation_integration.dart
-for t in test/*.test.js; do node "$t"; done
+for t in test/*.test.js; do node "$t"; done   # includes runtime_hints.test.js
 ```
 
 `dart test/smoke.dart` is an **optional** end-to-end check. It runs every kind
@@ -96,6 +114,11 @@ other structure-specific requirements.
 
 Each browser connection has its own worker instance. Source changes reset that
 instance's in-memory structure; they do not overwrite the edited student file.
+After 10 minutes without a call, the host stops the worker of that tab to save
+memory. The next call (or test run) starts it again and replays the successful
+calls since the last reset, so students keep their structure's contents. If
+the replay fails or there were more than 200 calls, the structure starts empty
+as after a normal restart.
 A hung student method is bounded by the worker deadline and event/response caps.
 The host process remains available if a worker fails. The worker process and
 its deadline are **not** OS-level isolation; run untrusted code on a shared

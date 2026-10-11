@@ -1,10 +1,11 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 
 const html=fs.readFileSync('web/index.html','utf8');
-const source=fs.readFileSync('web/app.js','utf8');
+const source=appSource();
 const host=fs.readFileSync('tool/host.dart','utf8');
 
 assert.match(html,/id="progress-open"/);

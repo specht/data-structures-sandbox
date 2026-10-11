@@ -1,11 +1,12 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'web/index.html'),'utf8');
 const css=fs.readFileSync(path.join(root,'web/style.css'),'utf8');
-const js=fs.readFileSync(path.join(root,'web/app.js'),'utf8');
+const js=appSource();
 for(const [id,name] of [['back','Previous'],['next','Next']]){
   const button=html.match(new RegExp(`<button\\b[^>]*\\bid="${id}"[^>]*>([\\s\\S]*?)<\\/button>`));
   assert.ok(button,`${id} navigation button exists`);

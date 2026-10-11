@@ -1,5 +1,6 @@
 // Optional Node regression test: no dependency in the classroom application.
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -32,7 +33,7 @@ const context=vm.createContext({document,console,location:{protocol:'http:',host
   window:{addEventListener(){}},clearInterval(){},setInterval(){return 0},clearTimeout(){},setTimeout(){return 0},
   WebSocket:Socket,performance:{now:()=>0},requestAnimationFrame:()=>{},
   HTMLInputElement:FakeInput,HTMLTextAreaElement:class {},HTMLSelectElement:FakeSelect,HTMLButtonElement:FakeButton});
-vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/app.js'),'utf8'),context);
+loadApp(context);
 const run=src=>vm.runInContext(src,context);
 const a={kind:'snapshot',head:1,nodes:[{id:1,value:10,next:2},{id:2,value:20,next:null}]};
 const b={kind:'snapshot',head:1,nodes:[{id:1,value:10,next:3},{id:2,value:20,next:null},{id:3,value:15,next:null}]};
@@ -43,6 +44,8 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
     {kind:'pointerWrite',from:'node:1.next',oldTo:2,to:3,line:6},b,
     {kind:'operationEnd',ok:true,result:'Inserted 15',line:7}], values:[10,15]};
 (async()=>{
+  // The default selection is an array list; this is a linked-list trace.
+  run("structure='sorted_linked_list';");
   run(`tween=async (ms,update)=>{ globalThis.durations.push(ms); update(1); };`);
   context.durations=[];
   run(`acceptTrace(${JSON.stringify(trace)});`);

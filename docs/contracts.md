@@ -46,6 +46,9 @@ See [list exercises](list-exercises.md).
 ### Worker, source, and representation
 
 Keep the file name, class name, and public method signatures from the starter.
+A second implementation of the same structure (for example a recursive one)
+goes into a file with a suffix, `my_bst_recursive.dart`, and keeps the class
+name `MyBST`.
 The worker recognizes *public* methods with scalar arguments; private helpers
 may be implemented freely and remain outside the method picker. Keep the
 observable storage fields specified in the starter (`memory`, `top`, `head`,

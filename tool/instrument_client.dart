@@ -114,12 +114,18 @@ class InstrumentClient {
         if (process == null) throw InstrumenterUnavailable('Instrumenter exited before request.');
         final id = ++_requestId;
         final waiting = Completer<Map<String, dynamic>>();
+        // A daemon failure completes every pending request with an error; one
+        // that is not awaited yet must not become an uncaught async error.
+        unawaited(waiting.future.then((_) {}, onError: (Object _) {}));
         _pending[id] = waiting;
         try {
+          // No flush(): two builds at the same moment (two students saving,
+          // or a save during the class progress sweep) would flush the same
+          // pipe concurrently and throw "StreamSink is bound to a stream",
+          // which looks like a daemon crash. The sink delivers lines itself.
           process.stdin.writeln(jsonEncode({
             'id': id, 'kind': kind, 'source': source, 'out': output,
           }));
-          await process.stdin.flush();
           final result = await waiting.future.timeout(const Duration(seconds: 60));
           if (result['ok'] != true) {
             final message = result['error']?.toString() ?? 'Instrumentation failed.';

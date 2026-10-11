@@ -21,3 +21,40 @@ const structures = <StructureSpec>[
 ];
 StructureSpec specFor(String id) => structures.firstWhere((s)=>s.id==id,
   orElse:()=>throw FormatException('Unsupported structure: $id'));
+
+// Student folders as they occur in class repositories, including dots
+// (liu.kashiwabara). Never starting with '.' excludes hidden folders and '..'.
+final studentFolder = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$');
+
+// A student may keep several implementations of one structure, for example
+// my_bst.dart and my_bst_recursive.dart. A variant keeps the starter's class
+// name; only the file name differs.
+final variantName = RegExp(r'^[a-z0-9][a-z0-9_]{0,31}$');
+
+void checkVariant(String variant) {
+  if (variant.isNotEmpty && !variantName.hasMatch(variant)) {
+    throw FormatException('Invalid implementation variant: $variant');
+  }
+}
+
+String implementationFile(StructureSpec spec, String variant) {
+  checkVariant(variant);
+  if (variant.isEmpty) return spec.filename;
+  final stem = spec.filename.substring(0, spec.filename.length - '.dart'.length);
+  return '${stem}_$variant.dart';
+}
+
+/// The structure and variant a student file name belongs to, or null.
+({String kind, String variant})? implementationForFile(String name) {
+  for (final spec in structures) {
+    if (name == spec.filename) return (kind: spec.id, variant: '');
+    final stem = spec.filename.substring(0, spec.filename.length - '.dart'.length);
+    if (!name.startsWith('${stem}_') || !name.endsWith('.dart')) continue;
+    final variant = name.substring(stem.length + 1, name.length - '.dart'.length);
+    if (variantName.hasMatch(variant)) return (kind: spec.id, variant: variant);
+  }
+  return null;
+}
+
+String implementationLabel(String kind, String variant) =>
+    variant.isEmpty ? specFor(kind).label : '${specFor(kind).label} · $variant';

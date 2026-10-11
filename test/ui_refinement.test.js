@@ -1,11 +1,12 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
-const html=read('web/index.html'),js=read('web/app.js'),css=read('web/style.css');
+const html=read('web/index.html'),js=appSource(),css=read('web/style.css');
 assert.doesNotMatch(html,/>SOURCE<|CURRENT OPERATION|Step through the recorded Dart execution/);
 assert.match(html,/id="validation-run"[\s\S]*?Run tests <span id="validation-summary"/);
 assert.match(html,/id="description" hidden/);

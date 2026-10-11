@@ -60,7 +60,8 @@ For temporary debugging output, use ordinary Dart `print(...)` calls. Open the
 Console below the visualization to see those messages. Each message appears at
 the step where it was printed, so moving backward through the trace also hides
 messages that had not happened yet. Runtime errors and the last active source
-line of a timed-out call appear in the same Console. Select a line number there
+line of a timed-out call appear in the same Console, with a short hint for
+typical mistakes (for example a `null` node or an index outside the memory). Select a line number there
 to jump to that source line. Console output is retained between calls and is
 cleared when you select **Reset** (or explicitly use the Console's clear
 button). A failed or timed-out worker is stopped; use **Retry** after fixing or

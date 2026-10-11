@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = fs.readFileSync(path.join(__dirname, '../web/editor.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../web/js/editor.js'), 'utf8');
 const elements = new Map(), handlers = new Map(), requests = [], commands = [];
 class Element {
   constructor() {
@@ -17,12 +17,16 @@ class Element {
   }
   addEventListener(name, handler) { this[`on${name}`] = handler; }
   setAttribute(key, value) { this.attrs[key] = value; }
+  append(...children) { (this.children ??= []).push(...children); }
+  replaceChildren(...children) { this.children = children; }
+  get style() { return (this._style ??= {}); }
 }
 const document = {
   getElementById(id) {
     if (!elements.has(id)) elements.set(id, new Element());
     return elements.get(id);
   },
+  createElement: () => new Element(),
 };
 let cm, shortcuts;
 function CodeMirror(container, options) {

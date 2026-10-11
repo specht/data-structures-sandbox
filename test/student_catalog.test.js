@@ -1,8 +1,9 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const source=fs.readFileSync('web/app.js','utf8');
+const source=appSource();
 // Verify initial catalog handling, last choice, and per-student choices without
 // executing Dart or depending on a browser automation package.
 const prior=fs.readFileSync('test/browser_navigation.test.js','utf8');

@@ -10,7 +10,7 @@ import 'specialize_worker.dart';
 import 'instrument_client.dart';
 
 // All names are validated before becoming parts of generated paths.
-final _safeName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$');
+final _safeName = studentFolder;
 
 // Multiple browser sessions may select the same implementation at once. They
 // share one preparation, but each still gets its own live worker and state.
@@ -37,13 +37,14 @@ void buildProfile(String selection, String stage, Duration duration) {
   stdout.writeln('[profile] $selection | $stage: $millis ms');
 }
 
-Future<String> prepare(String student, String kind, String repoPath) async {
+Future<String> prepare(String student, String kind, String repoPath,
+    {String variant = ''}) async {
   if (!_safeName.hasMatch(student)) {
     throw const FormatException('Invalid student directory');
   }
   final selected = specFor(kind);
   final repo = Directory(repoPath).absolute;
-  final source = File('${repo.path}/$student/${selected.filename}');
+  final source = File('${repo.path}/$student/${implementationFile(selected, variant)}');
   if (!source.existsSync()) {
     throw FormatException('Implementation not found: ${source.path}');
   }
@@ -54,7 +55,7 @@ Future<String> prepare(String student, String kind, String repoPath) async {
   final fingerprint = Stopwatch()..start();
   final key = _fingerprint(source, student, kind);
   buildProfile('$student/$kind', 'fingerprint', fingerprint.elapsed);
-  final id = '${student}_${kind}_${key.substring(0, 24)}';
+  final id = _workerId(student, kind, variant, key);
   final existing = _building[id];
   if (existing != null) {
     try {
@@ -76,13 +77,15 @@ Future<String> prepare(String student, String kind, String repoPath) async {
 // The host can distinguish a real re-instrumentation/compilation from merely
 // starting a new worker using an unchanged, cached kernel. This must use the
 // same fingerprint/ready marker as prepare(), not file modification times.
-bool workerNeedsBuild(String student, String kind, String repoPath) {
+bool workerNeedsBuild(String student, String kind, String repoPath,
+    {String variant = ''}) {
   if (!_safeName.hasMatch(student)) return false;
   final spec = specFor(kind);
-  final source = File('${Directory(repoPath).absolute.path}/$student/${spec.filename}');
+  final source = File('${Directory(repoPath).absolute.path}/$student/'
+      '${implementationFile(spec, variant)}');
   if (!source.existsSync()) return false;
   final key = _fingerprint(source, student, kind);
-  final id = '${student}_${kind}_${key.substring(0, 24)}';
+  final id = _workerId(student, kind, variant, key);
   final generated = Directory('tool/generated/$id');
   final worker = File('tool/generated_worker_$id.dart');
   final kernel = File('tool/generated_worker_$id.dill');
@@ -98,12 +101,15 @@ bool workerNeedsBuild(String student, String kind, String repoPath) {
   }
 }
 
+// Variants keep separate cache groups (see cache_cleanup.dart).
+String _workerId(String student, String kind, String variant, String key) =>
+    '${student}_$kind${variant.isEmpty ? '' : '_$variant'}_${key.substring(0, 24)}';
+
 String _fingerprint(File source, String student, String kind) {
   final files = <File>[
     ..._studentDependencies(source),
     File('pubspec.yaml'),
     File('pubspec.lock'),
-    File('tool/worker_template.txt'),
     File('tool/instrument.dart'),
     File('tool/registry.dart'),
     File('tool/specialize_worker.dart'),
@@ -115,7 +121,7 @@ String _fingerprint(File source, String student, String kind) {
     bytes.add(utf8.encode(part));
     bytes.addByte(0);
   }
-  add('worker-cache-v2-single-kind');
+  add('worker-cache-v3-adapters');
   add(Platform.version);
   add(source.absolute.path); // Also identifies distinct repositories.
   add(student);
@@ -244,11 +250,10 @@ Future<String> _build(
           '${instrumented.stdout}${instrumented.stderr}');
     }
   }
-  // The browser has one structure selected at a time. Keep the shared trace
-  // engine, but import and compile only this student's selected implementation.
+  // The worker entry point only connects the shared session and the
+  // structure's adapter (both in lib/) to this student's instrumented class.
   final generation = Stopwatch()..start();
-  final text = specializeWorkerTemplate(
-    File('tool/worker_template.txt').readAsStringSync(),
+  final text = generateWorker(
     selected: specFor(kind),
     id: id,
     sourcePath: source.path,

@@ -1,4 +1,5 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 class Element {
   constructor(tag){this.tagName=tag;this.children=[];this.attrs={};this.dataset={};this.style={};this.value='';this.textContent='';
@@ -20,7 +21,7 @@ const elements=new Map(),document={getElementById(id){if(!elements.has(id))eleme
 const context=vm.createContext({document,console,window:{addEventListener(){}},location:{protocol:'http:',host:'localhost:8081'},
   WebSocket:class{static OPEN=1;addEventListener(){}send(){}},setInterval:()=>0,clearInterval(){},setTimeout:()=>0,clearTimeout(){},
   performance:{now:()=>0},requestAnimationFrame(){},HTMLInputElement:class{},HTMLTextAreaElement:class{},HTMLSelectElement:class{},HTMLButtonElement:class{}});
-vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/app.js'),'utf8'),context);
+loadApp(context);
 const run=s=>vm.runInContext(s,context);
 const empty={kind:'snapshot',buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};
 const full={kind:'snapshot',buckets:[null,null,null,null,null,null,null,3],nodes:[

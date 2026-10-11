@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'dart:io';
 
 final _workerName = RegExp(
-    r'^generated_worker_([A-Za-z0-9][A-Za-z0-9_-]*)_([0-9a-f]{24})\.(dart|dill)$');
+    r'^generated_worker_([A-Za-z0-9][A-Za-z0-9._-]*)_([0-9a-f]{24})\.(dart|dill)$');
 final _generatedName = RegExp(
-    r'^([A-Za-z0-9][A-Za-z0-9_-]*)_([0-9a-f]{24})$');
+    r'^([A-Za-z0-9][A-Za-z0-9._-]*)_([0-9a-f]{24})$');
 
 class CacheCleanupResult {
   final int revisionsRemoved;

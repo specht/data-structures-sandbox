@@ -1,11 +1,12 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const html = read('web/index.html');
-const js = read('web/app.js');
+const js = appSource();
 const host = read('tool/host.dart');
 const sprite = read('web/vendor/tabler-icons.svg');
 assert.match(read('web/vendor/TABLER-LICENSE'), /MIT License/);
@@ -17,7 +18,7 @@ assert.ok(defined.size >= 15, 'The selected Tabler glyphs must be bundled locall
 assert.ok(used.size >= 15, 'The controls must actually use the bundled icons.');
 for (const name of used) assert.ok(defined.has(name), `Missing bundled icon ${name}`);
 for (const id of ['retry', 'reset', 'validation-run', 'validation-close',
-  'validation-rerun', 'source-edit', 'source-save', 'source-discard',
+  'validation-rerun', 'source-save', 'source-discard',
   'zoom-in', 'zoom-out', 'fit-scene', 'first', 'last', 'back', 'next']) {
   const button = html.match(new RegExp(`<button\\b[^>]*\\bid="${id}"[^>]*>([\\s\\S]*?)<\\/button>`));
   assert.ok(button, `Missing control ${id}`);

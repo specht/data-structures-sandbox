@@ -6,7 +6,7 @@ usage() {
   cat <<'EOF'
 Create a student data structure (unfinished starter by default).
 
-  ./new-structure STUDENT TYPE [IMPLEMENTATION]
+  ./new-structure STUDENT TYPE [IMPLEMENTATION] [--variant NAME]
 
 TYPE        IMPLEMENTATION          Result
 list        unsorted-array | unsorted-nodes | sorted-array | sorted-nodes
@@ -20,21 +20,35 @@ Examples:
   ./new-structure alice stack
   ./new-structure alice stack nodes
   ./new-structure alice tree avl
+  ./new-structure alice tree bst --variant recursive   # my_bst_recursive.dart
+
+A variant is a second implementation of the same structure (for example a
+recursive and an iterative one). It keeps the class name from the starter;
+only the file name gets the suffix. Variant names use lowercase letters,
+digits and underscores.
 
 An existing file is never overwritten. The structures/ directory is a separate Git repository.
 EOF
 }
 if [[ $# -eq 0 || ( $# -eq 1 && ( "$1" == --help || "$1" == -h ) ) ]]; then usage; exit 0; fi
-if (( $# < 2 || $# > 4 )); then usage >&2; exit 64; fi
+if (( $# < 2 || $# > 6 )); then usage >&2; exit 64; fi
 student="$1"; kind="$2"; shift 2
-if [[ ! "$student" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$ ]]; then
+if [[ ! "$student" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
   echo 'Invalid student folder name.' >&2; exit 64
 fi
 example=false
 implementation=''
-for arg in "$@"; do
+variant=''
+while (( $# > 0 )); do
+  arg="$1"; shift
   case "$arg" in
     --example) if "$example"; then echo 'Duplicate --example.' >&2; exit 64; fi; example=true;;
+    --variant)
+      if [[ -n "$variant" || $# -eq 0 ]]; then echo 'Use --variant NAME once.' >&2; exit 64; fi
+      variant="$1"; shift
+      if [[ ! "$variant" =~ ^[a-z0-9][a-z0-9_]{0,31}$ ]]; then
+        echo 'Invalid variant name: use lowercase letters, digits and underscores, e.g. recursive.' >&2; exit 64
+      fi;;
     --*) echo "Unknown option: $arg" >&2; usage >&2; exit 64;;
     *) if [[ -n "$implementation" ]]; then echo 'Specify only one implementation.' >&2; exit 64; fi; implementation="$arg";;
   esac
@@ -58,7 +72,9 @@ source="templates/starter/$filename"
 if "$example"; then source="templates/example/$filename"; fi
 if [[ ! -f "$source" ]]; then echo "Missing template: $source" >&2; exit 66; fi
 mkdir -p "structures/$student"
-target="structures/$student/$filename"
+target_name="$filename"
+if [[ -n "$variant" ]]; then target_name="${filename%.dart}_${variant}.dart"; fi
+target="structures/$student/$target_name"
 if [[ -e "$target" ]]; then echo "File exists; not overwriting: $target" >&2; exit 73; fi
 cp "$source" "$target"
 echo "Created $target from $source in the separate student Git repository."

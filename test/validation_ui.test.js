@@ -1,11 +1,12 @@
 'use strict';
+const {appSource, loadApp} = require('./helpers/browser');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
 // Exercise the real modal / cache functions without a browser or Dart process.
-const source=fs.readFileSync(path.join(__dirname,'../web/app.js'),'utf8');
+const source=appSource();
 const start=source.indexOf('const validationUI=');
 const end=source.indexOf('const svg =',start);
 assert.ok(start>=0&&end>start,'Validation controls must be registered.');

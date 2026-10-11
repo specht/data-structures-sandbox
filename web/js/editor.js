@@ -16,7 +16,10 @@
   let pendingDiagnostics = null, diagnosticMarks = [];
   let formatting = false, formatRequest = 0, formatDraft = null, formatRevision = null;
   let suggestions = [], suggestionIndex = 0, suppressSuggestions = false;
-  const locationKey = () => `${selectedStudent}/${structure}`;
+  // selection.js owns the selection; the editor also works (and is tested) alone.
+  const currentVariant = () => (typeof variant === 'string' ? variant : '');
+  const locationKey = () => `${selectedStudent}/${structure}:${currentVariant()}`;
+  const sameVariant = message => (message.variant ?? '') === currentVariant();
   const connected = () => socket && socket.readyState === WebSocket.OPEN;
   const editor = CodeMirror(container, {
     value: 'Create a starter from the app terminal: ./new-structure YOUR_NAME stack array',
@@ -161,7 +164,7 @@
     if (!formatting || message.requestId !== formatRequest) return;
     formatting = false;
     const current = message.student === selectedStudent &&
-      message.structure === structure && selection === locationKey() &&
+      message.structure === structure && sameVariant(message) && selection === locationKey() &&
       revision === formatRevision && message.revision === formatRevision &&
       editor.getValue() === formatDraft && !saving && !loading && !sourceOutdated;
     formatDraft = null; formatRevision = null;
@@ -234,7 +237,7 @@
   }
   function receiveDiagnostics(message) {
     if (selection !== locationKey() || message.student !== selectedStudent ||
-        message.structure !== structure || dirty) return;
+        message.structure !== structure || !sameVariant(message) || dirty) return;
     if (loading || revision === null) {
       pendingDiagnostics = message; // A failed select can precede readSource.
       return;
@@ -332,7 +335,8 @@
   function receive(message) {
     if (message.type === 'sourceFile') {
       if (!loading || selection !== locationKey() ||
-          message.student !== selectedStudent || message.structure !== structure) return;
+          message.student !== selectedStudent || message.structure !== structure ||
+          !sameVariant(message)) return;
       loading = false;
       if (dirty || saving) {
         sourceOutdated = true;
@@ -353,7 +357,8 @@
       if (queued) receiveDiagnostics(queued);
     } else if (message.type === 'sourceSaved') {
       if (!saving || selection !== locationKey() ||
-          message.student !== selectedStudent || message.structure !== structure) return;
+          message.student !== selectedStudent || message.structure !== structure ||
+          !sameVariant(message)) return;
       saving = false;
       clearDiagnostics();
       original = message.content;

@@ -25,7 +25,7 @@ let cm;function CodeMirror(_node,options){
 }
 const sent=[],window={addEventListener(){},confirm:()=>true};
 const context=vm.createContext({CodeMirror,document,window,selectedStudent:'alice',structure:'stack',ui:{cmdStatus:new El()},WebSocket:{OPEN:1},socket:{readyState:1,send:m=>sent.push(JSON.parse(m))}});
-vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/editor.js'),'utf8'),context);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/js/editor.js'),'utf8'),context);
 const editor=window.sandboxEditor,button=id=>document.getElementById(id);
 const key=k=>{assert.equal(typeof cm.options.extraKeys[k],'function',k);cm.options.extraKeys[k](cm);};
 editor.ready();assert.equal(sent.at(-1).action,'readSource');
