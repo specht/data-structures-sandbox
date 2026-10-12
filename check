@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Runs every test of the Data Structure Sandbox:  ./check
+#
+# Needs the Dart SDK and Node.js. Python, JavaScript (Node.js) and Java (JDK
+# 17+) data structures are tested where those are installed; missing ones are
+# skipped with a note. Nothing in structures/ is touched: tests that need
+# students use temporary repositories.
+set -euo pipefail
+cd "$(dirname "$(realpath "$0")")"
+
+step() { printf '\n==> %s\n' "$1"; }
+missing() { echo "Missing: $1" >&2; exit 1; }
+command -v dart >/dev/null 2>&1 || missing 'the Dart SDK (https://dart.dev/get-dart)'
+command -v node >/dev/null 2>&1 || missing 'Node.js (the browser tests run on it)'
+
+step 'Application dependencies'
+dart pub get
+
+step 'Static analysis (errors fail, warnings are shown)'
+dart analyze --no-fatal-warnings lib tool test
+
+step 'Command-line scripts'
+bash test/new_structure.test.sh > /dev/null && echo 'PASS: new-structure'
+bash test/first_run.test.sh > /dev/null && echo 'PASS: first run'
+bash test/precompiled_run.test.sh
+
+step 'Models, registry and validation scenarios'
+for test in list_model stack_model heap_model node_heap_model hash_model avl_model \
+    list_size_contract student_validation.test implementation_variants.test \
+    specialized_worker_test cache_cleanup_test source_editor.test; do
+  dart "test/$test.dart"
+done
+
+step 'Builds and workers (Dart)'
+for test in instrument_daemon_test editor_format_integration runtime_diagnostics_test \
+    command_sequence_test validation_contract_regression validation_integration; do
+  dart "test/$test.dart"
+done
+
+step 'Browser'
+for test in test/*.test.js; do node "$test"; done
+
+step 'Python, JavaScript and Java through the host'
+dart test/language_host_test.dart
+
+step 'Python, JavaScript and Java workers (traces compared with each other)'
+python=""
+for candidate in "${SANDBOX_PYTHON:-}" python3 python; do
+  if [[ -n "$candidate" ]] && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then
+    python="$candidate"; break
+  fi
+done
+if [[ -n "$python" ]]; then
+  "$python" -I -B test/language_workers_test.py python javascript java
+else
+  echo '(no Python 3.10+ found: skipping the worker tests of the other languages)'
+fi
+
+# Optional: every registered structure against structures/example/ (see
+# DEVELOPMENT.md). Run with  SANDBOX_SMOKE=1 ./check
+if [[ "${SANDBOX_SMOKE:-}" == 1 ]]; then
+  step 'Smoke test against structures/example'
+  dart test/smoke.dart
+fi
+
+printf '\n✓ All checks passed\n'

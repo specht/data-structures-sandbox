@@ -127,34 +127,18 @@ with Dart; `SANDBOX_RELEASES=owner/repo` uses the releases of a fork.
 
 ## Verification
 
-Run these from the outer application repository with the Dart SDK and Node.js
-available. The integration test creates a **temporary** student repository;
-it does not require `structures/example`:
+Run every test with one command from the outer application repository:
 
 ```sh
-bash test/new_structure.test.sh
-bash test/first_run.test.sh
-bash test/precompiled_run.test.sh
-dart test/list_model.dart
-dart test/stack_model.dart
-dart test/heap_model.dart
-dart test/node_heap_model.dart
-dart test/hash_model.dart
-dart test/avl_model.dart
-dart test/student_validation.test.dart
-dart test/implementation_variants.test.dart
-dart test/specialized_worker_test.dart
-dart test/validation_integration.dart
-for t in test/*.test.js; do node "$t"; done   # includes runtime_hints.test.js
-dart test/language_host_test.dart
-python3 -I -B test/language_workers_test.py python javascript java
+./check
 ```
 
-The last two lines need Python, Node.js and a JDK; the Dart test skips
-missing languages, the Python test runs the languages you name (with two or
-more, their traces are compared).
+It needs the Dart SDK and Node.js; Python, JavaScript and Java are tested
+where they are installed (Python 3.10+, Node.js 18+, JDK 17+) and skipped
+with a note otherwise. The integration tests create **temporary** student
+repositories; they do not require `structures/example`.
 
-`dart test/smoke.dart` is an **optional** end-to-end check. It runs every kind
+`dart test/smoke.dart` (or `SANDBOX_SMOKE=1 ./check`) is an **optional** end-to-end check. It runs every kind
 listed by the registry and requires `structures/example/` to contain a
 complete reference file for **every** registered structure, not merely the
 four lists or the structure being studied. Create any missing examples with
