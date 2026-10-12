@@ -65,6 +65,11 @@ class Language:
         return cls._daemon
 
     @classmethod
+    def missing(cls):
+        """Why this language cannot be tested here, or None."""
+        return None
+
+    @classmethod
     def template(cls, variant, kind):
         stem = STRUCTURES[kind][0]
         return os.path.join(ROOT, "templates", variant, stem + cls.extension)
@@ -97,6 +102,11 @@ class Python(Language):
 class JavaScript(Language):
     name = "javascript"
     extension = ".js"
+
+    @classmethod
+    def missing(cls):
+        node = os.environ.get("SANDBOX_NODE", "node")
+        return None if shutil.which(node) else f"Node.js is not installed ({node} not found)"
     broken = ("const value = this.head.value;", "const value = this.head.missing.value;",
               "    const value = this.head.missing.value;", "TypeError")
     endless = ("    const fresh = new ListNode(value);\n", "    while (true) {}\n    const fresh = new ListNode(value);\n")
@@ -128,6 +138,13 @@ class Java(Language):
         if home and os.path.exists(os.path.join(home, "bin", name)):
             return os.path.join(home, "bin", name)
         return name
+
+    @classmethod
+    def missing(cls):
+        for name in ("javac", "java"):
+            if not shutil.which(cls.tool(name)):
+                return f"no JDK found ({name} is missing; set JAVA_HOME or SANDBOX_JAVA_HOME)"
+        return None
 
     @classmethod
     def classes(cls):
@@ -368,7 +385,14 @@ class WorkerTests(unittest.TestCase):
 
 def main():
     names = [arg for arg in sys.argv[1:] if not arg.startswith("-")] or list(LANGUAGES)
-    WorkerTests.languages = [LANGUAGES[name] for name in names]
+    languages = []
+    for name in names:
+        reason = LANGUAGES[name].missing()
+        if reason:
+            print(f"SKIP: {name}: {reason}")
+        else:
+            languages.append(LANGUAGES[name])
+    WorkerTests.languages = languages
     try:
         unittest.main(argv=[sys.argv[0], "-v"])
     finally:
