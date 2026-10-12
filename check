@@ -17,7 +17,13 @@ step 'Application dependencies'
 dart pub get
 
 step 'Static analysis (errors fail, warnings are shown)'
-dart analyze --no-fatal-warnings lib tool test
+# Only the app's own sources: tool/generated/ and tool/generated_worker_*.dart
+# hold cached copies of student files (also from older app versions).
+sources=(lib test)
+for file in tool/*.dart; do
+  [[ "$(basename "$file")" == generated_worker_* ]] || sources+=("$file")
+done
+dart analyze --no-fatal-warnings "${sources[@]}"
 
 step 'Command-line scripts'
 bash test/new_structure.test.sh > /dev/null && echo 'PASS: new-structure'
