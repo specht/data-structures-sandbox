@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import 'languages.dart';
 import 'registry.dart';
 import 'specialize_worker.dart';
 import 'instrument_client.dart';
@@ -21,16 +22,62 @@ final _instrumenter = InstrumentClient();
 // The normal one-shot command remains the fallback if the daemon cannot start.
 void warmInstrumenter() {
   final timer = Stopwatch()..start();
-  unawaited(_instrumenter.warm().then((_) {
-    buildProfile('instrumenter', 'warm startup', timer.elapsed);
-  }, onError: (Object error, StackTrace stack) {
-    stderr.writeln('[instrumenter] Prewarm failed: $error; one-shot fallback available.');
-  }));
+  unawaited(() async {
+    if (!await dartToolchain.available()) {
+      stdout.writeln('[dart] No Dart SDK found: .dart files cannot be built; '
+          'Python, JavaScript and Java files work as usual.');
+      return;
+    }
+    try {
+      await _instrumenter.warm();
+      buildProfile('instrumenter', 'warm startup', timer.elapsed);
+    } catch (error) {
+      stderr.writeln('[instrumenter] Prewarm failed: $error; one-shot fallback available.');
+    }
+  }());
 }
 
-/// Stops the persistent instrumenter. Tests call this at the end; otherwise
-/// its open pipes keep the test process alive after the last PASS line.
-Future<void> shutdownInstrumenter() => _instrumenter.dispose();
+/// Stops the persistent instrumenter (and the daemons of other languages).
+/// Tests call this at the end; otherwise its open pipes keep the test process
+/// alive after the last PASS line.
+Future<void> shutdownInstrumenter() async {
+  await _instrumenter.dispose();
+  for (final daemon in _daemons.values) {
+    await daemon.dispose();
+  }
+}
+
+// The daemons of the other languages (languages/*/sandbox_daemon.*): they
+// check, build and format student files. Started on first use, so a missing
+// Python or JDK only affects the files of that language.
+final _daemons = <String, InstrumentClient>{};
+
+/// The daemon for files with [extension] ('.py', '.js' or '.java').
+InstrumentClient daemonFor(String extension) => _daemons.putIfAbsent(extension, () => switch (extension) {
+      '.py' => InstrumentClient(
+          command: () => pythonToolchain.script('sandbox_daemon.py'), label: 'python'),
+      '.js' => InstrumentClient(
+          command: () => nodeToolchain.script('sandbox_daemon.mjs'), label: 'javascript'),
+      '.java' => InstrumentClient(command: javaToolchain.daemon, label: 'java'),
+      _ => throw ArgumentError.value(extension, 'extension'),
+    });
+
+/// The command that starts a worker for the selected implementation: the
+/// compiled Dart worker, or the worker of the file's language with the
+/// directory its daemon built.
+Future<List<String>> prepareWorker(String student, String kind, String repoPath,
+    {String variant = ''}) async {
+  final extension = splitVariant(variant).extension;
+  if (extension == '.dart') {
+    return [await dartToolchain.executable(), await prepare(student, kind, repoPath, variant: variant)];
+  }
+  final directory = await prepare(student, kind, repoPath, variant: variant);
+  return switch (extension) {
+    '.py' => pythonToolchain.script('sandbox_worker.py', [directory]),
+    '.js' => nodeToolchain.script('sandbox_worker.mjs', [directory]),
+    _ => javaToolchain.worker(directory),
+  };
+}
 
 // Enable with SANDBOX_PROFILE=1 ./run. Wall-clock times include subprocess
 // startup and I/O; no student code or source contents are written to this log.
@@ -41,6 +88,8 @@ void buildProfile(String selection, String stage, Duration duration) {
   stdout.writeln('[profile] $selection | $stage: $millis ms');
 }
 
+/// Dart: the compiled worker (.dill, or the checked .dart source). Other
+/// languages: the directory their daemon built (see [prepareWorker]).
 Future<String> prepare(String student, String kind, String repoPath,
     {String variant = ''}) async {
   if (!_safeName.hasMatch(student)) {
@@ -57,7 +106,7 @@ Future<String> prepare(String student, String kind, String repoPath,
   // validated worker, even across ./run restarts and browser sessions.
   final total = Stopwatch()..start();
   final fingerprint = Stopwatch()..start();
-  final key = _fingerprint(source, student, kind);
+  final key = _fingerprint(source, student, kind, splitVariant(variant).extension);
   buildProfile('$student/$kind', 'fingerprint', fingerprint.elapsed);
   final id = _workerId(student, kind, variant, key);
   final existing = _building[id];
@@ -68,7 +117,10 @@ Future<String> prepare(String student, String kind, String repoPath,
       buildProfile('$student/$kind', 'prepare (shared build)', total.elapsed);
     }
   }
-  final future = _build(student, kind, source, id, key);
+  final extension = splitVariant(variant).extension;
+  final future = extension == '.dart'
+      ? _build(student, kind, source, id, key)
+      : _buildWithDaemon(student, kind, source, id, key, extension);
   _building[id] = future;
   try {
     return await future;
@@ -88,9 +140,11 @@ bool workerNeedsBuild(String student, String kind, String repoPath,
   final source = File('${Directory(repoPath).absolute.path}/$student/'
       '${implementationFile(spec, variant)}');
   if (!source.existsSync()) return false;
-  final key = _fingerprint(source, student, kind);
+  final extension = splitVariant(variant).extension;
+  final key = _fingerprint(source, student, kind, extension);
   final id = _workerId(student, kind, variant, key);
   final generated = Directory('tool/generated/$id');
+  if (extension != '.dart') return !_daemonBuildReady(generated, key, extension);
   final worker = File('tool/generated_worker_$id.dart');
   final kernel = File('tool/generated_worker_$id.dill');
   final ready = File('${generated.path}/ready.json');
@@ -109,9 +163,12 @@ bool workerNeedsBuild(String student, String kind, String repoPath,
 String _workerId(String student, String kind, String variant, String key) =>
     '${student}_$kind${variant.isEmpty ? '' : '_$variant'}_${key.substring(0, 24)}';
 
-String _fingerprint(File source, String student, String kind) {
+String _fingerprint(File source, String student, String kind, [String extension = '.dart']) {
   final files = <File>[
     ..._studentDependencies(source),
+    // The runtimes of the other languages (Dart fingerprints stay unchanged).
+    if (extension != '.dart' && Directory('languages').existsSync())
+      ...Directory('languages').listSync(recursive: true).whereType<File>(),
     File('pubspec.yaml'),
     File('pubspec.lock'),
     File('tool/instrument.dart'),
@@ -234,12 +291,14 @@ Future<String> _build(
   try {
     await _instrumenter.instrument(kind, source.path, generated.path);
     buildProfile(subject, 'instrument (persistent)', instrumentation.elapsed);
+  } on ToolchainMissing {
+    rethrow; // No Dart SDK (precompiled host): nothing to fall back to.
   } on InstrumenterUnavailable catch (error) {
     // Keep editing functional if the analyzer daemon cannot be launched or
     // restarted. A student syntax error is a FormatException, not a fallback.
     stderr.writeln('[instrumenter] $error; using one-shot fallback.');
     final instrumented = await Process.run(
-      Platform.resolvedExecutable,
+      await dartToolchain.executable(),
       ['run', 'tool/instrument.dart', kind,
         '--source', source.path, '--out', generated.path],
     );
@@ -269,7 +328,7 @@ Future<String> _build(
   // kernel snapshot, not a shared process: every client gets a fresh isolated
   // worker. Kernel caching is skipped only on SDKs without this compiler mode.
   final compilation = Stopwatch()..start();
-  final compiled = await Process.run(Platform.resolvedExecutable,
+  final compiled = await Process.run(await dartToolchain.executable(),
     ['compile', 'kernel', dartWorker.path, '-o', kernel.path]);
   buildProfile(subject, 'compile kernel', compilation.elapsed);
   if (compiled.exitCode == 0 && kernel.existsSync()) {
@@ -298,7 +357,7 @@ Future<String> _build(
   }
   stderr.writeln('[cache] Kernel compiler unavailable; using checked Dart source.');
   final analysis = Stopwatch()..start();
-  final checked = await Process.run(Platform.resolvedExecutable,
+  final checked = await Process.run(await dartToolchain.executable(),
       ['analyze', dartWorker.path]);
   buildProfile(subject, 'fallback analyze', analysis.elapsed);
   if (checked.exitCode != 0) {
@@ -317,11 +376,53 @@ Future<String> _build(
   return dartWorker.path;
 }
 
+bool _daemonBuildReady(Directory generated, String key, String extension) {
+  final ready = File('${generated.path}/ready.json');
+  if (!ready.existsSync()) return false;
+  try {
+    final record = jsonDecode(ready.readAsStringSync());
+    return record is Map && record['key'] == key && record['language'] == extension;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// The other languages are built by their daemon: the class contract, the
+/// language's own checks (pyflakes, undefined names, javac) and whatever the
+/// worker needs (an instrumented copy or compiled classes). Student errors
+/// come back as editor diagnostics; a missing toolchain as a message that
+/// says what to install.
+Future<String> _buildWithDaemon(
+  String student,
+  String kind,
+  File source,
+  String id,
+  String key,
+  String extension,
+) async {
+  final generated = Directory('tool/generated/$id');
+  final subject = '$student/$kind';
+  if (_daemonBuildReady(generated, key, extension)) {
+    stdout.writeln('[cache] $subject: using built ${languageNameOf(extension)} worker');
+    return generated.absolute.path;
+  }
+  stdout.writeln('[build] $subject: preparing changed sources');
+  final clock = Stopwatch()..start();
+  if (generated.existsSync()) generated.deleteSync(recursive: true);
+  generated.createSync(recursive: true);
+  await daemonFor(extension)
+      .build(kind, specFor(kind).className, source.absolute.path, generated.absolute.path);
+  File('${generated.path}/ready.json')
+      .writeAsStringSync(jsonEncode({'key': key, 'language': extension}));
+  buildProfile(subject, '${languageNameOf(extension)} build', clock.elapsed);
+  return generated.absolute.path;
+}
+
 // Check the original, uninstrumented student file only when a build fails.
 // The compiler sees generated files and cannot provide editor line numbers.
 Future<List<Map<String, dynamic>>> _originalSourceDiagnostics(File source) async {
   try {
-    final result = await Process.run(Platform.resolvedExecutable,
+    final result = await Process.run(await dartToolchain.executable(),
         ['analyze', '--format=machine', source.absolute.path]);
     final expected = source.absolute.path;
     final diagnostics = <Map<String, dynamic>>[];

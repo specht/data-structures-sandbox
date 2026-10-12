@@ -27,6 +27,27 @@ void main() {
     check(found?.kind == spec.id && found?.variant == '', 'unique ${spec.filename}');
   }
   check(implementationLabel('tree', 'recursive') == 'Tree (binary search) · recursive', 'label');
+
+  // Other languages keep their extension in the variant; Dart variants are unchanged.
+  check(implementationFile(bst, '.py') == 'my_bst.py', 'Python base file');
+  check(implementationFile(bst, 'recursive.java') == 'my_bst_recursive.java', 'Java variant file');
+  check(implementationForFile('my_bst.js')?.variant == '.js', 'JavaScript base detected');
+  final java = implementationForFile('my_sorted_linked_list_v2.java');
+  check(java?.kind == 'sorted_linked_list' && java?.variant == 'v2.java', 'Java variant detected');
+  check(implementationForFile('my_bst.json') == null && implementationForFile('my_bst_.py') == null,
+      'other extensions ignored');
+  check(implementationLabel('avl', '.py') == 'Tree (AVL) · Python', 'Python label');
+  check(implementationLabel('avl', 'iterative.java') == 'Tree (AVL) · iterative · Java', 'Java label');
+  check(languageNameOf('') == 'Dart' && languageNameOf('x.js') == 'JavaScript', 'language names');
+  for (final unsafe in ['../x', 'x.py.py', '.dart', 'X.py', '.rb']) {
+    var refused = false;
+    try {
+      implementationFile(bst, unsafe);
+    } on FormatException {
+      refused = true;
+    }
+    check(refused, 'unsafe variant $unsafe rejected');
+  }
   check(studentFolder.hasMatch('liu.kashiwabara') && !studentFolder.hasMatch('..') &&
       !studentFolder.hasMatch('.hidden'), 'student folders');
   var rejected = false;

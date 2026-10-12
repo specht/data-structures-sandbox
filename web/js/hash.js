@@ -91,7 +91,7 @@ function instantHash(frame){
   if(frame.line!=null)showLine(frame.line);
   switch(frame.kind){
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;
-      ui.description.textContent=frame.description??'Executing the student Dart method.';
+      ui.description.textContent=frame.description??'Executing the student method.';
       ui.returnValue.textContent='';hashHotBucket=null;hashHotNode=null;break;
     case 'bucketRead':hashHotBucket=frame.index;hashHotNode=frame.to;break;
     case 'visit':case 'compare':hashHotNode=frame.id;break;

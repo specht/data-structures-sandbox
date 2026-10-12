@@ -1,8 +1,9 @@
 # Data Structure Sandbox
 
 Mit der Data Structure Sandbox implementiert ihr Datenstrukturen in Dart,
-bearbeitet sie im Browser, beobachtet jeden Schritt und prüft sie mit
-automatischen Tests.
+Python, JavaScript oder Java, bearbeitet sie im Browser, beobachtet jeden
+Schritt und prüft sie mit automatischen Tests. Jede und jeder wählt die
+Sprache selbst; die Darstellung und die Tests sind in allen Sprachen gleich.
 
 Ihr arbeitet mit **zwei Git-Repositories**:
 
@@ -53,6 +54,20 @@ nichts, sondern frag nach.
 
 ## 3. Die App starten
 
+Für Dateien in Python, JavaScript oder Java braucht dein Computer deren
+Interpreter bzw. Compiler: Python 3.10 oder neuer (`python3 --version`),
+Node.js 18 oder neuer (`node --version`) bzw. ein JDK 17 oder neuer
+(`javac -version`). Für Dart-Dateien braucht er das Dart SDK. Alles Weitere
+bringt die App mit.
+
+Ohne Dart SDK (etwa an Schulen, die nur Java unterrichten) lädt `./run` beim
+ersten Start die fertig übersetzte App für deinen Computer von GitHub herunter
+und startet sie; danach geht das auch offline. Dart-Dateien zeigen dann nur
+den Hinweis, dass Dart fehlt.
+
+**Windows:** Starte die App mit `run.cmd` statt `./run` und lege Dateien mit
+`new-structure.cmd` statt `./new-structure` an (das braucht Git für Windows).
+
 ```bash
 cd ~/data-structures-sandbox
 ./run
@@ -77,7 +92,18 @@ cd ~/data-structures-sandbox
 ```
 
 Das legt `structures/DEIN_NAME/my_array_stack.dart` mit einer unfertigen
-Vorlage an; vorhandene Dateien werden nie überschrieben. Weitere Beispiele:
+Vorlage an; vorhandene Dateien werden nie überschrieben. Die Sprache wählst du
+mit `--lang`:
+
+```bash
+./new-structure DEIN_NAME stack array --lang python   # my_array_stack.py
+./new-structure DEIN_NAME tree avl --lang java         # my_avl.java
+./new-structure DEIN_NAME hash --lang js               # my_hash_table.js
+```
+
+Deine Wahl wird gemerkt. Gibst du keine Sprache an, nimmt der Befehl die
+Sprache, die du zuletzt gewählt hast, sonst die deiner neuesten Datei, sonst
+die Sprache, in der die meisten deiner Klasse schreiben, und erst dann Dart. Weitere Beispiele:
 `stack nodes`, `queue circular`, `list sorted-nodes`, `tree bst`, `tree avl`,
 `heap array`, `hash`.
 
@@ -92,10 +118,12 @@ Eintrag:
 ## 5. Bearbeiten, ausprobieren, testen
 
 Wähle im Browser unter **Student** deinen Ordner und unter **Structure** deine
-Datei. Bearbeite den Code direkt im Editor und speichere mit **Ctrl+S**; die
-App übersetzt neu und setzt die Datenstruktur zurück. Rufe dann Methoden auf,
+Datei (Dateien in anderen Sprachen als Dart tragen die Sprache im Namen,
+etwa „Tree (AVL) · Python“). Bearbeite den Code direkt im Editor und speichere
+mit **Ctrl+S**; die App übersetzt neu und setzt die Datenstruktur zurück. Rufe dann Methoden auf,
 etwa `push(5)`, und verfolge sie mit **Step**, **Play** oder **Show result**.
-Fehlermeldungen und `print`-Ausgaben erscheinen unter der Darstellung.
+Fehlermeldungen und Ausgaben (`print`, `console.log`,
+`System.out.println`) erscheinen unter der Darstellung.
 
 Mehrere Aufrufe trennst du mit `;`, zum Beispiel
 `insert(1); insert(2); insert(3)` (bis zu 20 auf einmal); **Enter** führt sie
@@ -138,6 +166,10 @@ cd .. && ./run
   heißt sie wie von `./new-structure` angelegt?
 - **`File exists; not overwriting`**: Die Datei gibt es schon; bearbeite sie
   einfach weiter.
+- **„… or newer is needed“**: Installiere Python 3, Node.js bzw. ein JDK und
+  starte `./run` neu. Liegt das Programm woanders, starte mit
+  `SANDBOX_PYTHON=/pfad/zu/python3 ./run`, `SANDBOX_NODE=/pfad/zu/node ./run`
+  bzw. `SANDBOX_JAVA_HOME=/pfad/zum/jdk ./run`.
 
 Mehr: [docs/start-here.md](docs/start-here.md) (erster Einstieg mit dem
 Array-Stack), [docs/list-exercises.md](docs/list-exercises.md) (die vier

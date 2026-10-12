@@ -65,4 +65,31 @@ if grep -Eq 'int\? peek\(\)[[:space:]]*=>' templates/starter/*.dart; then
   echo 'A starter already implements peek!' >&2; exit 1
 fi
 
+# Languages: explicit choice (remembered), the student's newest file, the class.
+./new-structure frank tree avl --lang python > out.txt
+cmp templates/starter/my_avl.py structures/frank/my_avl.py
+grep -q '^language: python$' .settings.yaml
+grep -q 'Python: your choice' out.txt
+./new-structure frank tree bst --variant recursive > out.txt
+cmp templates/starter/my_bst.py structures/frank/my_bst_recursive.py
+grep -q 'your last choice' out.txt
+./new-structure frank stack --lang js > /dev/null
+cmp templates/starter/my_array_stack.js structures/frank/my_array_stack.js
+grep -q '^language: javascript$' .settings.yaml
+[[ "$(grep -c '^language:' .settings.yaml)" == 1 ]]
+./new-structure gina hash --lang java --example > /dev/null
+cmp templates/example/my_hash_table.java structures/gina/my_hash_table.java
+rm .settings.yaml
+./new-structure gina stack nodes > out.txt
+[[ -f structures/gina/my_linked_stack.java ]]
+grep -q 'newest file' out.txt
+if ./new-structure gina queue --lang ruby >/dev/null 2>&1; then echo 'Accepted an unknown language!' >&2; exit 1; fi
+for template in templates/starter/*.dart templates/example/*.dart; do
+  [[ "$template" == *node_heap* ]] && continue
+  for ext in py js java; do
+    [[ -f "${template%.dart}.$ext" ]] || { echo "Missing template: ${template%.dart}.$ext" >&2; exit 1; }
+  done
+done
+
 printf '%s\n' 'PASS: command lists choices; defaults to starter; node variant, example and no-overwrite work.'
+printf '%s\n' 'PASS: languages are chosen with --lang, remembered, and every template exists in every language.'

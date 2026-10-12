@@ -30,7 +30,7 @@ const PROGRESS_LABELS={
 function progressDescription(cell){
   if(!cell||cell.state==='missing')return 'No implementation';
   if(cell.implementations>1){
-    const best=cell.variant?`the “${cell.variant}” variant`:'the main file';
+    const best=globalThis.describeVariant?describeVariant(cell.variant??''):cell.variant?`the “${cell.variant}” variant`:'the main file';
     return `${progressDescription({...cell,implementations:1})} · best of ${cell.implementations} implementations (${best})`;
   }
   if(cell.state==='complete'){

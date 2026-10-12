@@ -90,7 +90,7 @@ function renderSuggestions(){
   ui.suggestions.replaceChildren();
   const values=Array.isArray(savedValues)?savedValues:[];
   if(!discovered.size){
-    const p=document.createElement('p');p.className='suggestions-empty';p.textContent='Waiting for Dart method discovery…';ui.suggestions.append(p);return;
+    const p=document.createElement('p');p.className='suggestions-empty';p.textContent='Waiting for method discovery…';ui.suggestions.append(p);return;
   }
   let methodIndex=0;
   for(const method of discovered.values()){

@@ -6,7 +6,7 @@ usage() {
   cat <<'EOF'
 Create a student data structure (unfinished starter by default).
 
-  ./new-structure STUDENT TYPE [IMPLEMENTATION] [--variant NAME]
+  ./new-structure STUDENT TYPE [IMPLEMENTATION] [--variant NAME] [--lang LANGUAGE]
 
 TYPE        IMPLEMENTATION          Result
 list        unsorted-array | unsorted-nodes | sorted-array | sorted-nodes
@@ -27,11 +27,17 @@ recursive and an iterative one). It keeps the class name from the starter;
 only the file name gets the suffix. Variant names use lowercase letters,
 digits and underscores.
 
+LANGUAGE is dart, python, javascript (or js) or java:
+  ./new-structure alice tree avl --lang python         # my_avl.py
+Without --lang the language is, in this order: the language you last chose
+here, the language of your newest file, the language most of your class
+uses, or Dart. Your choice is remembered in .settings.yaml.
+
 An existing file is never overwritten. The structures/ directory is a separate Git repository.
 EOF
 }
 if [[ $# -eq 0 || ( $# -eq 1 && ( "$1" == --help || "$1" == -h ) ) ]]; then usage; exit 0; fi
-if (( $# < 2 || $# > 6 )); then usage >&2; exit 64; fi
+if (( $# < 2 || $# > 8 )); then usage >&2; exit 64; fi
 student="$1"; kind="$2"; shift 2
 if [[ ! "$student" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
   echo 'Invalid student folder name.' >&2; exit 64
@@ -39,9 +45,16 @@ fi
 example=false
 implementation=''
 variant=''
+chosen=''
 while (( $# > 0 )); do
   arg="$1"; shift
   case "$arg" in
+    --lang|--language)
+      if [[ -n "$chosen" || $# -eq 0 ]]; then echo 'Use --lang LANGUAGE once.' >&2; exit 64; fi
+      chosen="$1"; shift;;
+    --lang=*|--language=*)
+      if [[ -n "$chosen" ]]; then echo 'Use --lang LANGUAGE once.' >&2; exit 64; fi
+      chosen="${arg#*=}";;
     --example) if "$example"; then echo 'Duplicate --example.' >&2; exit 64; fi; example=true;;
     --variant)
       if [[ -n "$variant" || $# -eq 0 ]]; then echo 'Use --variant NAME once.' >&2; exit 64; fi
@@ -68,13 +81,107 @@ case "$kind:$implementation" in
   hash:|hash:chains) filename=my_hash_table.dart;;
   *) echo "Unknown choice: $kind ${implementation}. Run ./new-structure to see all options." >&2; exit 64;;
 esac
+
+# The language (also works with the bash 3 of macOS).
+languages=(dart python javascript java)
+extension_of() {
+  case "$1" in dart) echo dart ;; python) echo py ;; javascript) echo js ;; java) echo java ;; esac
+}
+label_of() {
+  case "$1" in dart) echo Dart ;; python) echo Python ;; javascript) echo JavaScript ;; java) echo Java ;; esac
+}
+known_language() {
+  local candidate="$1" language
+  for language in "${languages[@]}"; do [[ "$language" == "$candidate" ]] && return 0; done
+  return 1
+}
+language_of_extension() {
+  local file="$1" language
+  for language in "${languages[@]}"; do
+    if [[ "$file" == *".$(extension_of "$language")" ]]; then echo "$language"; return 0; fi
+  done
+  return 1
+}
+settings=".settings.yaml"
+remembered_language() {
+  [[ -f "$settings" ]] || return 1
+  local value
+  value="$(sed -n -E 's/^[[:space:]]*language[[:space:]]*:[[:space:]]*["'\'']?([a-z]+)["'\'']?[[:space:]]*(#.*)?$/\1/p' "$settings" | tail -n 1)"
+  [[ -n "$value" ]] && known_language "$value" && echo "$value"
+}
+remember_language() {
+  local language="$1"
+  if [[ ! -f "$settings" ]]; then
+    printf '# Local settings of this sandbox. Not part of Git.\n' > "$settings"
+  fi
+  if grep -q -E '^[[:space:]]*language[[:space:]]*:' "$settings"; then
+    local temporary
+    temporary="$(mktemp)"
+    sed -E "s/^[[:space:]]*language[[:space:]]*:.*$/language: $language/" "$settings" > "$temporary"
+    cat "$temporary" > "$settings"
+    rm -f "$temporary"
+  else
+    printf 'language: %s\n' "$language" >> "$settings"
+  fi
+}
+# Implementation files (my_*) below a directory; hidden folders and Python
+# caches are not implementations.
+structure_files() {
+  local root="$1" depth="$2" pattern=() language
+  for language in "${languages[@]}"; do
+    (( ${#pattern[@]} )) && pattern+=(-o)
+    pattern+=(-name "my_*.$(extension_of "$language")")
+  done
+  [[ -d "$root" ]] || return 0
+  find "$root" -mindepth "$depth" -maxdepth "$depth" -type f \( "${pattern[@]}" \) \
+    -not -path '*/.*' -not -path '*/__pycache__/*' 2>/dev/null || true
+}
+newest_own_language() {
+  local newest="" file
+  while IFS= read -r file; do
+    if [[ -z "$newest" || "$file" -nt "$newest" ]]; then newest="$file"; fi
+  done < <(structure_files "structures/$1" 1)
+  [[ -n "$newest" ]] && language_of_extension "$newest"
+}
+class_language() {
+  local all language best="" best_count=0 count
+  all="$(structure_files structures 2)"
+  [[ -n "$all" ]] || return 1
+  # Ties go to the earlier language in the list (Dart first).
+  for language in "${languages[@]}"; do
+    count="$(grep -c -E "\.$(extension_of "$language")\$" <<< "$all" || true)"
+    if (( count > best_count )); then best="$language"; best_count=$count; fi
+  done
+  [[ -n "$best" ]] && echo "$best"
+}
+
+[[ "$chosen" == "js" ]] && chosen="javascript"
+if [[ -n "$chosen" ]]; then
+  if ! known_language "$chosen"; then
+    echo "Unknown language: $chosen (choose one of: ${languages[*]})." >&2; exit 64
+  fi
+  language="$chosen"; reason="your choice"
+elif language="$(remembered_language)"; then
+  reason="your last choice; use --lang to change it"
+elif language="$(newest_own_language "$student")"; then
+  reason="the language of your newest file; use --lang to change it"
+elif language="$(class_language)"; then
+  reason="the language most of your class uses; use --lang to change it"
+else
+  language="dart"; reason="the default; use --lang to change it"
+fi
+ext="$(extension_of "$language")"
+filename="${filename%.dart}.$ext"
+
 source="templates/starter/$filename"
 if "$example"; then source="templates/example/$filename"; fi
 if [[ ! -f "$source" ]]; then echo "Missing template: $source" >&2; exit 66; fi
 mkdir -p "structures/$student"
 target_name="$filename"
-if [[ -n "$variant" ]]; then target_name="${filename%.dart}_${variant}.dart"; fi
+if [[ -n "$variant" ]]; then target_name="${filename%.$ext}_${variant}.$ext"; fi
 target="structures/$student/$target_name"
 if [[ -e "$target" ]]; then echo "File exists; not overwriting: $target" >&2; exit 73; fi
 cp "$source" "$target"
-echo "Created $target from $source in the separate student Git repository."
+# Only an explicit choice that actually created a file is remembered.
+[[ "$reason" == "your choice" ]] && remember_language "$language"
+echo "Created $target from $source in the separate student Git repository ($(label_of "$language"): $reason)."

@@ -9,3 +9,6 @@
 /tool/generated_worker_*.dill
 # Local settings (the theme); they belong to this computer, not to Git.
 .settings.yaml
+
+# Python caches (the workers run with -B; a student may run files locally).
+__pycache__/

@@ -4,6 +4,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'languages.dart' show dartToolchain;
+
 // Keep student errors distinct from failures of the analyzer daemon.
 class StudentDiagnosticsException implements Exception {
   final String message;
@@ -21,6 +23,20 @@ class InstrumenterUnavailable implements Exception {
 }
 
 class InstrumentClient {
+  /// The Dart analyzer daemon (tool/instrument_daemon.dart). The other
+  /// languages pass the command of their own daemon (languages/*/), which
+  /// answers `build` and `format` requests with the same reply format.
+  InstrumentClient({
+    Future<List<String>> Function()? command,
+    this.label = 'instrumenter',
+  }) : _command = command ??
+            (() async => [await dartToolchain.executable(), 'run', 'tool/instrument_daemon.dart']);
+
+  final Future<List<String>> Function() _command;
+
+  /// Prefix of this daemon's lines in the terminal.
+  final String label;
+
   Process? _process;
   Future<void>? _starting;
   Completer<void>? _greeting;
@@ -37,14 +53,16 @@ class InstrumentClient {
 
   Future<void> _start() async {
     final Completer<void> greeting = Completer<void>();
+    // May throw a subclass of InstrumenterUnavailable (toolchain missing).
+    final command = await _command();
     late final Process process;
     try {
       process = await Process.start(
-        Platform.resolvedExecutable, ['run', 'tool/instrument_daemon.dart'],
+        command.first, command.sublist(1),
         workingDirectory: Directory.current.path,
       );
     } catch (error) {
-      throw InstrumenterUnavailable('Cannot start persistent instrumenter: $error');
+      throw InstrumenterUnavailable('Cannot start the persistent $label: $error');
     }
     _process = process;
     _greeting = greeting;
@@ -65,19 +83,20 @@ class InstrumentClient {
           }
         } catch (_) {
           // Never mistake a non-protocol print for an answer to a student's edit.
-          stderr.writeln('[instrumenter] $line');
+          stderr.writeln('[$label] $line');
         }
       },
       onError: (Object error) => _lost(process, error),
       onDone: () => _lost(process, 'stdout closed'),
     );
     process.stderr.transform(utf8.decoder).listen((text) {
-      stderr.write('[instrumenter] $text');
+      stderr.write('[$label] $text');
     });
     unawaited(process.exitCode.then((code) =>
         _lost(process, 'process exited with code $code')));
     try {
-      await greeting.future.timeout(const Duration(seconds: 45));
+      // The JVM and the Java compiler may start slowly on school computers.
+      await greeting.future.timeout(const Duration(seconds: 90));
       if (!identical(_process, process)) {
         throw InstrumenterUnavailable('Instrumenter exited during startup.');
       }
@@ -117,10 +136,29 @@ class InstrumentClient {
     });
   }
 
+  /// Dart: writes the instrumented copy of [source] into [output].
   Future<void> instrument(String kind, String source, String output) async {
+    await _request({'kind': kind, 'source': source, 'out': output}, studentErrors: true);
+  }
+
+  /// Other languages: checks [source] and writes everything its worker needs
+  /// into [output]. Throws [StudentDiagnosticsException] for invalid code.
+  Future<void> build(String kind, String className, String source, String output) async {
+    await _request({
+      'op': 'build', 'kind': kind, 'className': className, 'source': source, 'out': output,
+    }, studentErrors: true);
+  }
+
+  /// Other languages: formats an editor draft. Returns `{ok, content}` or
+  /// `{ok: false, error}`.
+  Future<Map<String, dynamic>> format(String content) =>
+      _request({'op': 'format', 'content': content}, studentErrors: false);
+
+  Future<Map<String, dynamic>> _request(Map<String, Object?> payload,
+      {required bool studentErrors}) async {
     // Retry only transport/process failures. Invalid student code must be
     // returned immediately with its original diagnostics, not retried.
-    for (var attempt = 0; attempt < 2; attempt++) {
+    for (var attempt = 0;; attempt++) {
       try {
         await _ensureStarted();
         final process = _process;
@@ -136,11 +174,9 @@ class InstrumentClient {
           // or a save during the class progress sweep) would flush the same
           // pipe concurrently and throw "StreamSink is bound to a stream",
           // which looks like a daemon crash. The sink delivers lines itself.
-          process.stdin.writeln(jsonEncode({
-            'id': id, 'kind': kind, 'source': source, 'out': output,
-          }));
+          process.stdin.writeln(jsonEncode({'id': id, ...payload}));
           final result = await waiting.future.timeout(const Duration(seconds: 60));
-          if (result['ok'] != true) {
+          if (studentErrors && result['ok'] != true) {
             final message = result['error']?.toString() ?? 'Instrumentation failed.';
             final diagnostics = (result['diagnostics'] as List?)
                     ?.whereType<Map>()
@@ -153,7 +189,7 @@ class InstrumentClient {
             }
             throw FormatException(message);
           }
-          return;
+          return result;
         } on TimeoutException {
           _lost(process, 'request timed out');
           process.kill();
@@ -170,7 +206,7 @@ class InstrumentClient {
           _pending.remove(id);
         }
       } on InstrumenterUnavailable {
-        if (attempt == 1) rethrow;
+        if (attempt >= 1) rethrow;
       }
     }
   }

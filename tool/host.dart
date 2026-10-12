@@ -13,6 +13,13 @@ import 'settings.dart';
 
 const startupTimeout = Duration(seconds: 45);
 const executionTimeout = Duration(seconds: 4);
+// Python traces every line and JavaScript and Java run instrumented copies,
+// so their calls get more time for the same work.
+Duration executionLimitFor(String variant) => executionTimeout * switch (splitVariant(variant).extension) {
+  '.py' => 3,
+  '.js' || '.java' => 2,
+  _ => 1,
+};
 // An open browser tab keeps one Dart process alive. After this long without
 // a call, the process is stopped to save memory; the next call restarts it
 // and silently replays the successful calls, so the structure is unchanged.
@@ -259,6 +266,7 @@ class StudentExecutionTimeout implements Exception {
 
 class StudentWorker {
   final Process process;
+  final Duration limit;
   final _responses=Queue<Completer<Map<String,dynamic>>>();
   final _backlog=Queue<Map<String,dynamic>>();
   String _buffer='';
@@ -270,7 +278,7 @@ class StudentWorker {
   int? _lastLine,_lastTraceIndex;
   bool _consoleTruncated=false;
 
-  StudentWorker(this.process){
+  StudentWorker(this.process,{this.limit=executionTimeout}){
     _out=utf8.decoder.bind(process.stdout).listen((chunk){
       if(dead)return;
       _buffer+=chunk;
@@ -354,7 +362,7 @@ class StudentWorker {
   Future<Map<String,dynamic>> request(Map<String,dynamic> message) async {
     if(dead)throw StateError('Worker is not available; choose the implementation again.');
     _beginRequest();
-    final response=next(executionTimeout,execution:true);
+    final response=next(limit,execution:true);
     process.stdin.writeln(jsonEncode({...message,'_diagnostics':true}));
     await process.stdin.flush();
     return response;
@@ -367,6 +375,10 @@ class StudentWorker {
   void kill(){_fail(StateError('Worker stopped.'));unawaited(_out.cancel());unawaited(_err.cancel());}
 }
 
+/// Starts the worker [command] (see prepareWorker) in the app directory.
+Future<Process> startWorkerProcess(List<String> command)=>Process.start(
+    command.first,command.sublist(1),workingDirectory:Directory.current.path);
+
 final progressRuns=<String,Future<ProgressResult>>{};
 
 Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
@@ -377,18 +389,14 @@ Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
   String? runError;
 
   try{
-    final path=await prepare(job.student,job.kind,repoPath,variant:job.variant);
+    final command=await prepareWorker(job.student,job.kind,repoPath,variant:job.variant);
     if(stamp(job.student,job.kind,job.variant)!=job.revision){
       return ProgressResult(0,totalChecks,stale:true);
     }
 
     Future<StudentWorker> startWorker() async {
-      final process=await Process.start(
-        Platform.resolvedExecutable,
-        [path],
-        workingDirectory:Directory.current.path,
-      );
-      final fresh=StudentWorker(process);
+      final process=await startWorkerProcess(command);
+      final fresh=StudentWorker(process,limit:executionLimitFor(job.variant));
       final hello=await fresh.next(startupTimeout);
       if(hello['type']!='hello'){
         fresh.kill();
@@ -511,7 +519,7 @@ class Client {
   final WebSocket socket;
   StudentWorker? worker;
   StudentWorker? validationWorker;
-  String? preparedPath;
+  List<String>? preparedCommand;
   bool validationRunning=false;
   int validationEpoch=0;
   String? student,kind,currentStamp;
@@ -574,18 +582,17 @@ class Client {
       await select(selected,selectedKind,variant:selectedVariant); // Source changed during the break.
       return;
     }
-    Future<StudentWorker> start(String path) async {
-      final process=await Process.start(Platform.resolvedExecutable,[path],
-        workingDirectory:Directory.current.path);
-      final fresh=StudentWorker(process);
+    Future<StudentWorker> start(List<String> command) async {
+      final process=await startWorkerProcess(command);
+      final fresh=StudentWorker(process,limit:executionLimitFor(selectedVariant));
       final hello=await fresh.next(startupTimeout);
       if(hello['type']!='hello'){fresh.kill();throw StateError('Student runner failed to initialize.');}
       return fresh;
     }
-    final path=await prepare(selected,selectedKind,repoPath,variant:selectedVariant);
+    final command=await prepareWorker(selected,selectedKind,repoPath,variant:selectedVariant);
     if(closed) return;
     if(!_historyOverflow && _history.isNotEmpty){
-      final fresh=await start(path);
+      final fresh=await start(command);
       var restored=true;
       for(final call in _history){
         try{
@@ -595,7 +602,7 @@ class Client {
       }
       if(restored&&!fresh.dead){
         if(closed){fresh.kill();return;}
-        worker=fresh;preparedPath=path;
+        worker=fresh;preparedCommand=command;
         stdout.writeln('[sandbox] Resumed idle worker ($selected/$selectedKind), '
           'replayed ${_history.length} call(s).');
         return;
@@ -633,7 +640,7 @@ class Client {
     currentStamp=next;
     refreshing=true;
     worker?.kill();worker=null;
-    send({'type':'sourceChanged','message':'Student source changed; checking Dart…'});
+    send({'type':'sourceChanged','message':'Student source changed; checking ${languageNameOf(variant)}…'});
     unawaited(select(student!,kind!,variant:variant,detectedAt:detected)
       .whenComplete(()=>refreshing=false));
   }
@@ -663,7 +670,7 @@ class Client {
     final subject = '$selected/$structure';
     final epoch=++selectionEpoch;
     cancelValidation();
-    preparedPath=null;
+    preparedCommand=null;
     try{
       if(!catalog().any((s)=>s['id']==selected && variantsOf(s,structure).contains(selectedVariant))){
         throw FormatException('Implementation not found: $selected / '
@@ -679,27 +686,27 @@ class Client {
         'message':recompiling?'Compiling $selected / $structure…':
           'Starting cached $selected / $structure…'});
       final preparing=Stopwatch()..start();
-      final path=await prepare(selected,structure,repoPath,variant:selectedVariant);
+      final command=await prepareWorker(selected,structure,repoPath,variant:selectedVariant);
       buildProfile(subject, 'prepare await', preparing.elapsed);
       // If a later selection overtook this compilation, do not start its worker.
       if(closed || epoch!=selectionEpoch || currentStamp!=stamp(selected,structure,selectedVariant))return;
       final launching=Stopwatch()..start();
-      final process=await Process.start(Platform.resolvedExecutable,[path],
-        workingDirectory:Directory.current.path);
+      final process=await startWorkerProcess(command);
       buildProfile(subject, 'worker process start', launching.elapsed);
-      final newWorker=StudentWorker(process);
+      final newWorker=StudentWorker(process,limit:executionLimitFor(selectedVariant));
       final helloTimer=Stopwatch()..start();
       final hello=await newWorker.next(startupTimeout);
       buildProfile(subject, 'worker hello', helloTimer.elapsed);
       if(closed || epoch!=selectionEpoch){newWorker.kill();return;}
       if(hello['type']!='hello')throw StateError('Student runner failed to initialize: $hello');
       worker=newWorker;
-      preparedPath=path;
+      preparedCommand=command;
       idleStopped=false;
       _clearHistory();
       touchIdle();
       saveSelection(selected,structure,selectedVariant);
-      send({...hello,'student':selected,'variant':selectedVariant,'validationRevision':path});
+      send({...hello,'student':selected,'variant':selectedVariant,
+        'language':languageNameOf(selectedVariant),'validationRevision':command.last});
     }catch(e){
       if(closed)return;
       if(epoch==selectionEpoch){
@@ -714,8 +721,9 @@ class Client {
   }
   Future<void> validate() async {
     if(validationRunning) return;
-    final path=preparedPath, selectedKind=kind, selectedStamp=currentStamp;
-    if(path==null || selectedKind==null || worker==null) {
+    final command=preparedCommand, selectedKind=kind, selectedStamp=currentStamp;
+    final selectedVariant=variant;
+    if(command==null || selectedKind==null || worker==null) {
       send({'type':'validationError','message':'Wait for the selected implementation to compile.'});
       return;
     }
@@ -728,9 +736,8 @@ class Client {
         currentStamp==selectedStamp && kind==selectedKind &&
         student!=null && stamp(student!,selectedKind,variant)==selectedStamp;
     Future<StudentWorker> startIsolated() async {
-      final process=await Process.start(Platform.resolvedExecutable,[path],
-        workingDirectory:Directory.current.path);
-      final fresh=StudentWorker(process);
+      final process=await startWorkerProcess(command);
+      final fresh=StudentWorker(process,limit:executionLimitFor(selectedVariant));
       if(!current()) {fresh.kill();throw StateError('Validation cancelled.');}
       validationWorker=fresh;
       try {

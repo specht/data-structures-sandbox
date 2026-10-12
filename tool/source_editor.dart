@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'languages.dart' show dartToolchain;
 import 'prepare.dart';
 import 'registry.dart';
 
@@ -64,7 +65,23 @@ Future<String> formatEditableDraft(String sourcePath, String content) async {
   if (utf8.encode(content).length > maxSourceBytes || content.contains('\u0000')) {
     throw const FormatException('Source must be UTF-8 text smaller than 256 KiB.');
   }
-  final process = await Process.start(Platform.resolvedExecutable,
+  // Python (black), JavaScript (js-beautify) and Java (google-java-format)
+  // are formatted by the daemon of their language.
+  final extension = languageExtensions.skip(1)
+      .where((candidate) => sourcePath.endsWith(candidate)).firstOrNull;
+  if (extension != null) {
+    final result = await daemonFor(extension).format(content);
+    final formatted = result['content'];
+    if (result['ok'] != true || formatted is! String) {
+      throw FormatException(result['error']?.toString() ??
+          'This draft could not be formatted. Check its syntax.');
+    }
+    if (utf8.encode(formatted).length > maxSourceBytes) {
+      throw const FormatException('Formatted source exceeds the 256 KiB editor limit.');
+    }
+    return formatted;
+  }
+  final process = await Process.start(await dartToolchain.executable(),
       ['format', '--output=show', '--stdin-name=$sourcePath']);
   final formattedOutput = process.stdout.transform(utf8.decoder).join();
   final errorOutput = process.stderr.transform(utf8.decoder).join();

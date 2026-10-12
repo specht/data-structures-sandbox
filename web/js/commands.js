@@ -54,7 +54,7 @@ function updateMethodCatalog(catalog){
     const example=preferred?.params?.map(p=>p.type==='String'?'"hello"':
       p.type==='bool'?'true':p.type==='double'?'1.5':'25')??[];
     ui.callInput.value=preferred?`${preferred.name}(${example.join(', ')})`:'';
-    ui.callInput.placeholder=preferred?'Enter a Dart method call':'No callable methods available';
+    ui.callInput.placeholder=preferred?`Enter a ${(globalThis.selectedLanguage?.()??{label:'Dart',print:'print(...)'}).label} method call`:'No callable methods available';
   }
   updateCommandComposer();
   ui.invoke.disabled=!catalog.length;renderArguments();
@@ -106,7 +106,7 @@ function autoFrameLinked(steps){
   paintViewport();
 }
 function acceptTrace(data){
-  if(!data.source?.lines||!Array.isArray(data.steps)||data.steps[0]?.kind!=='snapshot')throw Error('Invalid Dart trace.');
+  if(!data.source?.lines||!Array.isArray(data.steps)||data.steps[0]?.kind!=='snapshot')throw Error('Invalid trace from the worker.');
   cameraAnimationId++; // A new trace owns the viewport, not an old Fit animation.
   animationGeneration++;animating=false;
   if(data.structure&&data.structure!==structure){structure=data.structure;ui.structure.value=implementationValue();}
@@ -166,17 +166,17 @@ function acceptExecutionError(data){
 // focus:false keeps the keyboard focus where it is (Repeat after Ctrl+S in
 // the code editor must not move it to the step controls).
 function send(payload,{focus=true}={}){
-  if(!socket||socket.readyState!==WebSocket.OPEN){ui.cmdStatus.textContent='Dart server is not connected.';return;}
+  if(!socket||socket.readyState!==WebSocket.OPEN){ui.cmdStatus.textContent='The sandbox server is not connected.';return;}
   // Even if the user is halfway through an animation, allow another command.
   animationGeneration++;animating=false;playbackToken++;
   if(frames.length)restore(stepIndex);
   focusAfterCommand=true;commandTakesFocus=focus;
-  socket.send(JSON.stringify(payload));ui.cmdStatus.textContent='Dart is executing…';
+  socket.send(JSON.stringify(payload));ui.cmdStatus.textContent=`${(globalThis.selectedLanguage?.()??{label:'Dart',print:'print(...)'}).label} is executing…`;
 }
 ui.form.addEventListener('submit',event=>{
   event.preventDefault();
   const method=selectedDescriptor();
-  if(!method){ui.cmdStatus.textContent='Waiting for Dart method discovery…';return;}
+  if(!method){ui.cmdStatus.textContent='Waiting for method discovery…';return;}
   const params=method.params??[];
   try{
     if(params.length===1 && params[0].type==='int'){

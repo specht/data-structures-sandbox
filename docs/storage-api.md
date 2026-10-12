@@ -90,3 +90,29 @@ comment of each starter explains the exact API needed for that exercise;
 `lib/*_sandbox.dart` contains the adapter definitions. Student methods,
 data-structure invariants, return values and pointer updates remain their
 responsibility.
+
+## Python, JavaScript and Java
+
+The same storage classes exist in every language, with the same behavior and
+the same traces. Only the spelling follows each language. Import them from
+`sandbox` (Python: `from sandbox import ListNode`; JavaScript:
+`import { ListNode } from "sandbox";`; Java: `import sandbox.ListNode;`).
+
+| Dart | Python | JavaScript | Java |
+| --- | --- | --- | --- |
+| `memory.length` | `len(memory)` | `memory.length` | `memory.length` |
+| `memory[i]`, `memory[i] = v` | `memory[i]`, `memory[i] = v` | `memory[i]`, `memory[i] = v` | `memory.get(i)`, `memory.set(i, v)` |
+| `memory[i] = null` | `memory[i] = None` | `memory[i] = null` | `memory.set(i, null)` |
+| `memory.front`, `.rear`, `.size` (queue) | the same | the same | the same (public fields) |
+| heap: `memory.length`, `memory.isEmpty` | `len(memory)`, `memory.is_empty()` | `memory.length`, `memory.isEmpty` | `memory.size()`, `memory.isEmpty()` |
+| heap: `add(v)`, `removeLast()`, `swap(i, j)` | `append(v)`, `pop()`, `swap(i, j)` | `add(v)`, `removeLast()`, `swap(i, j)` | `add(v)`, `removeLast()`, `swap(i, j)` |
+| `ListNode(v)`, `node.value`, `node.next` | `ListNode(v)`, the same fields | `new ListNode(v)`, the same fields | `new ListNode(v)`, public fields |
+| `TreeNode(v)`, `left`, `right`, `height` | the same | the same | the same (public fields) |
+| `HashBuckets(n, hash)`, `indexFor(key)` | `HashBuckets(n, self._hash)`, `index_for(key)` | `new HashBuckets(n, (k, c) => this._hash(k, c))`, `indexFor(key)` | `new HashBuckets(n, this::hash)`, `indexFor(key)` |
+
+Method names follow each language as well: Python uses `is_empty`,
+`remove_at`, `remove_min`, `load_factor` and `is_full`; the browser shows the
+contract's names (`isEmpty`, …) for every language. Java returns `Integer`
+where Dart returns `int?`. The starters in `templates/starter/` show the exact
+fields and signatures for each language; `languages/*/` contains the
+storage classes and workers (see [DEVELOPMENT.md](../DEVELOPMENT.md)).

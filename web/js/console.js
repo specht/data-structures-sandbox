@@ -103,7 +103,7 @@ function renderRuntimeConsole(){
     const empty=document.createElement('div');empty.className='console-empty';
     empty.textContent=runtimeConsoleEntries.length?
       'No console output at this step. Step forward to reveal it.':
-      'No output yet. Use print(...) in your Dart methods.';
+      `No output yet. Use ${(globalThis.selectedLanguage?.()??{label:'Dart',print:'print(...)'}).print} in your methods.`;
     ui.consoleOutput.append(empty);
   }
   ui.consoleCount.hidden=runtimeConsoleEntries.length===0;

@@ -33,6 +33,9 @@ outer app repository, start the server and use another terminal for the CLI:
 ./new-structure example list unsorted-array --example
 ```
 
+Add `--lang python`, `--lang javascript` (or `js`) or `--lang java` for
+another language; the choice is remembered in `.settings.yaml`.
+
 A student may keep several implementations of one structure, e.g. a recursive
 and an iterative BST: `./new-structure alice tree bst --variant recursive`
 creates `my_bst_recursive.dart` next to `my_bst.dart`. A variant keeps the
@@ -74,6 +77,54 @@ follow the same naming scheme. See [list exercises](docs/list-exercises.md),
   `structures/STUDENT/` and refreshes the worker and its initially empty state.
   The UI does not create or commit files in the Git repository by itself.
 
+## Python, JavaScript and Java
+
+Students may write any structure in Dart, Python (3.10+), JavaScript
+(Node.js 18+) or Java (JDK 17+); the extension is the language
+(`my_bst.py`). Dart files are handled exactly as before. In the host, a
+file's language travels in the variant: Dart variants are unchanged (`''`,
+`recursive`), other languages keep their extension (`.py`, `recursive.java`),
+see `tool/registry.dart`. Labels add the language ("Tree (AVL) · Python").
+
+- `tool/languages.dart` finds the toolchains (`SANDBOX_PYTHON`, `SANDBOX_NODE`,
+  `SANDBOX_JAVA_HOME`/`JAVA_HOME`, else the PATH) on first use and compiles the
+  Java runtime into `runtime/java/` (ignored by Git). A missing toolchain only
+  affects the files of that language.
+- `languages/<language>/` holds, per language, the storage classes and
+  recorders (the port of `lib/*_sandbox.dart`), a daemon that checks, builds
+  and formats student files, and a worker that ports `lib/worker/session.dart`
+  and `lib/structures/*.dart`. All workers speak the Dart worker's protocol and
+  record the same events, so the browser and `tool/host.dart` treat every
+  language alike. `prepareWorker()` in `tool/prepare.dart` returns the command
+  that starts a worker; builds are cached by content fingerprint like Dart's.
+- Python traces lines with `sys.settrace`; JavaScript runs a copy instrumented
+  with acorn; Java attributes the source with the javac tree API and inserts
+  line events and reports of field assignments (Java cannot intercept them).
+  Insertions never add line breaks, so line numbers are the student's.
+- Vendored tools (`vendor/`, with licenses): black and pyflakes, acorn,
+  eslint-scope and js-beautify, google-java-format.
+- Changing a recorder or an adapter means changing it in `lib/` and in all
+  three ports. `test/language_workers_test.py` builds every template in every
+  language, runs every scenario of `tool/student_validation.dart` (ported in
+  `test/ds_scenarios.py`; keep both in step) and checks that the traces of
+  all languages agree event by event.
+
+## Without a Dart SDK
+
+`./run` (and `run.cmd` on Windows) uses the Dart SDK when one is installed,
+exactly as before. Without one it starts the host compiled with
+`dart compile exe`: `.github/workflows/host.yml` builds it for Linux, macOS
+(x64, arm64) and Windows on every push and attaches it to a prerelease
+`host-<key>`, where the key is the first 16 hex digits of
+`git ls-tree HEAD tool lib pubspec.yaml pubspec.lock | git hash-object --stdin`.
+The scripts compute the same key, download the matching program once into
+`runtime/host/` and remove older ones. Python, JavaScript and Java work as
+usual; `.dart` files report that the Dart SDK is missing
+(`DartToolchain` in `tool/languages.dart`, which is the running `dart` under
+`dart run`). `SANDBOX_PRECOMPILED=1 ./run` tries this path on a computer
+with Dart; `SANDBOX_RELEASES=owner/repo` uses the releases of a fork.
+`new-structure.cmd` runs `./new-structure` with the bash of Git for Windows.
+
 ## Verification
 
 Run these from the outer application repository with the Dart SDK and Node.js
@@ -83,6 +134,7 @@ it does not require `structures/example`:
 ```sh
 bash test/new_structure.test.sh
 bash test/first_run.test.sh
+bash test/precompiled_run.test.sh
 dart test/list_model.dart
 dart test/stack_model.dart
 dart test/heap_model.dart
@@ -94,7 +146,13 @@ dart test/implementation_variants.test.dart
 dart test/specialized_worker_test.dart
 dart test/validation_integration.dart
 for t in test/*.test.js; do node "$t"; done   # includes runtime_hints.test.js
+dart test/language_host_test.dart
+python3 -I -B test/language_workers_test.py python javascript java
 ```
+
+The last two lines need Python, Node.js and a JDK; the Dart test skips
+missing languages, the Python test runs the languages you name (with two or
+more, their traces are compared).
 
 `dart test/smoke.dart` is an **optional** end-to-end check. It runs every kind
 listed by the registry and requires `structures/example/` to contain a

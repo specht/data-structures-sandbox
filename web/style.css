@@ -430,6 +430,17 @@ button,select{font-family:"Open Sans",ui-sans-serif,system-ui,sans-serif}
 .source-editor .cm-number,.source-editor .cm-atom{color:#f2b98a}
 .source-editor .cm-comment{color:#8ca4c1}
 .source-editor .cm-operator{color:#e8efff}
+.source-editor .cm-variable-3{color:#94d8ee}
+.source-editor .cm-meta,.source-editor .cm-qualifier{color:#d6b98a}
+.source-editor .cm-builtin{color:#7fdbca}
+.source-editor .cm-string-2{color:#d7e8a6}
+.source-editor .cm-property,.source-editor .cm-variable{color:#e8efff}
+.source-editor .cm-bracket,.source-editor .cm-hr,.source-editor .cm-link{color:#9fb3cf}
+.source-editor .cm-tag{color:#94d8ee}
+.source-editor .cm-attribute{color:#f2b98a}
+.source-editor .cm-header{color:#cbabff}
+.source-editor .cm-quote{color:#b6d992}
+.source-editor .cm-error{color:#ff8f8f}
 .source-editor:not(.is-editing) .CodeMirror-cursor{display:none!important}
 .source-editor.source-empty .CodeMirror-lines{padding:18px 22px}
 .source-editor.source-empty .CodeMirror-line{white-space:pre-wrap;color:#b8cbe4;line-height:1.65}

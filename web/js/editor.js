@@ -21,6 +21,10 @@
   const locationKey = () => `${selectedStudent}/${structure}:${currentVariant()}`;
   const sameVariant = message => (message.variant ?? '') === currentVariant();
   const connected = () => socket && socket.readyState === WebSocket.OPEN;
+  // languages.js knows the editor mode of each file; Dart without it.
+  const languageFor = v => (typeof languageOfVariant === 'function' ? languageOfVariant(v) :
+    {id: 'dart', label: 'Dart', mode: 'dart', indent: 2, comment: '//', words: null});
+  let language = languageFor('');
   const editor = CodeMirror(container, {
     value: 'Create a starter from the app terminal: ./new-structure YOUR_NAME stack array',
     mode: 'dart', theme: 'sandbox', lineNumbers: true, lineWrapping: false,
@@ -57,7 +61,7 @@
   const completion = document.createElement('div');
   completion.className = 'source-completions';
   completion.setAttribute('role', 'listbox');
-  completion.setAttribute('aria-label', 'Dart code suggestions');
+  completion.setAttribute('aria-label', `${language.label} code suggestions`);
   completion.hidden = true;
   (editor.getWrapperElement?.() ?? container).append(completion);
   const words = ['abstract', 'as', 'assert', 'bool', 'break', 'case', 'class',
@@ -110,7 +114,7 @@
       hideSuggestions(); return;
     }
     const candidates = new Map();
-    for (const word of words) candidates.set(word, {label: word, insert: word});
+    for (const word of language.words ?? words) candidates.set(word, {label: word, insert: word});
     for (const word of cm.getValue().match(/[A-Za-z_][A-Za-z_0-9]*/g) || []) {
       if (!candidates.has(word)) candidates.set(word, {label: word, insert: word});
     }
@@ -138,13 +142,14 @@
       if (text.trim()) lines.push({line, text, indent: (text.match(/^\s*/) || [''])[0].length});
     }
     if (!lines.length) return;
-    const uncomment = lines.every(({text}) => /^\s*\/\//.test(text));
+    const comment = language.comment;
+    const uncomment = lines.every(({text, indent}) => text.slice(indent).startsWith(comment));
     cm.operation(() => {
       for (const {line, text, indent} of lines.reverse()) {
         const start = {line, ch: indent};
-        if (uncomment) cm.replaceRange('', start,
-          {line, ch: indent + (text.slice(indent).startsWith('// ') ? 3 : 2)}, '+comment');
-        else cm.replaceRange('// ', start, start, '+comment');
+        if (uncomment) cm.replaceRange('', start, {line, ch: indent +
+          (text.slice(indent).startsWith(`${comment} `) ? comment.length + 1 : comment.length)}, '+comment');
+        else cm.replaceRange(`${comment} `, start, start, '+comment');
       }
     });
   }
@@ -203,6 +208,14 @@
   revert.title = 'Discard unsaved edits and restore the last saved source';
   revert.setAttribute('aria-label', 'Revert unsaved edits');
 
+  /** Editor mode, indentation and comments of the selected file's language. */
+  function applyLanguage() {
+    language = languageFor(currentVariant());
+    editor.setOption('mode', language.mode);
+    editor.setOption('indentUnit', language.indent);
+    editor.setOption('tabSize', language.indent);
+    completion.setAttribute('aria-label', `${language.label} code suggestions`);
+  }
   function setEmpty(on) {
     container.classList.toggle('source-empty', on);
     // Let CodeMirror update its layout instead of hiding the gutter with CSS.
@@ -253,7 +266,7 @@
       const sourceLine = editor.getLine(line);
       const column = Math.max(0, Math.min(sourceLine.length, (issue.column || 1) - 1));
       const end = Math.min(sourceLine.length, column + Math.max(1, issue.length || 1));
-      const messageText = String(issue.message || 'Dart could not compile this line.');
+      const messageText = String(issue.message || `${language.label} could not compile this line.`);
       editor.addLineClass(line, 'background', 'source-error-line');
       const marker = end > column ? editor.markText(
         {line, ch: column}, {line, ch: end},
@@ -426,6 +439,7 @@
     const key = locationKey();
     if (selection !== key) {
       resetSelection();
+      applyLanguage();
       selection = key;
       write('Loading selected source…');
       setEmpty(false);

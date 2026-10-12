@@ -31,30 +31,65 @@ final studentFolder = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$');
 // name; only the file name differs.
 final variantName = RegExp(r'^[a-z0-9][a-z0-9_]{0,31}$');
 
+// Students may also write a structure in Python, JavaScript or Java
+// (tool/languages.dart): my_bst.py, my_bst_recursive.java. Dart files keep
+// their variant names ('' and 'recursive'), so existing selections, caches
+// and progress stay valid; other languages keep their extension in the
+// variant ('.py' for my_bst.py, 'recursive.java' for my_bst_recursive.java).
+const languageExtensions = ['.dart', '.py', '.js', '.java'];
+const _languageNames = {'.dart': 'Dart', '.py': 'Python', '.js': 'JavaScript', '.java': 'Java'};
+final _variantId = RegExp(r'^(?:[a-z0-9][a-z0-9_]{0,31})?(?:\.(?:py|js|java))?$');
+
+/// A variant's name ('' for the starter's file) and file extension.
+({String name, String extension}) splitVariant(String variant) {
+  for (final extension in languageExtensions.skip(1)) {
+    if (variant.endsWith(extension)) {
+      return (name: variant.substring(0, variant.length - extension.length), extension: extension);
+    }
+  }
+  return (name: variant, extension: '.dart');
+}
+
+/// 'Dart', 'Python', 'JavaScript' or 'Java'.
+String languageNameOf(String variant) => _languageNames[splitVariant(variant).extension]!;
+
 void checkVariant(String variant) {
-  if (variant.isNotEmpty && !variantName.hasMatch(variant)) {
+  if (variant.isNotEmpty && !_variantId.hasMatch(variant)) {
     throw FormatException('Invalid implementation variant: $variant');
   }
 }
 
+String _stem(StructureSpec spec) => spec.filename.substring(0, spec.filename.length - '.dart'.length);
+
 String implementationFile(StructureSpec spec, String variant) {
   checkVariant(variant);
-  if (variant.isEmpty) return spec.filename;
-  final stem = spec.filename.substring(0, spec.filename.length - '.dart'.length);
-  return '${stem}_$variant.dart';
+  final (:name, :extension) = splitVariant(variant);
+  return name.isEmpty ? '${_stem(spec)}$extension' : '${_stem(spec)}_$name$extension';
 }
 
 /// The structure and variant a student file name belongs to, or null.
 ({String kind, String variant})? implementationForFile(String name) {
   for (final spec in structures) {
-    if (name == spec.filename) return (kind: spec.id, variant: '');
-    final stem = spec.filename.substring(0, spec.filename.length - '.dart'.length);
-    if (!name.startsWith('${stem}_') || !name.endsWith('.dart')) continue;
-    final variant = name.substring(stem.length + 1, name.length - '.dart'.length);
-    if (variantName.hasMatch(variant)) return (kind: spec.id, variant: variant);
+    final stem = _stem(spec);
+    for (final extension in languageExtensions) {
+      if (!name.endsWith(extension)) continue;
+      final suffix = extension == '.dart' ? '' : extension;
+      if (name == '$stem$extension') return (kind: spec.id, variant: suffix);
+      if (!name.startsWith('${stem}_')) continue;
+      final variant = name.substring(stem.length + 1, name.length - extension.length);
+      if (variantName.hasMatch(variant)) return (kind: spec.id, variant: '$variant$suffix');
+    }
   }
   return null;
 }
 
-String implementationLabel(String kind, String variant) =>
-    variant.isEmpty ? specFor(kind).label : '${specFor(kind).label} · $variant';
+/// 'Tree (AVL)', 'Tree (AVL) · recursive', 'Tree (AVL) · Python',
+/// 'Tree (AVL) · recursive · Java'.
+String implementationLabel(String kind, String variant) {
+  final (:name, :extension) = splitVariant(variant);
+  return [
+    specFor(kind).label,
+    if (name.isNotEmpty) name,
+    if (extension != '.dart') _languageNames[extension]!,
+  ].join(' · ');
+}

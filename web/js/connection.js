@@ -74,7 +74,7 @@ function connect(){
           ui.connection.textContent='Connected';return;
         }
         acceptTrace(initial);
-        ui.cmdStatus.textContent='Dart session restarted; current list has been reset.';
+        ui.cmdStatus.textContent='Session restarted; current list has been reset.';
         repeatAfterFreshStart();
         return;
       }
@@ -91,7 +91,7 @@ function connect(){
     showCompiling(false);
     resetValidation('Connection lost; run the tests again after reconnecting.');
     ui.connection.textContent='Connection lost · reconnecting…';
-    console.warn('Dart WebSocket closed',event.code,event.reason||'');
+    console.warn('WebSocket closed',event.code,event.reason||'');
     const delay=Math.min(5000,400*Math.pow(1.8,reconnectAttempt++));
     clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,delay);
   });

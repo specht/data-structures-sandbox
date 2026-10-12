@@ -40,13 +40,16 @@ class _WorkerRevision {
   }
 
   bool get complete {
-    if (!source.existsSync() || !ready.existsSync()) return false;
+    if (!ready.existsSync()) return false;
     try {
       final record = jsonDecode(ready.readAsStringSync());
       if (record is! Map || record['key'] is! String ||
           !RegExp(r'^[a-f0-9]{64}$').hasMatch(record['key'] as String)) {
         return false;
       }
+      // Python, JavaScript and Java: everything is in the build directory.
+      if (record['language'] is String) return true;
+      if (!source.existsSync()) return false;
       if (record['kernel'] == true) return kernel.existsSync();
       return record['kernel'] == false;
     } on FileSystemException {
