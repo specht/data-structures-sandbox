@@ -37,22 +37,53 @@ const run=source=>vm.runInContext(source,context);
 run(`var sent=[];socket={readyState:1,send(data){sent.push(JSON.parse(data));}}`);
 run(`receiveCatalog(${JSON.stringify({type:'catalog',default:{student:'liu.kashiwabara',structure:'tree',variant:'recursive'},
   students:[{id:'liu.kashiwabara',structures:['tree','stack'],implementations:[
-    {structure:'tree',variant:'',label:'Tree (binary search)'},
-    {structure:'tree',variant:'recursive',label:'Tree (binary search) · recursive'},
-    {structure:'stack',variant:'',label:'Stack (fixed array)'}]}]})})`);
-const options=elements.get('structure').children;
-assert.deepEqual(options.map(option=>option.value),['tree','tree:recursive','stack']);
-assert.equal(options[1].textContent,'Tree (binary search) · recursive');
+    {structure:'tree',variant:'',label:'Tree (binary search) · Dart',name:'Tree (binary search)',language:'Dart'},
+    {structure:'tree',variant:'recursive',label:'Tree (binary search) · recursive · Dart',name:'Tree (binary search) · recursive',language:'Dart'},
+    {structure:'stack',variant:'',label:'Stack (fixed array) · Dart',name:'Stack (fixed array)',language:'Dart'}]}]})})`);
+const picker=run('implementationPicker');
+const json=value=>JSON.parse(JSON.stringify(value));
+assert.deepEqual(json(picker.items.map(item=>`${item.kind}:${item.variant}`)),['tree:','tree:recursive','stack:']);
+assert.equal(picker.items[1].name,'Tree (binary search) · recursive');
 assert.equal(run('structure'),'tree');
 assert.equal(run('variant'),'recursive');
 const select=run('sent').at(-1);
 assert.deepEqual({action:select.action,student:select.student,structure:select.structure,variant:select.variant},
   {action:'select',student:'liu.kashiwabara',structure:'tree',variant:'recursive'});
+// The button shows the selection; one language in the class needs no tags.
+const text=node=>(node.children??[]).map(child=>child.textContent||text(child)).join('|');
+assert.match(text(picker.button),/Tree \(binary search\) · recursive\|liu\.kashiwabara/);
+assert.doesNotMatch(text(picker.button),/Dart/);
 
 // Switching to the starter's file of the same structure.
-elements.get('structure').value='tree';
-elements.get('structure').onchange();
+picker.choose(picker.items[0]);
 assert.equal(run('variant'),'');
 assert.equal(run('sent').at(-1).variant,'');
 assert.match(run('validationCacheKey()'),/liu\.kashiwabara:tree$/);
-console.log('PASS: implementation variants in the structure picker.');
+
+// A class that mixes languages: every entry names its language, Dart, too.
+run(`receiveCatalog(${JSON.stringify({type:'catalog',students:[
+  {id:'ada',structures:['avl'],implementations:[{structure:'avl',variant:'.py'}]},
+  {id:'liu.kashiwabara',structures:['tree','avl'],implementations:[
+    {structure:'tree',variant:''},{structure:'avl',variant:''},{structure:'avl',variant:'.java'}]}]})})`);
+assert.deepEqual(json(picker.items.map(item=>`${item.student}/${item.name}/${item.language}`)),[
+  'liu.kashiwabara/Tree (binary search)/Dart',
+  'ada/Tree (AVL)/Python','liu.kashiwabara/Tree (AVL)/Dart','liu.kashiwabara/Tree (AVL)/Java']);
+picker.toggle(true);
+const optionTags=picker.options.children.map(option=>option.children.find(child=>child.className==='picker-language')?.textContent);
+assert.deepEqual(json(optionTags),['Dart','Python','Dart','Java']);
+assert.match(text(picker.button),/\|Dart\|?/,'The selected Dart file is labeled, too.');
+
+// The filter matches structure, student and language; all words must match.
+picker.filter.value='avl java';
+picker.filter.oninput();
+assert.equal(picker.filtered.length,1);
+assert.equal(picker.filtered[0].variant,'.java');
+picker.filter.value='ada';
+picker.filter.oninput();
+assert.deepEqual(json(picker.filtered.map(item=>item.student)),['ada']);
+picker.filter.onkeydown({key:'Enter',preventDefault(){}});
+assert.equal(run('selectedStudent'),'ada');
+assert.equal(run('structure'),'avl');
+assert.equal(run('variant'),'.py');
+assert.equal(run('sent').at(-1).variant,'.py');
+console.log('PASS: one searchable picker for every implementation, with language tags in mixed classes.');

@@ -9,7 +9,7 @@ const source=appSource();
 const prior=fs.readFileSync('test/browser_navigation.test.js','utf8');
 assert.match(source,/function receiveCatalog\(data\)/);
 assert.match(source,/localStorage\.setItem\(preferenceKey/);
-assert.match(source,/ui\.student\.addEventListener\('change'/);
+assert.match(source,/new ImplementationPicker\(\$\('implementation-picker'\)/);
 assert.match(source,/action:'select',student:selectedStudent,structure/);
 assert.match(source,/data\.type==='sourceChanged'/);
 assert.match(source,/data\.type==='building'/);

@@ -122,6 +122,16 @@ assert.match(head.children[0].children[2].className,/progress-loaded-column/);
 assert.match(body.children[0].className,/progress-loaded-row/);
 assert.match(body.children[0].children[2].className,/progress-loaded-cell/);
 
+// The class summary row: how many students pass all checks per structure.
+const summary=controls.get('progress-foot').children[0];
+assert.equal(summary.children[0].textContent,'Class');
+assert.equal(summary.children[1].children[0].children[0].textContent,'1/2');
+assert.equal(summary.children[1].children[1].textContent,'· 2 started');
+assert.match(summary.children[2].title,/1 of 2 students pass all checks · 2 started/);
+assert.equal(summary.children[3].children[1].textContent,'· 0 started');
+// One implementation per structure: nothing more to see.
+assert.equal(aliceStack.children.length,2);
+
 vm.runInContext(
   "progressMessage({type:'progressStatus',message:'Checking 1 / 2',student:'bob',structure:'stack'})",
   context,
@@ -140,6 +150,35 @@ assert.equal(
   'Class progress is up to date.',
 );
 
+// Several implementations of one structure (languages or versions): the
+// cell stays one line, with a small "2×" that lists every file on hover.
+vm.runInContext(`progressMessage({
+  type:'progressSnapshot',
+  structures:[{id:'avl',label:'Tree (AVL)'}],
+  students:[
+    {id:'alice',cells:{avl:{state:'complete',tested:true,passed:33,total:33,variant:'.py',implementations:2,
+      implementationList:[
+        {variant:'.py',language:'Python',name:'',state:'complete',tested:true,passed:33,total:33},
+        {variant:'',language:'Dart',name:'',state:'pending',tested:true,passed:20,total:33}]}}},
+    {id:'bob',cells:{avl:{state:'complete',tested:true,passed:33,total:33,variant:'',implementations:2,
+      implementationList:[
+        {variant:'',language:'Dart',name:'',state:'complete',tested:true,passed:33,total:33},
+        {variant:'recursive.java',language:'Java',name:'recursive',state:'complete',tested:true,passed:33,total:33}]}}}
+  ]
+})`,context);
+const mixedBody=controls.get('progress-body');
+const aliceMarker=mixedBody.children[0].children[1].children[0];
+assert.equal(mixedBody.children[0].children[1].children.length,1,'No second row in the cell.');
+const more=aliceMarker.children[2];
+assert.equal(more.textContent,'2×');
+assert.equal(more.className,'progress-more');
+assert.equal(more.title,'Dart: 20 / 33 checks pass\nPython: all 33 checks pass');
+assert.match(aliceMarker.title,/2 implementations, 1 passing all checks/);
+const bobMore=mixedBody.children[1].children[1].children[0].children[2];
+assert.match(bobMore.className,/progress-more-working/);
+assert.match(bobMore.title,/Java \(recursive\): all 33 checks pass/);
+
+console.log('PASS: a compact 2× for several implementations per structure, and the class summary row.');
 console.log(
   'PASS: shared class progress dialog, check ratios, real icons and refresh request.',
 );

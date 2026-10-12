@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const html=fs.readFileSync('web/index.html','utf8');
 const css=fs.readFileSync('web/style.css','utf8');
 
-for(const dialog of ['validation','progress']){
+for(const dialog of ['validation','progress','confirm']){
   const markup=html.match(new RegExp(
     `<dialog[^>]+id="${dialog}-dialog"[\\s\\S]*?<\\/dialog>`,
   ));
@@ -30,4 +30,6 @@ assert.match(css,/\.dialog-header \.dialog-close\{/);
 assert.match(css,/\.dialog-actions\{[\s\S]*?justify-content:flex-end/);
 assert.match(css,/\.dialog-primary-action\{[\s\S]*?background:#3776c7/);
 
+assert.doesNotMatch(fs.readFileSync('web/js/editor.js','utf8'),/window\.confirm|\balert\(/,
+  'Unsaved changes are confirmed in the app, not with the browser\'s popups.');
 console.log('PASS: dialogs share one header, icon close, and bottom-right action pattern.');

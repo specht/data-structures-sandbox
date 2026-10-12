@@ -1,5 +1,5 @@
 'use strict';
-// Class progress overview dialog.
+// Class progress: where everyone in the class stands, shared with all students.
 const progressUI={
   button:$('progress-open'),
   dialog:$('progress-dialog'),
@@ -8,6 +8,7 @@ const progressUI={
   status:$('progress-status'),
   head:$('progress-head'),
   body:$('progress-body'),
+  foot:$('progress-foot'),
 };
 let progressSnapshotData=null;
 let progressChecking=null;
@@ -27,8 +28,35 @@ const PROGRESS_LABELS={
   hash:'Hash table',
 };
 
+// A student may have one structure in several files: other languages or
+// versions (my_avl.dart, my_avl.py, my_avl_recursive.dart). The cell shows the
+// best; a small "2×" says there is more, and hovering it lists every file.
+const PROGRESS_LANGUAGE_ORDER=['Dart','Python','JavaScript','Java'];
+function progressImplementationName(entry){
+  return entry.name?`${entry.language} (${entry.name})`:entry.language;
+}
+function progressImplementationDescription(entry){
+  const name=progressImplementationName(entry);
+  if(entry.state==='complete')return `${name}: all ${entry.total} checks pass`;
+  if(entry.tested)return entry.error?`${name}: tests could not complete`:
+    `${name}: ${entry.passed??0} / ${entry.total} checks pass`;
+  return `${name}: awaiting checks`;
+}
+function progressImplementations(cell){
+  const list=Array.isArray(cell?.implementationList)?[...cell.implementationList]:[];
+  const rank=language=>{const index=PROGRESS_LANGUAGE_ORDER.indexOf(language);return index<0?9:index;};
+  return list.sort((a,b)=>rank(a.language)-rank(b.language)||String(a.name).localeCompare(String(b.name)));
+}
+
 function progressDescription(cell){
   if(!cell||cell.state==='missing')return 'No implementation';
+  const list=progressImplementations(cell);
+  if(list.length>1){
+    const working=list.filter(entry=>entry.state==='complete').length;
+    return `${progressDescription({...cell,implementations:1,implementationList:null})} · `+
+      `${list.length} implementations, ${working} passing all checks: `+
+      list.map(progressImplementationDescription).join(' · ');
+  }
   if(cell.implementations>1){
     const best=globalThis.describeVariant?describeVariant(cell.variant??''):cell.variant?`the “${cell.variant}” variant`:'the main file';
     return `${progressDescription({...cell,implementations:1})} · best of ${cell.implementations} implementations (${best})`;
@@ -117,6 +145,15 @@ function renderProgress(data){
         const total=Number.isInteger(cell.total)?cell.total:'?';
         ratio.textContent=cell.tested?`${cell.passed}/${total}`:`…/${total}`;
         marker.append(icon,ratio);
+        const list=progressImplementations(cell);
+        if(list.length>1){
+          const working=list.filter(entry=>entry.state==='complete').length;
+          const more=document.createElement('span');
+          more.className=`progress-more${working>1?' progress-more-working':''}`;
+          more.textContent=`${list.length}×`;
+          more.title=list.map(progressImplementationDescription).join('\n');
+          marker.append(more);
+        }
       }
 
       const description=checking?
@@ -129,6 +166,39 @@ function renderProgress(data){
 
     progressUI.body.append(row);
   }
+  renderProgressSummary(structures,students);
+}
+
+// The last row: how far the whole class is with each structure.
+function renderProgressSummary(structures,students){
+  const row=document.createElement('tr');
+  const label=document.createElement('th');
+  label.scope='row';
+  label.textContent='Class';
+  label.title=`${students.length} students`;
+  row.append(label);
+  for(const structureInfo of structures){
+    const cells=students.map(student=>student.cells?.[structureInfo.id]??{state:'missing'});
+    const complete=cells.filter(cell=>cell.state==='complete').length;
+    const started=cells.filter(cell=>cell.state&&cell.state!=='missing').length;
+    const td=document.createElement('td');
+    td.className='progress-summary-cell';
+    const summary=document.createElement('span');
+    summary.className='progress-summary';
+    summary.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg>';
+    const count=document.createElement('span');
+    count.textContent=`${complete}/${students.length}`;
+    summary.append(count);
+    const startedNote=document.createElement('span');
+    startedNote.className='progress-summary-started';
+    startedNote.textContent=`· ${started} started`;
+    const description=`${complete} of ${students.length} students pass all checks · ${started} started`;
+    td.title=description;
+    td.setAttribute('aria-label',description);
+    td.append(summary,startedNote);
+    row.append(td);
+  }
+  progressUI.foot.replaceChildren(...(students.length?[row]:[]));
 }
 function refreshProgressHighlights(){
   if(progressSnapshotData)renderProgress(progressSnapshotData);

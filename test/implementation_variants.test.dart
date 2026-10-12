@@ -26,7 +26,9 @@ void main() {
     final found = implementationForFile(spec.filename);
     check(found?.kind == spec.id && found?.variant == '', 'unique ${spec.filename}');
   }
-  check(implementationLabel('tree', 'recursive') == 'Tree (binary search) · recursive', 'label');
+  check(implementationLabel('tree', 'recursive') == 'Tree (binary search) · recursive · Dart', 'label');
+  check(implementationLabel('tree', '') == 'Tree (binary search) · Dart', 'Dart label');
+  check(implementationName('avl', 'iterative.java') == 'Tree (AVL) · iterative', 'name without language');
 
   // Other languages keep their extension in the variant; Dart variants are unchanged.
   check(implementationFile(bst, '.py') == 'my_bst.py', 'Python base file');

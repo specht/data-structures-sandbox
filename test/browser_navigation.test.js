@@ -206,10 +206,14 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   ],default:{student:'example',structure:'sorted_linked_list'}})});
   assert.equal(Socket.current.sent.at(-1).student,'example');
   assert.equal(Socket.current.sent.at(-1).structure,'sorted_linked_list');
-  run("ui.student.value='alice';ui.student.onchange();");
+  // One picker lists every implementation of the class, structures in
+  // teaching order and then by student.
+  assert.deepEqual(JSON.parse(run("JSON.stringify(implementationPicker.items.map(item=>item.student+'/'+item.kind))")),
+    ['example/sorted_linked_list','alice/tree','example/tree','alice/stack','example/stack']);
+  run("implementationPicker.choose(implementationPicker.items[1]);");
   assert.equal(Socket.current.sent.at(-1).student,'alice');
   assert.equal(Socket.current.sent.at(-1).structure,'tree');
-  run("ui.structure.value='stack';ui.structure.onchange();");
+  run("implementationPicker.choose(implementationPicker.items[3]);");
   assert.equal(Socket.current.sent.at(-1).structure,'stack');
   run("ui.retry.onclick();");
   assert.equal(Socket.current.sent.at(-1).student,'alice');

@@ -139,8 +139,6 @@ button.subtle { margin-left:auto; background:#262c3d; }
 @media(max-width:720px){.suggestion-row{grid-template-columns:1fr;gap:7px}.suggestion-method{flex-direction:row;gap:8px;align-items:center}}
 
 /* v1.0: compact method palette and a true one-screen desktop workbench. */
-.structure-label{font-size:11px;color:#90a9ca}
-#structure{padding:6px 9px;font-size:12px;max-width:225px}
 .commands{padding:8px 11px;margin-top:8px;gap:5px;border-radius:10px;flex-shrink:0}
 .command-line,.call-form{display:flex;align-items:center;gap:8px;min-width:0}
 .command-line{flex-wrap:wrap}
@@ -204,7 +202,7 @@ button.subtle { margin-left:auto; background:#262c3d; }
 
 /* v1.2: compact student picker and structure picker share the top bar. */
 .topright select { max-width:170px; padding:7px 10px; font-size:12px; }
-@media(max-width:700px){.topbar{flex-wrap:wrap;padding:10px 0}.topright{width:100%;flex-wrap:wrap}.topright select{max-width:145px}}
+@media(max-width:700px){.topbar{flex-wrap:wrap;padding:10px 0}.topright{width:100%;flex-wrap:wrap}.topright select{max-width:145px}.topright .picker{flex-basis:100%;max-width:none}}
 
 .retry-button {font-size:11px;padding:7px 9px;white-space:nowrap;background:#1b3454;}
 /* Array heap: one indexed storage, two synchronized projections. */
@@ -847,3 +845,43 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 /* The theme switch: a square icon button as tall as Retry next to it. */
 .topright .theme-toggle{width:30px;height:30px;min-width:30px;padding:0;flex:none}
 .topright .theme-toggle .ui-icon{width:16px;height:16px}
+
+/* One searchable implementation picker, the same as in the Sorting and CPU
+   sandboxes: structure · student [language], filtered by typing. */
+.picker{position:relative;min-width:0;flex:0 1 380px;max-width:440px}
+.picker-button{width:100%;display:flex;align-items:center;gap:8px;text-align:left;padding:6px 10px;background:#162a44;font-size:12.5px;border-radius:5px}
+.picker-name{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.picker-author{color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.picker-language{color:var(--muted);font-size:10.5px;font-weight:600;line-height:1.4;padding:0 4px;border:1px solid currentColor;border-radius:4px;white-space:nowrap;flex:none}
+.picker-placeholder{color:var(--muted);flex:1}
+.picker-chevron{margin-left:auto;color:var(--muted);flex:none}
+.picker-popover{position:absolute;z-index:40;top:calc(100% + 4px);left:0;width:max(100%,380px);max-width:90vw;
+  background:#122036;border:1px solid #4a6487;border-radius:8px;box-shadow:0 14px 40px #000a;padding:6px}
+.picker-popover[hidden]{display:none}
+/* The picker sits at the right end of the top bar: open towards the left. */
+.topright .picker-popover{left:auto;right:0}
+.picker-filter{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #3a5476;border-radius:5px;background:#0c1726;color:var(--text);font-size:12.5px}
+.picker-options{max-height:min(60vh,420px);overflow:auto;margin-top:6px;display:flex;flex-direction:column;gap:1px}
+.picker-option{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;font-size:13px}
+.picker-option.active{background:#24406a}
+.picker-option.selected .picker-name{color:#fff}
+.picker-check{flex:none;width:16px;margin-left:auto;display:inline-flex;justify-content:center;color:var(--blue)}
+.picker-check .ui-icon{width:15px;height:15px}
+.picker-empty{padding:10px;color:var(--muted);font-size:12.5px}
+
+/* The in-app question before unsaved changes are lost. */
+.dialog-danger-action{background:#8f3a2f;border-color:#c45a4a;color:#fff}
+.confirm-dialog{width:min(460px,calc(100vw - 28px))}
+.confirm-message{margin:14px 0;font-size:13.5px;line-height:1.5}
+
+/* Class progress: a small "2×" when a student has a structure in several
+   files (languages or versions), and the class summary row. */
+.progress-more{margin-left:2px;padding:0 4px;border:1px solid currentColor;border-radius:4px;font:700 9.5px/13px var(--mono);opacity:.85;cursor:help}
+.progress-more-working{opacity:1;background:#1f4d36}
+.progress-legend .progress-more{color:#a6e6be;margin:0}
+.progress-table tfoot th,.progress-table tfoot td{position:sticky;bottom:0;z-index:2;background:#17263b;color:#c9d9ee;border-top:1px solid #34506f;border-bottom:0;font-size:11px}
+.progress-table tfoot th{left:0;z-index:4;text-align:left}
+.progress-summary{display:inline-flex;align-items:center;gap:4px;font:700 11px/1 var(--mono);color:#a6e6be}
+.progress-summary .ui-icon{width:13px;height:13px;stroke-width:2.5}
+.progress-summary-cell{white-space:nowrap}
+.progress-summary-started{margin-left:5px;font:500 10px/1 system-ui,sans-serif;color:#91a2b7}

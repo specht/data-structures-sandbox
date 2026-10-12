@@ -117,9 +117,10 @@ Eintrag:
 
 ## 5. Bearbeiten, ausprobieren, testen
 
-Wähle im Browser unter **Student** deinen Ordner und unter **Structure** deine
-Datei (Dateien in anderen Sprachen als Dart tragen die Sprache im Namen,
-etwa „Tree (AVL) · Python“). Bearbeite den Code direkt im Editor und speichere
+Wähle oben rechts deine Datei: Die Auswahl listet alle Implementierungen der
+Klasse, etwa „Tree (AVL) · alice“. Tippe zum Filtern einfach los, zum Beispiel
+deinen Namen, „avl“ oder „python“. Schreibt die Klasse in mehreren Sprachen,
+steht bei jeder Datei ihre Sprache (Dart, Python, JavaScript, Java). Bearbeite den Code direkt im Editor und speichere
 mit **Ctrl+S**; die App übersetzt neu und setzt die Datenstruktur zurück. Rufe dann Methoden auf,
 etwa `push(5)`, und verfolge sie mit **Step**, **Play** oder **Show result**.
 Fehlermeldungen und Ausgaben (`print`, `console.log`,

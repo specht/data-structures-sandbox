@@ -76,7 +76,6 @@
 :root[data-theme="light"] .call-suggestion[data-scenario="Already in list"]{border-color:#7d9065;background:#b8cbba;color:#202a00}
 :root[data-theme="light"] .call-suggestion[data-scenario="Not in list"]{border-color:#698ec1;background:#a8c7ef;color:#182b46}
 :root[data-theme="light"] .suggestions-empty{color:#495f7b}
-:root[data-theme="light"] .structure-label{color:#3d5471}
 :root[data-theme="light"] .call-form label{color:#394f6b}
 :root[data-theme="light"] .call-form input{border:1px solid #88a5cd;background:#dfe8f5;color:#141c26}
 :root[data-theme="light"] .call-suggestion{background:#b3cae5;border:1px solid #85a6c4}
@@ -289,3 +288,15 @@
 :root[data-theme="light"] *{scrollbar-color:#6490cb transparent}
 :root[data-theme="light"] ::-webkit-scrollbar-thumb{background:#6490cb}
 :root[data-theme="light"] ::-webkit-scrollbar-thumb:hover{background:#396aad}
+:root[data-theme="light"] .picker-button{background:#c5d3e6}
+:root[data-theme="light"] .picker-popover{background:#d4deef;border:1px solid #7893b9;box-shadow:0 14px 40px rgba(40,56,84,0.233)}
+:root[data-theme="light"] .picker-filter{border:1px solid #87a4ca;background:#e2ebf7}
+:root[data-theme="light"] .picker-option.active{background:#97b8ea}
+:root[data-theme="light"] .picker-option.selected .picker-name{color:#121212}
+:root[data-theme="light"] .dialog-danger-action{background:#db7e70;border-color:#b95041;color:#121212}
+:root[data-theme="light"] .progress-more-working{background:#90c1a5}
+:root[data-theme="light"] .progress-legend .progress-more{color:#00391f}
+:root[data-theme="light"] .progress-table tfoot th,
+:root[data-theme="light"] .progress-table tfoot td{background:#cdd8e7;color:#212d3d;border-top:1px solid #8baace}
+:root[data-theme="light"] .progress-summary{color:#00391f}
+:root[data-theme="light"] .progress-summary-started{color:#4a596c}

@@ -407,9 +407,47 @@
     setStatus('Saving…');
     socket.send(JSON.stringify({action: 'saveSource', revision, content: pendingContent}));
   }
-  function revertChanges() {
+  // A question in the style of the other dialogs instead of the browser's
+  // confirm() (the same dialog as in the CPU and Sorting sandboxes): resolves
+  // true for the main action, false for Keep editing, Esc, × or a click beside it.
+  function askConfirm({title, message, note = '', ok = 'Discard', cancel = 'Keep editing'}) {
+    const dialog = $('confirm-dialog');
+    $('confirm-title').textContent = title;
+    $('confirm-message').textContent = message;
+    $('confirm-note').textContent = note;
+    const okLabel = $('confirm-ok').querySelector?.('span');
+    if (okLabel) okLabel.textContent = ok;
+    $('confirm-cancel').textContent = cancel;
+    return new Promise(resolve => {
+      const handlers = [['confirm-ok', () => finish(true)], ['confirm-cancel', () => finish(false)],
+        ['confirm-close', () => finish(false)]];
+      const onClose = () => finish(false);
+      const onBackdrop = event => { if (event.target === dialog) finish(false); };
+      function finish(answer) {
+        dialog.removeEventListener?.('close', onClose);
+        dialog.removeEventListener?.('click', onBackdrop);
+        for (const [id, handler] of handlers) $(id).removeEventListener?.('click', handler);
+        if (dialog.open) dialog.close();
+        resolve(answer);
+      }
+      for (const [id, handler] of handlers) $(id).addEventListener('click', handler);
+      dialog.addEventListener('close', onClose);
+      dialog.addEventListener('click', onBackdrop);
+      dialog.showModal();
+      $('confirm-cancel').focus?.(); // The safe choice has the focus.
+    });
+  }
+  const currentFile = () => {
+    const name = (typeof ui === 'object' && ui.file?.textContent) || '';
+    return name && !name.startsWith('No student') ? name : 'This file';
+  };
+  async function revertChanges() {
     if (!dirty || saving || revision === null) return;
-    if (!window.confirm('Discard unsaved changes and restore the last saved source?')) return;
+    const key = selection;
+    if (!(await askConfirm({title: 'Revert to the saved version?',
+      message: `Your unsaved changes to ${currentFile()} will be lost.`,
+      ok: 'Revert', note: 'Save first (Ctrl+S) to keep them.'}))) return;
+    if (!dirty || saving || revision === null || selection !== key) return;
     highlight(null);
     clearDiagnostics();
     write(original);
@@ -458,11 +496,36 @@
     write('Create a starter from the app terminal:\n\n./new-structure YOUR_NAME stack array');
   }
   function canLeave() {
-    return !saving && (!dirty || window.confirm('Discard unsaved changes to this source file?'));
+    return !saving && !dirty;
+  }
+  /**
+   * Runs [proceed] once the selection may change: at once without a draft,
+   * after the student agrees to discard it otherwise. Returns whether it ran.
+   */
+  function beforeSelection(proceed = () => {}) {
+    if (saving) {
+      setStatus('Saving… choose again once the file is saved.', true);
+      return false;
+    }
+    if (!dirty) {
+      resetSelection();
+      proceed();
+      return true;
+    }
+    const key = selection;
+    askConfirm({title: 'Discard your changes?',
+      message: `${currentFile()} has unsaved changes. They will be lost if you switch to another implementation now.`,
+      note: 'Save first (Ctrl+S) to keep them.'}).then(discard => {
+      if (!discard || saving || selection !== key) return;
+      resetSelection();
+      proceed();
+    });
+    return false;
   }
   save.addEventListener('click', saveChanges);
   formatButton.addEventListener('click', formatDocument);
   revert.addEventListener('click', revertChanges);
+  // Closing or reloading the tab can only ask with the browser's own prompt.
   window.addEventListener('beforeunload', event => {
     if (!dirty) return;
     event.preventDefault(); event.returnValue = '';
@@ -471,7 +534,7 @@
     lastSource: null,
     receive, canLeave, highlight,
     renderSource(src) {this.lastSource = src; renderSource(src);},
-    beforeSelection() {if (!canLeave()) return false; resetSelection(); return true;},
+    beforeSelection,
     receiveDiagnostics, receiveFormat,
     connectionLost() {formatting = false; formatRequest++; formatDraft = null;
       formatRevision = null; hideSuggestions(); updateButtons();},

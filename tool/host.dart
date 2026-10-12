@@ -70,7 +70,9 @@ List<Map<String,Object?>> catalog(){
     if(available.isNotEmpty)result.add({'id':student,'structures':available,
       'implementations':[for(final item in implementations)
         {'structure':item.kind,'variant':item.variant,
-         'label':implementationLabel(item.kind,item.variant)}]});
+         'label':implementationLabel(item.kind,item.variant),
+         'name':implementationName(item.kind,item.variant),
+         'language':languageNameOf(item.variant)}]});
   }
   return result;
 }
@@ -167,7 +169,12 @@ Map<String,Object?> progressSnapshot(){
         continue;
       }
       // One cell per structure: the best of the student's implementations.
+      // `implementationList` has every file, so the class can see who has the
+      // structure working in several languages or versions.
       Map<String,Object?>? best;
+      final all=<Map<String,Object?>>[];
+      double score(Map<String,Object?> c)=>c['tested']==true&&(c['total'] as int)>0
+          ?(c['passed'] as int)/(c['total'] as int):-1;
       for(final variant in variants){
         final revision=stamp(student,spec.id,variant);
         final cached=_cachedProgress(student,spec.id,revision,variant);
@@ -184,12 +191,11 @@ Map<String,Object?> progressSnapshot(){
           };
         }
         cell['variant']=variant;
-        double score(Map<String,Object?> c)=>c['tested']==true&&(c['total'] as int)>0
-            ?(c['passed'] as int)/(c['total'] as int):-1;
+        all.add({...cell,'language':languageNameOf(variant),'name':splitVariant(variant).name});
         if(best==null||score(cell)>score(best))best=cell;
       }
-      best!['implementations']=variants.length;
-      cells[spec.id]=best;
+      cells[spec.id]={...best!,'implementations':variants.length,
+        if(variants.length>1)'implementationList':all};
     }
     rows.add({'id':student,'cells':cells});
   }
@@ -955,7 +961,7 @@ class Client {
 }
 
 Future<void> main(List<String> args) async {
-  var port=8081,openBrowser=true;
+  var port=8767,openBrowser=true;
   for(var i=0;i<args.length;i++){
     switch(args[i]){
       case '--no-open':openBrowser=false;break;
@@ -973,7 +979,14 @@ Future<void> main(List<String> args) async {
   }
   warmInstrumenter();
   // Missing class repository is an intentional empty first-run state.
-  final server=await HttpServer.bind(InternetAddress.loopbackIPv4,port);
+  final HttpServer server;
+  try{
+    server=await HttpServer.bind(InternetAddress.loopbackIPv4,port);
+  }on SocketException catch(error){
+    stderr.writeln('Could not listen on 127.0.0.1:$port (${error.message}). '
+      'Is the Data Structure Sandbox already running? Try ./run --port ${port+1}');
+    exit(69);
+  }
   final url='http://127.0.0.1:${server.port}/';
   stdout.writeln('Data Structure Sandbox · $url · Students: ${Directory(repoPath).absolute.path}');
   if(openBrowser)unawaited(_openBrowser(url));

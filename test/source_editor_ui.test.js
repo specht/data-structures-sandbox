@@ -16,6 +16,9 @@ class Element {
     };
   }
   addEventListener(name, handler) { this[`on${name}`] = handler; }
+  removeEventListener(name, handler) { if (this[`on${name}`] === handler) delete this[`on${name}`]; }
+  showModal() { this.open = true; }
+  close() { this.open = false; this.onclose?.(); }
   setAttribute(key, value) { this.attrs[key] = value; }
   append(...children) { (this.children ??= []).push(...children); }
   replaceChildren(...children) { this.children = children; }
@@ -44,11 +47,11 @@ function CodeMirror(container, options) {
   };
   return cm;
 }
-let allowDiscard = false;
 const window = {
   addEventListener(name, handler) { handlers.set(name, handler); },
-  confirm() { return allowDiscard; },
+  confirm() { throw new Error('The browser\'s confirm() must not be used.'); },
 };
+const settle = () => new Promise(resolve => setImmediate(resolve));
 const ctx = vm.createContext({
   document, window, CodeMirror, selectedStudent: 'alice', structure: 'stack',
   ui: { cmdStatus: new Element() },
@@ -84,7 +87,16 @@ editor.renderSource({lines: ['STALE TRACE']});
 assert.equal(cm.getValue(), 'class A { int x=1; }', 'Trace must not overwrite draft.');
 editor.sourceChanged();
 assert.equal(cm.getValue(), 'class A { int x=1; }');
-assert.equal(editor.beforeSelection(), false, 'Changing implementation must confirm draft discard.');
+(async () => {
+let switched = 0;
+assert.equal(editor.beforeSelection(() => switched++), false, 'Changing implementation must confirm draft discard.');
+assert.equal(element('confirm-dialog').open, true, 'The app asks in its own dialog.');
+assert.match(element('confirm-message').textContent, /unsaved changes/);
+element('confirm-cancel').onclick();
+await settle();
+assert.equal(element('confirm-dialog').open, false);
+assert.equal(switched, 0, 'Keep editing stays on the draft.');
+assert.equal(cm.getValue(), 'class A { int x=1; }');
 element('source-save').onclick();
 assert.deepEqual(requests.at(-1), {action: 'saveSource', revision: 'rev1', content: 'class A { int x=1; }'});
 assert.equal(cm.readOnly, false, 'The editor stays writable while saving.');
@@ -99,9 +111,13 @@ editor.sourceChanged();
 assert.equal(element('source-edit-status').classList.contains('source-edit-error'), false);
 // Revert discards unsaved edits, never overwrites the saved file.
 element('source-discard').onclick();
+assert.equal(element('confirm-title').textContent, 'Revert to the saved version?');
+element('confirm-close').onclick();
+await settle();
 assert.equal(cm.getValue(), 'class A { int x=2; }', 'Revert requires confirmation.');
-allowDiscard = true;
 element('source-discard').onclick();
+element('confirm-ok').onclick();
+await settle();
 assert.equal(cm.getValue(), 'class A { int x=1; }');
 assert.equal(cm.readOnly, false);
 assert.equal(element('source-save').disabled, true);
@@ -113,7 +129,12 @@ editor.receive({type: 'sourceFile', student: 'alice', structure: 'stack',
 assert.equal(cm.getValue(), 'class A { int x=3; }');
 assert.equal(cm.readOnly, false);
 cm.setValue('class A { int x=4; }');
-assert.equal(editor.beforeSelection(), true);
+assert.equal(editor.beforeSelection(() => switched++), false);
+element('confirm-ok').onclick();
+await settle();
+assert.equal(switched, 1, 'Discard switches to the chosen implementation.');
+assert.equal(editor.beforeSelection(() => switched++), true, 'A clean editor switches at once.');
+assert.equal(switched, 2);
 vm.runInContext("structure='sorted_linked_list'", ctx);
 editor.ready();
 assert.equal(requests.at(-1).action, 'readSource');
@@ -124,3 +145,5 @@ editor.clear();
 assert.equal(cm.readOnly, 'nocursor');
 assert.equal(element('source-editor').classList.contains('source-empty'), true);
 console.log('PASS: always-editable source, save without mode switch, revert, conflict-safe refresh, and delete-line shortcuts.');
+console.log('PASS: unsaved drafts are confirmed in the app\'s own dialog, never with confirm().');
+})().catch(error => { console.error(error); process.exit(1); });

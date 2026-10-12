@@ -46,21 +46,16 @@ ui.retry.addEventListener('click',()=>{
   // Restarting the same implementation must not discard an unsaved draft.
   savedValues=null;selectImplementation();
 });
-ui.student.addEventListener('change',()=>{
-  if(window.sandboxEditor && !window.sandboxEditor.beforeSelection()){
-    ui.student.value=selectedStudent;return;
-  }
-  selectedStudent=ui.student.value;
-  updateStructures();
-  animationGeneration++;animating=false;playbackToken++;frames=[];rawSteps=[];savedValues=null;
-  clearView();sync();selectImplementation();
-});
-ui.structure.addEventListener('change',()=>{
-  if(window.sandboxEditor && !window.sandboxEditor.beforeSelection()){
-    ui.structure.value=implementationValue();return;
-  }
-  ({kind:structure,variant}=parseImplementation(ui.structure.value));
-  animationGeneration++;animating=false;playbackToken++;frames=[];rawSteps=[];savedValues=null;
-  clearView();sync();ui.cmdStatus.textContent='Switching structure…';
-  selectImplementation();
-});
+// The picker chooses student, structure and file together. An unsaved draft
+// asks first (in the app's own dialog, see editor.js).
+function chooseImplementation(item){
+  const apply=()=>{
+    selectedStudent=item.student;structure=item.kind;variant=item.variant??'';
+    showSelection();
+    animationGeneration++;animating=false;playbackToken++;frames=[];rawSteps=[];savedValues=null;
+    clearView();sync();ui.cmdStatus.textContent='Switching implementation…';
+    selectImplementation();
+  };
+  if(window.sandboxEditor)window.sandboxEditor.beforeSelection(apply);
+  else apply();
+}

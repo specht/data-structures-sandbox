@@ -1,5 +1,6 @@
 'use strict';
-// Playback preferences and the student / implementation selection.
+// Playback preferences and the implementation selection (student, structure
+// and file variant, chosen together in one picker).
 // These preferences are local to this browser, not to the student's repository.
 const playbackPreferencesKey='data-structure-sandbox.v1.playback';
 function loadPlaybackPreferences(){
@@ -36,12 +37,38 @@ function parseImplementation(value){
   const [kind,...rest]=String(value??'').split(':');
   return {kind,variant:rest.join(':')};
 }
+// '' → 'Tree (AVL)', 'recursive.py' → 'Tree (AVL) · recursive' (the host sends
+// this as `name`; older hosts only sent `label`).
+function implementationName(kind,suffix){
+  const name=typeof variantName==='function'?variantName(suffix):suffix;
+  return [STRUCTURE_LABELS[kind]??kind,name].filter(Boolean).join(' · ');
+}
 function studentImplementations(entry){
-  if(Array.isArray(entry?.implementations))return entry.implementations.map(item=>({
-    kind:item.structure,variant:item.variant??'',
-    label:item.label??(STRUCTURE_LABELS[item.structure]??item.structure)+(item.variant?` · ${item.variant}`:''),
-  }));
-  return (entry?.structures??[]).map(kind=>({kind,variant:'',label:STRUCTURE_LABELS[kind]??kind}));
+  if(Array.isArray(entry?.implementations))return entry.implementations.map(item=>{
+    const suffix=item.variant??'';
+    const name=item.name??implementationName(item.structure,suffix);
+    const language=item.language??(typeof languageOfVariant==='function'?languageOfVariant(suffix).label:'Dart');
+    return {kind:item.structure,variant:suffix,name,language,label:item.label??`${name} · ${language}`};
+  });
+  return (entry?.structures??[]).map(kind=>({kind,variant:'',name:STRUCTURE_LABELS[kind]??kind,
+    language:'Dart',label:STRUCTURE_LABELS[kind]??kind}));
+}
+// Every implementation in the class for the picker, in teaching order
+// (lists, trees, stacks, queues, heap, hash) and then by student, as in the
+// Sorting Sandbox: comparing one structure across the class is one scroll away.
+const STRUCTURE_ORDER=Object.keys(PROGRESS_LABELS);
+const LANGUAGE_ORDER=['Dart','Python','JavaScript','Java'];
+function classImplementations(){
+  const rank=(order,key)=>{const index=order.indexOf(key);return index<0?order.length:index;};
+  const items=studentCatalog.flatMap(entry=>studentImplementations(entry).map(item=>({...item,student:entry.id})));
+  return items.sort((a,b)=>rank(STRUCTURE_ORDER,a.kind)-rank(STRUCTURE_ORDER,b.kind)||
+    a.name.localeCompare(b.name)||a.student.localeCompare(b.student)||
+    rank(LANGUAGE_ORDER,a.language)-rank(LANGUAGE_ORDER,b.language));
+}
+const implementationPicker=new ImplementationPicker($('implementation-picker'),
+  {onSelect:item=>chooseImplementation(item)});
+function showSelection(){
+  implementationPicker.setValue({student:selectedStudent,kind:structure,variant});
 }
 const preferenceKey='data-structure-sandbox.v1.selection';
 function savedPreference(){try{return JSON.parse(localStorage.getItem(preferenceKey)||'null');}catch(_){return null;}}
@@ -58,14 +85,14 @@ function selectImplementation(){
 function updateStructures(){
   const available=studentImplementations(studentCatalog.find(s=>s.id===selectedStudent));
   const before=implementationValue();
-  ui.structure.replaceChildren();
-  for(const item of available){const option=document.createElement('option');option.value=implementationValue(item.kind,item.variant);option.textContent=item.label;ui.structure.append(option);}
   if(!available.some(item=>item.kind===structure&&item.variant===variant)){
     // Keep the structure if another implementation of it exists.
     const fallback=available.find(item=>item.kind===structure)??available[0];
     structure=fallback?.kind??'';variant=fallback?.variant??'';
   }
-  ui.structure.value=implementationValue();return before!==implementationValue();
+  implementationPicker.setItems(classImplementations());
+  showSelection();
+  return before!==implementationValue();
 }
 function receiveCatalog(data){
   if(!Array.isArray(data.students))return;
@@ -78,11 +105,6 @@ function receiveCatalog(data){
     variant=saved?.variant??data.default?.variant??'';
   }
   if(!studentCatalog.some(s=>s.id===selectedStudent)) selectedStudent=studentCatalog[0]?.id??'';
-  ui.student.replaceChildren();
-  for(const entry of studentCatalog){
-    const option=document.createElement('option');option.value=entry.id;option.textContent=entry.id;ui.student.append(option);
-  }
-  ui.student.value=selectedStudent;
   const kindChanged=updateStructures();
   if(!initializedCatalog || previous!==selectedStudent || kindChanged){
     initializedCatalog=true;

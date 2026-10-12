@@ -8,7 +8,7 @@
 </head><body>
 <div class="shell">
   <header class="topbar"><div class="brand"><strong>DATA STRUCTURE SANDBOX</strong></div>
-    <div class="topright"><label class="structure-label" for="student">Student</label><select id="student" aria-label="Choose student"></select><label class="structure-label" for="structure">Structure</label><select id="structure" aria-label="Choose data structure"><option value="list">List (sorted, singly linked)</option><option value="tree">Tree (binary search)</option><option value="stack">Stack (fixed array)</option><option value="array_queue">Queue (circular array)</option></select><button type="button" id="retry" class="retry-button" title="Restart the selected implementation"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-rotate-clockwise"/></svg> Retry</button><span id="compile-spinner" class="compile-indicator" hidden title="Recompiling Dart" aria-label="Recompiling Dart"><svg class="ui-icon spinner-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg></span><button type="button" id="theme-toggle" class="icon-button theme-toggle" title="Switch to the light theme" aria-label="Switch to the light theme"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-sun"/></svg></button><span id="connection" class="connection" role="status">Connecting…</span></div>
+    <div class="topright"><div id="implementation-picker" class="picker"></div><button type="button" id="retry" class="retry-button" title="Restart the selected implementation"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-rotate-clockwise"/></svg> Retry</button><span id="compile-spinner" class="compile-indicator" hidden title="Recompiling Dart" aria-label="Recompiling Dart"><svg class="ui-icon spinner-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg></span><button type="button" id="theme-toggle" class="icon-button theme-toggle" title="Switch to the light theme" aria-label="Switch to the light theme"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-sun"/></svg></button><span id="connection" class="connection" role="status">Connecting…</span></div>
   </header>
   <section class="commands" aria-label="Call methods">
     <div class="command-line"><form id="call-form" class="call-form"><label for="call-input">Method calls</label><textarea id="call-input" rows="1" autocomplete="off" spellcheck="false" aria-label="Method calls: separate several with semicolons; Enter runs, Shift+Enter starts a new line" title="Enter runs · Shift+Enter: new line · separate several calls with ;" placeholder="insert(1); insert(2); insert(3)">insert(25)</textarea><button type="submit" id="call-run" class="primary"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-arrow-right"/></svg> <span id="call-run-label">Run</span></button><button type="button" id="repeat-calls" class="toggle-chip" aria-pressed="false" title="Repeat: Run starts from an empty structure, and these calls run again by themselves after every save or implementation switch"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-repeat"/></svg> Repeat</button><button type="button" id="sequence-mode" class="toggle-chip" aria-pressed="false" title="Collect: suggestion buttons add their call to the field instead of running it (or Shift+click a suggestion)"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-plus"/></svg> Collect</button></form><button id="reset" class="subtle" type="button"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Reset</button><button id="validation-run" class="subtle validation-button" type="button" disabled aria-haspopup="dialog" aria-controls="validation-dialog"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-clipboard-check"/></svg> Run tests <span id="validation-summary" class="validation-summary" hidden></span></button><button id="progress-open" class="subtle progress-button" type="button" aria-haspopup="dialog" aria-controls="progress-dialog"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-clipboard-check"/></svg> Class progress</button><span id="command-status" role="status" class="command-status">Choose a call to start.</span></div>
@@ -40,9 +40,10 @@
     <div class="dialog-body">
       <p id="progress-status" role="status" aria-live="polite">Loading class progress…</p>
       <div class="progress-table-wrap">
-        <table class="progress-table" aria-label="Student progress by data structure">
+        <table class="progress-table" aria-label="Class progress: every student by data structure">
           <thead id="progress-head"></thead>
           <tbody id="progress-body"></tbody>
+          <tfoot id="progress-foot"></tfoot>
         </table>
       </div>
       <div class="progress-legend" aria-label="Progress legend">
@@ -50,12 +51,27 @@
         <span><svg class="ui-icon progress-pending-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg> awaiting checks</span>
         <span><svg class="ui-icon progress-incomplete-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-loader-2"/></svg> checks incomplete</span>
         <span><svg class="ui-icon progress-complete-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-check"/></svg> all checks pass</span>
+        <span><span class="progress-more">2×</span> several implementations (languages or versions): point at it for each one’s result</span>
       </div>
     </div>
     <div class="dialog-footer">
-      <p class="dialog-note">Current source revisions are checked automatically when no result is cached yet.</p>
+      <p class="dialog-note">Everyone in the class sees this overview. Each cell shows the best of a student’s implementations; new and changed files are checked automatically.</p>
       <div class="dialog-actions">
         <button type="button" id="progress-refresh" class="dialog-primary-action"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-refresh"/></svg> Refresh</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="confirm-dialog" class="app-dialog confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <div class="dialog-header">
+      <h2 id="confirm-title">Discard your changes?</h2>
+      <button type="button" id="confirm-close" class="icon-button dialog-close" title="Close and keep editing" aria-label="Close and keep editing"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg></button>
+    </div>
+    <div class="dialog-body"><p id="confirm-message" class="confirm-message"></p></div>
+    <div class="dialog-footer">
+      <p class="dialog-note" id="confirm-note"></p>
+      <div class="dialog-actions">
+        <button type="button" id="confirm-cancel">Keep editing</button>
+        <button type="button" id="confirm-ok" class="dialog-danger-action"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-x"/></svg> <span>Discard</span></button>
       </div>
     </div>
   </dialog>
@@ -105,6 +121,7 @@
 <script src="/js/scene.js" defer></script>
 <script src="/js/dom.js" defer></script>
 <script src="/js/languages.js" defer></script>
+<script src="/js/picker.js" defer></script>
 <script src="/js/validation.js" defer></script>
 <script src="/js/progress.js" defer></script>
 <script src="/js/state.js" defer></script>

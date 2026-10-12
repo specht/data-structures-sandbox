@@ -109,7 +109,7 @@ function acceptTrace(data){
   if(!data.source?.lines||!Array.isArray(data.steps)||data.steps[0]?.kind!=='snapshot')throw Error('Invalid trace from the worker.');
   cameraAnimationId++; // A new trace owns the viewport, not an old Fit animation.
   animationGeneration++;animating=false;
-  if(data.structure&&data.structure!==structure){structure=data.structure;ui.structure.value=implementationValue();}
+  if(data.structure&&data.structure!==structure){structure=data.structure;showSelection();}
   if(data.methods)updateMethodCatalog(data.methods);
   source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
   frames=makeFrames(rawSteps,ui.traceMode.value);

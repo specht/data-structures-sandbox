@@ -13,7 +13,7 @@ const ui = {
   reset:$('reset'), suggestions:$('method-suggestions'), cmdStatus:$('command-status'), invoke:$('invoke-button'),
   singleArg:$('single-argument'), argLabel:$('arg-label'), multiArgs:$('multi-arguments'),
   zoomIn:$('zoom-in'),zoomOut:$('zoom-out'),fitScene:$('fit-scene'),
-  student:$('student'),structure:$('structure'),retry:$('retry'), callForm:$('call-form'),callInput:$('call-input'),returnValue:$('return-value'),stackView:$('stack-view'),
+  retry:$('retry'), callForm:$('call-form'),callInput:$('call-input'),returnValue:$('return-value'),stackView:$('stack-view'),
   sequenceMode:$('sequence-mode'),callRunLabel:$('call-run-label'),
   callRun:$('call-run'),repeatCalls:$('repeat-calls'),
   runtimeConsole:$('runtime-console'),consoleToggle:$('console-toggle'),
