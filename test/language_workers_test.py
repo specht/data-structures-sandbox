@@ -130,7 +130,8 @@ class Java(Language):
     _classes = None
     EXPORTS = [f"--add-exports=jdk.compiler/com.sun.tools.javac.{package}=ALL-UNNAMED"
                for package in ("api", "code", "file", "parser", "tree", "util")]
-    FORMATTER = os.path.join(ROOT, "vendor/java/google-java-format-1.35.0-all-deps.jar")
+    FORMATTERS = [os.path.join(ROOT, "vendor/java", name) for name in
+                  ("google-java-format-1.35.0-all-deps.jar", "google-java-format-1.28.0-all-deps.jar")]
 
     @classmethod
     def tool(cls, name):
@@ -162,7 +163,7 @@ class Java(Language):
     @classmethod
     def daemon_command(cls):
         return [cls.tool("java"), *cls.EXPORTS, "-XX:+UseSerialGC", "-cp",
-                cls.classes() + os.pathsep + cls.FORMATTER, "sandbox.Daemon", cls.classes()]
+                cls.classes(), "sandbox.Daemon", cls.classes(), *cls.FORMATTERS]
 
     @classmethod
     def worker(cls, out):
@@ -368,6 +369,18 @@ class WorkerTests(unittest.TestCase):
                 self.assertIn("Trace limit reached", failed["error"]["message"])
             finally:
                 worker.close()
+
+    def test_formatter(self):
+        for language in self.languages:
+            with self.subTest(language=language.name):
+                with open(language.template("example", "linked_stack"), encoding="utf-8") as file:
+                    text = file.read()
+                reply = language.daemon().request(op="format", content=text)
+                self.assertTrue(reply.get("ok"), reply)
+                self.assertIn("class MyLinkedStack", reply["content"])
+                broken = language.daemon().request(op="format", content=text + "\n)(((\n")
+                self.assertFalse(broken.get("ok"), broken)
+                self.assertIn("could not format", broken.get("error", ""))
 
     def test_invalid_requests(self):
         for language in self.languages:
