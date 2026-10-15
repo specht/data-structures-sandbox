@@ -50,8 +50,9 @@ The method-call box accepts only methods exposed by your selected class. To
 reproduce a longer scenario, separate up to 20 calls with semicolons (or
 Shift+Enter for a new line), for example `insert(30); insert(20); insert(10)`,
 and press Enter or Run. The box remembers its text for each structure. Switch
-on **Repeat** to replay the scenario from an empty structure: Run then starts
-empty, and the calls run again by themselves after every save. **Collect** (or
+on **Repeat** to replay the scenario from an empty structure: Run (now labelled
+**Run from empty**) then discards the current structure, and the calls run again
+by themselves after every save. Repeat is off again after a page reload. **Collect** (or
 Shift+click) makes the suggestion buttons add their call to the box instead of
 running it.
 Use Step and the arrow keys to inspect writes; Home/End jump through the

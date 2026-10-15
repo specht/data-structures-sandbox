@@ -111,6 +111,7 @@ function acceptTrace(data){
   animationGeneration++;animating=false;
   if(data.structure&&data.structure!==structure){structure=data.structure;showSelection();}
   if(data.methods)updateMethodCatalog(data.methods);
+  const previousValues=savedValues;
   source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
   frames=makeFrames(rawSteps,ui.traceMode.value);
   setRuntimeConsole(data.console??[],data.error??null,
@@ -141,6 +142,14 @@ function acceptTrace(data){
   }else if(calls&&(calls.planned>1||calls.fromEmpty)){
     ui.cmdStatus.textContent=`Ran ${calls.planned} call${calls.planned===1?'':'s'}${calls.fromEmpty?' from empty':''}`+
       ` · ${frames.length} steps · [${data.values.join(', ')}]. Use ← / →.`;
+    // Repeat is the only way a Run from the text field discards the previous
+    // contents; say so loudly instead of letting them vanish.
+    if(calls.fromEmpty&&previousValues?.length){
+      ui.cmdStatus.textContent=`Repeat is on, so this Run started from an empty structure and discarded `+
+        `[${previousValues.join(', ')}]. Turn Repeat off to keep building on your structure. `+
+        ui.cmdStatus.textContent;
+      ui.cmdStatus.classList.add('error');
+    }
   }
 }
 function acceptExecutionError(data){

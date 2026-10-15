@@ -131,7 +131,9 @@ Mehrere Aufrufe trennst du mit `;`, zum Beispiel
 aus. Die Eingabe merkt sich die App für jede Datenstruktur. Schalte
 **Repeat** ein, damit diese Aufrufe jedes Mal mit einer leeren Datenstruktur
 beginnen und nach jedem Speichern von selbst erneut laufen. So musst du dein
-Testszenario nicht immer wieder eintippen.
+Testszenario nicht immer wieder eintippen. Solange Repeat an ist, heißt der
+Knopf **Run from empty**: Jeder Run verwirft die bisherige Datenstruktur. Nach
+dem Neuladen der Seite ist Repeat wieder aus.
 
 **Run tests** prüft deine Implementierung mit einem Referenzmodell, einschließlich
 der Speicherstruktur. **Class progress** zeigt den Stand der ganzen Klasse.

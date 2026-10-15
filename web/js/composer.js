@@ -5,11 +5,13 @@
 //    and switching between implementations (recursive vs iterative variants).
 //  - Repeat: Run starts from an empty structure, and the calls run again by
 //    themselves whenever the structure starts fresh (after a save, a switch
-//    of implementation or Retry).
+//    of implementation or Retry). It is off after every page load, because a
+//    forgotten Repeat silently discards the structure on each Run.
 //  - Collect (or Shift+click on a suggestion) adds a suggestion to the text
 //    instead of running it.
 const MAX_CALLS=20;
 const callsStorageKey='data-structure-sandbox.v1.calls';
+// Older versions remembered Repeat across reloads; that key is now removed.
 const repeatStorageKey='data-structure-sandbox.v1.repeat';
 let repeatCalls=false;
 // The kind whose remembered text is in the input (see updateMethodCatalog).
@@ -107,7 +109,7 @@ function updateCommandComposer(){
   const lines=Math.max(1,ui.callInput.value.split('\n').length);
   ui.callInput.rows=Math.min(3,lines);
   ui.callForm.classList.toggle('has-multiline',lines>1);
-  ui.callRunLabel.textContent=count>1?`Run ${count}`:'Run';
+  ui.callRunLabel.textContent=(count>1?`Run ${count}`:'Run')+(repeatCalls?' from empty':'');
   ui.callRun.title=(repeatCalls?'Start from an empty structure, then run ':'Run ')+
     (count>1?`these ${count} calls`:'this call')+' (Enter)';
 }
@@ -116,11 +118,10 @@ function setSequenceMode(enabled){
   ui.sequenceMode.classList.toggle('selected',enabled);
   ui.sequenceMode.setAttribute('aria-pressed',String(enabled));
 }
-function setRepeatCalls(enabled,{remember=true}={}){
+function setRepeatCalls(enabled){
   repeatCalls=enabled;
   ui.repeatCalls.classList.toggle('selected',enabled);
   ui.repeatCalls.setAttribute('aria-pressed',String(enabled));
-  if(remember){try{localStorage.setItem(repeatStorageKey,enabled?'1':'0');}catch(_){ }}
   updateCommandComposer();
 }
 function appendSequenceCall(call){
@@ -160,7 +161,8 @@ function repeatAfterFreshStart(){
   ui.cmdStatus.textContent='Repeating your calls on the fresh structure…';
 }
 
-try{setRepeatCalls(localStorage.getItem(repeatStorageKey)==='1',{remember:false});}catch(_){ }
+try{localStorage.removeItem(repeatStorageKey);}catch(_){ }
+setRepeatCalls(false);
 ui.sequenceMode.addEventListener('click',()=>setSequenceMode(!sequenceMode));
 ui.repeatCalls.addEventListener('click',()=>setRepeatCalls(!repeatCalls));
 ui.callInput.addEventListener('input',()=>{updateCommandComposer();rememberCalls();});
