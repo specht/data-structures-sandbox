@@ -72,6 +72,7 @@ async function animateSettle(snapshot){
 }
 function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
   head=null;tailId=null;rootId=null;linkedListSize=0;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};arrayListState={cells:[],size:0};arrayListHot=null;heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
+  resetTreeVisitDisplay();
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded execution.';
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
@@ -114,7 +115,8 @@ function instant(frame){
   if(structure==='hash'){instantHash(frame);return;}
   switch(frame.kind){
     case 'line':break;
-    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.textContent=frame.description;break;
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.textContent=frame.description;resetTreeVisitDisplay();break;
+    case 'traversalVisit':hotNode=frame.id;recordTreeVisit(frame.value);break;
     case 'createNode':{const n=newNode(frame.node);n.opacity=1;n.y=156;break;}
     case 'variableWrite':references[frame.name]=frame.to;break;
     case 'visit':hotNode=frame.id;break;
@@ -157,7 +159,10 @@ async function animate(frame){
     case 'line':ui.phase.textContent='SOURCE LINE';break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;ui.returnValue.textContent='';
       ui.description.textContent=frame.description;lastResult='Running…';ui.result.textContent=lastResult;
-      hotNode=null;ui.phase.textContent='METHOD CALL';ui.phase.classList.remove('hot');renderAll();break;
+      resetTreeVisitDisplay();hotNode=null;ui.phase.textContent='METHOD CALL';ui.phase.classList.remove('hot');renderAll();break;
+    case 'traversalVisit':hotNode=frame.id;recordTreeVisit(frame.value);ui.phase.textContent='CALLBACK';
+      ui.status.textContent=`Callback visit(${frame.value}) · ${treeVisitValues.join(' → ')}`;
+      renderAll();await tween(320,()=>{});break;
     case 'visit':hotNode=frame.id;ui.phase.textContent='VISIT';
       ui.status.textContent=`Visiting node #${frame.id} (value ${nodes.get(frame.id)?.value??'?'})`;
       renderAll();await tween(190,()=>{});break;

@@ -36,6 +36,15 @@ class TreeRecorder {
   void begin(String name,List<Object?> args){steps.add({'kind':'operationStart','operation':'$name(${args.join(', ')})','line':0});}
   void reference(String name,TreeNode? node){steps.add({'kind':'variableWrite','name':name,'to':node?.id,'line':sourceLine});}
   void visit(TreeNode node){steps.add({'kind':'visit','id':node.id,'line':sourceLine});}
+  // The caller-supplied callback determines the actual traversal sequence.
+  // Unlike value reads, these visits correspond exactly to callback calls.
+  void traversalVisit(int value) {
+    int? id;
+    for (final node in registry.values) {
+      if (node._value == value) { id = node.id; break; }
+    }
+    steps.add({'kind':'traversalVisit','id':id,'value':value,'line':sourceLine});
+  }
   void createNode(TreeNode node){registry[node.id]=node;steps.add({'kind':'createNode','node':{'id':node.id,'value':node._value,'height':node._height},'line':sourceLine});}
   void valueWrite(TreeNode node){steps.add(snapshot());}
   void heightWrite(TreeNode node,int before,int after){
@@ -107,4 +116,35 @@ Map<String,Object?> auditAvl(TreeNode? root) {
     'acyclic':acyclic,'ordered':ordered,'heights':heights,'balanced':balanced,
     'nodes':details,
   };
+}
+
+/// Adapt an existing student-owned integer queue to store tree-node references.
+///
+/// Both MyLinkedQueue and MyArrayQueue expose enqueue(int), dequeue(),
+/// and isEmpty(). The adapter stores node IDs in that queue and resolves them
+/// back to TreeNode objects. It does not implement FIFO itself.
+/// A circular queue with capacity eight can hold at most eight pending nodes.
+class TreeNodeQueue {
+  final dynamic storage;
+  final Map<int, TreeNode> _pending = {};
+
+  TreeNodeQueue(this.storage);
+
+  void enqueue(TreeNode node) {
+    if (storage.enqueue(node.id) != true) {
+      throw StateError('Student queue rejected an enqueue (capacity reached?).');
+    }
+    _pending[node.id] = node;
+  }
+
+  TreeNode? dequeue() {
+    final id = storage.dequeue();
+    if (id == null) return null;
+    if (id is! int || !_pending.containsKey(id)) {
+      throw StateError('Student queue returned an invalid node ID: $id');
+    }
+    return _pending.remove(id);
+  }
+
+  bool get isEmpty => storage.isEmpty() == true;
 }

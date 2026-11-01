@@ -22,6 +22,35 @@ class MyBST {
     // TODO: Remove value if present; return true if a value was removed.
     return false;
   }
+
+
+  // Write recursive helper functions to visit nodes in the requested order.
+  // The Sandbox supplies visit and checks the sequence of callback calls.
+  void inorder(void Function(int value) visit) {
+    // TODO: Left subtree, node, right subtree.
+  }
+
+  void preorder(void Function(int value) visit) {
+    // TODO: Node, left subtree, right subtree.
+  }
+
+  void postorder(void Function(int value) visit) {
+    // TODO: Left subtree, right subtree, node.
+  }
+
+  void breadthFirst(void Function(int value) visit) {
+    // TODO: Visit by level; use TreeNodeQueue with one of your own queues.
+  }
+
+  bool dfs(int target) {
+    // TODO: Depth-first search; return true if target exists.
+    return false;
+  }
+
+  bool bfs(int target) {
+    // TODO: Breadth-first search; use one of your own queues.
+    return false;
+  }
 }
 
 /*

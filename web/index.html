@@ -93,7 +93,7 @@
     <section class="visual-panel" aria-label="Animated data structure">
       <div class="operation-banner"><div><div class="operation-result"><strong id="operation">Ready</strong><span id="return-value"></span></div><p id="description" hidden></p></div><span id="phase" class="phase" hidden>READY</span></div>
       <div class="scene-wrap">
-        <div class="scene-top"><span class="scene-hint" aria-label="Diagram key"><span class="legend-item"><span class="legend-amber"></span> Changing</span><span class="legend-item"><span class="legend-blue"></span> Reference</span></span><div class="scene-zoom" role="group" aria-label="Diagram zoom and pan"><button type="button" id="zoom-out" class="icon-button" title="Zoom out" aria-label="Zoom out"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-zoom-out"/></svg></button><button type="button" id="fit-scene" class="icon-button" title="Fit diagram and resume automatic framing" aria-label="Fit diagram"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-focus-centered"/></svg></button><button type="button" id="zoom-in" class="icon-button" title="Zoom in" aria-label="Zoom in"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-zoom-in"/></svg></button></div></div>
+        <div class="scene-top"><span class="scene-hint" aria-label="Diagram key"><span class="legend-item"><span class="legend-amber"></span> Changing</span><span class="legend-item"><span class="legend-blue"></span> Reference</span></span><button type="button" id="tree-sample" class="tree-sample" hidden title="Reset the current BST/AVL and insert a sample tree through your own insert method">Build sample tree</button><div class="scene-zoom" role="group" aria-label="Diagram zoom and pan"><button type="button" id="zoom-out" class="icon-button" title="Zoom out" aria-label="Zoom out"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-zoom-out"/></svg></button><button type="button" id="fit-scene" class="icon-button" title="Fit diagram and resume automatic framing" aria-label="Fit diagram"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-focus-centered"/></svg></button><button type="button" id="zoom-in" class="icon-button" title="Zoom in" aria-label="Zoom in"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-zoom-in"/></svg></button></div></div>
         <svg id="scene" viewBox="0 0 1100 510" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Animated data structure and its observable memory">
           <!-- Arrowheads are explicit SVG triangles, so their tips touch the
                target boundary even while a pointer is moving. -->
@@ -102,6 +102,7 @@
         </svg>
         <div id="scene-status" class="scene-status" aria-live="polite">Create a starter to begin: ./new-structure YOUR_NAME stack array</div>
       </div>
+      <div id="tree-visit-output" class="tree-visit-output" aria-live="polite" hidden><strong>Traversal visits</strong> <span id="tree-visit-values"></span></div>
       <section id="runtime-console" class="runtime-console" aria-label="Student console">
         <div class="console-toolbar">
           <button type="button" id="console-toggle" class="console-toggle" aria-expanded="false" aria-controls="console-output"><svg class="ui-icon console-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="/vendor/tabler-icons.svg#ti-chevron-right"/></svg><span>Console</span><span id="console-count" class="console-count" hidden></span></button>
@@ -139,6 +140,7 @@
 <script src="/js/arrays.js" defer></script>
 <script src="/js/controls.js" defer></script>
 <script src="/js/composer.js" defer></script>
+<script src="/js/tree-lab.js" defer></script>
 <script src="/js/main.js" defer></script>
 <script src="/js/editor.js" defer></script>
 

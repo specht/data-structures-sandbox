@@ -27,14 +27,80 @@ class TreeAdapter extends StructureAdapter {
       tree_api.TreeRecorder.active = recorder as tree_api.TreeRecorder;
 
   @override
-  Set<String> get standardMethods => const {'insert', 'contains', 'remove'};
+  Set<String> get standardMethods => const {
+    'insert', 'contains', 'remove',
+    'inorder', 'preorder', 'postorder', 'breadthFirst', 'dfs', 'bfs',
+  };
+
+  static const traversals = {'inorder', 'preorder', 'postorder', 'breadthFirst'};
 
   @override
   bool get insertReturnsVoid => true;
 
   @override
-  Object? expectedReturn(String name, List<Object?> args) =>
-      name == 'insert' ? null : super.expectedReturn(name, args);
+  String requiredMethodSignature(String name) => traversals.contains(name)
+      ? 'void $name(callback)' : super.requiredMethodSignature(name);
+
+  // Independent reference traversal. In particular, this inspects the ACTUAL
+  // BST/AVL shape; preorder and postorder cannot be inferred from its values.
+  List<int> traversalOrder(String name) {
+    final answer = <int>[];
+    final seen = <int>{};
+    if (name == 'breadthFirst') {
+      final pending = <tree_api.TreeNode?>[root];
+      for (var i = 0; i < pending.length; i++) {
+        final node = pending[i];
+        if (node == null) continue;
+        if (!seen.add(node.id)) return [...answer, invalidMarker];
+        answer.add(node.value);
+        pending.add(node.left);
+        pending.add(node.right);
+      }
+      return answer;
+    }
+    final pending = <({tree_api.TreeNode? node, bool emit})>[
+      (node: root, emit: false),
+    ];
+    while (pending.isNotEmpty) {
+      final item = pending.removeLast();
+      final node = item.node;
+      if (node == null) continue;
+      if (item.emit) { answer.add(node.value); continue; }
+      if (!seen.add(node.id)) return [...answer, invalidMarker];
+      if (name == 'preorder') {
+        pending.add((node: node.right, emit: false));
+        pending.add((node: node.left, emit: false));
+        pending.add((node: node, emit: true));
+      } else if (name == 'postorder') {
+        pending.add((node: node, emit: true));
+        pending.add((node: node.right, emit: false));
+        pending.add((node: node.left, emit: false));
+      } else { // inorder
+        pending.add((node: node.right, emit: false));
+        pending.add((node: node, emit: true));
+        pending.add((node: node.left, emit: false));
+      }
+    }
+    return answer;
+  }
+
+  @override
+  Object? expectedReturn(String name, List<Object?> args) {
+    if (name == 'insert') return null;
+    if (traversals.contains(name)) return traversalOrder(name);
+    if (name == 'dfs' || name == 'bfs') return reference.contains(args.single);
+    return super.expectedReturn(name, args);
+  }
+
+  @override
+  bool returnMatches(String name, Object? expected, Object? returned) {
+    if (traversals.contains(name)) {
+      return expected is List<int> && returned is List<int> &&
+          expected.length == returned.length &&
+          expected.join(',') == returned.join(',');
+    }
+    return super.returnMatches(name, expected, returned);
+  }
 
   /// Iterative inorder traversal: a deliberately skewed student BST must not
   /// exhaust the worker's call stack. A cycle or shared child is an invalid
@@ -63,6 +129,9 @@ class TreeAdapter extends StructureAdapter {
 
   @override
   bool updateReference(String name, List<Object?> args, Object? returned) {
+    if (traversals.contains(name)) {
+      return returnMatches(name, traversalOrder(name), returned);
+    }
     final value = args.length == 1 && args[0] is int ? args[0] as int : null;
     if (value == null) {
       reference
@@ -80,6 +149,8 @@ class TreeAdapter extends StructureAdapter {
         }
         return true;
       case 'contains':
+      case 'dfs':
+      case 'bfs':
         return returned == present;
       case 'remove':
         reference.remove(value);

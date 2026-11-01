@@ -111,6 +111,7 @@ function acceptTrace(data){
   animationGeneration++;animating=false;
   if(data.structure&&data.structure!==structure){structure=data.structure;showSelection();}
   if(data.methods)updateMethodCatalog(data.methods);
+  updateTreeLab();
   const previousValues=savedValues;
   source=data.source;rawSteps=data.steps;traceInitial=data.steps[0];
   frames=makeFrames(rawSteps,ui.traceMode.value);
@@ -145,10 +146,15 @@ function acceptTrace(data){
     // Repeat is the only way a Run from the text field discards the previous
     // contents; say so loudly instead of letting them vanish.
     if(calls.fromEmpty&&previousValues?.length){
-      ui.cmdStatus.textContent=`Repeat is on, so this Run started from an empty structure and discarded `+
-        `[${previousValues.join(', ')}]. Turn Repeat off to keep building on your structure. `+
-        ui.cmdStatus.textContent;
-      ui.cmdStatus.classList.add('error');
+      if(calls.sample){
+        ui.cmdStatus.textContent=`The sample tree replaced the previous tree. `+
+          ui.cmdStatus.textContent;
+      }else{
+        ui.cmdStatus.textContent=`Repeat is on, so this Run started from an empty structure and discarded `+
+          `[${previousValues.join(', ')}]. Turn Repeat off to keep building on your structure. `+
+          ui.cmdStatus.textContent;
+        ui.cmdStatus.classList.add('error');
+      }
     }
   }
 }

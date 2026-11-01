@@ -46,8 +46,12 @@ class MethodInfo {
   final List<Map<String, Object?>> params;
   final String result;
   final MethodDeclaration ast;
-  MethodInfo(this.name, this.params, this.result, this.ast);
-  Map<String, Object?> toJson() => {'name': name, 'params': params, 'returns': result};
+  final bool callback;
+  MethodInfo(this.name, this.params, this.result, this.ast, {this.callback = false});
+  Map<String, Object?> toJson() => {
+    'name': name, 'params': params, 'returns': result,
+    if (callback) 'callback': true,
+  };
 }
 
 String quote(String s) => jsonEncode(s); // Valid string literals for generated Dart.
@@ -59,6 +63,19 @@ String? supportedType(String type) {
 MethodInfo? describe(MethodDeclaration m) {
   if (m.isStatic || m.isGetter || m.isSetter || m.name.lexeme.startsWith('_')) return null;
   final result = m.returnType?.toSource() ?? 'dynamic';
+  // A traversal has one real callback parameter, supplied by the worker.
+  // It is shown as a zero-argument action in the browser. Other methods keep
+  // their existing scalar-argument discovery rules.
+  const callbacks = {'inorder', 'preorder', 'postorder', 'breadthFirst'};
+  if ((config['file'] == 'my_bst' || config['file'] == 'my_avl') &&
+      callbacks.contains(m.name.lexeme) && result == 'void') {
+    final parameters = m.parameters?.parameters ?? <FormalParameter>[];
+    if (parameters.length == 1 && RegExp(
+      r'^void\s+Function\s*\(\s*int(?:\s+[A-Za-z_]\w*)?\s*\)\s+[A-Za-z_]\w*$'
+    ).hasMatch(parameters.single.toSource().trim())) {
+      return MethodInfo(m.name.lexeme, [], 'void', m, callback: true);
+    }
+  }
   final inputs = <Map<String, Object?>>[];
   for (final p in m.parameters?.parameters ?? <FormalParameter>[]) {
     // This v0.8 bridge intentionally accepts only REQUIRED, scalar arguments.
@@ -220,10 +237,22 @@ class BodyInstrumenter extends RecursiveAstVisitor<void> {
 
 String generateCalls(List<MethodInfo> methods) {
   final out = StringBuffer("import '${config['file']}.dart';\n");
+  if (methods.any((method) => method.callback)) {
+    out.writeln("import 'package:data_structure_sandbox_browser/tree_sandbox.dart' show TreeRecorder;");
+  }
   out.writeln('const discoveredMethodsJson = ${quote(jsonEncode(methods.map((m) => m.toJson()).toList()))};');
   out.writeln('Object? invokeDiscovered(${config['class']} list, String name, List<Object?> args) {');
   out.writeln('switch(name) {');
   for (final m in methods) {
+    if (m.callback) {
+      out.writeln('case ${quote(m.name)}: {');
+      out.writeln('if (args.isNotEmpty) throw ArgumentError("Incorrect argument count");');
+      out.writeln('final visited = <int>[];');
+      out.writeln('list.${m.name}((int value) { visited.add(value); TreeRecorder.active?.traversalVisit(value); });');
+      out.writeln('return visited;'); // Only the worker returns this; the student's method is void.
+      out.writeln('}');
+      continue;
+    }
     final args = <String>[];
     for (var i = 0; i < m.params.length; i++) {
       final p = m.params[i];
@@ -357,6 +386,23 @@ void generate(String kind, {bool announce = true}) {
     }
   }
   final generated = Directory(outputDirectory)..createSync(recursive: true);
+  // A tree may use any of its author's sibling queue implementations.
+  // Copy uninstrumented queue classes alongside the instrumented tree; their
+  // original ../../lib imports are rewritten exactly like the main file's.
+  for (final directive in parsed.unit.directives.whereType<ImportDirective>()) {
+    final uri = directive.uri.stringValue;
+    if (uri == null || !RegExp(r'^my_(?:array|linked)_queue(?:_[a-z0-9_]+)?\.dart$').hasMatch(uri)) continue;
+    final queueSource = File('${original.parent.path}/$uri');
+    if (!queueSource.existsSync()) continue; // Compiler reports a missing import.
+    var queueText = queueSource.readAsStringSync();
+    for (final lib in ['sandbox', 'queue_sandbox']) {
+      queueText = queueText.replaceAll(
+        "import '../../lib/$lib.dart';",
+        "import 'package:data_structure_sandbox_browser/$lib.dart';",
+      );
+    }
+    File('${generated.path}/$uri').writeAsStringSync(queueText);
+  }
   File('${generated.path}/${config['file']}.dart').writeAsStringSync(transformed);
   File('${generated.path}/${requestedKind}_methods.dart').writeAsStringSync(generateCalls(methods));
   if (announce) stdout.writeln('Discovered ${methods.length} method(s): ${methods.map((m) => m.name).join(', ')}.');

@@ -884,4 +884,16 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .progress-summary{display:inline-flex;align-items:center;gap:4px;font:700 11px/1 var(--mono);color:#a6e6be}
 .progress-summary .ui-icon{width:13px;height:13px;stroke-width:2.5}
 .progress-summary-cell{white-space:nowrap}
+
+/* BST/AVL teaching controls and callback visit sequence. */
+.tree-sample[hidden],.tree-visit-output[hidden]{display:none!important}
+.scene-top .tree-sample{margin-left:auto;padding:5px 10px;height:31px;border-radius:6px;
+  background:#26466a;border:1px solid #4f779d;color:#ecf4ff;font-size:11px;white-space:nowrap}
+.scene-top .tree-sample+.scene-zoom{margin-left:0}
+.tree-visit-output{display:flex;align-items:center;gap:10px;min-height:34px;
+  padding:6px 15px;background:#172b3f;border-top:1px solid var(--border);
+  color:#d5e5f6;font:12px var(--mono);overflow-x:auto}
+.tree-visit-output strong{font:600 11px system-ui,sans-serif;white-space:nowrap;color:#adc9e7}
+#tree-visit-values{white-space:nowrap;color:#9be6c4;font-weight:650}
+@media(max-width:650px){.scene-top{flex-wrap:wrap}.scene-top .tree-sample{order:2;margin-left:0}.scene-top .tree-sample+.scene-zoom{margin-left:auto}}
 .progress-summary-started{margin-left:5px;font:500 10px/1 system-ui,sans-serif;color:#91a2b7}

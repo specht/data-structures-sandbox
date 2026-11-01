@@ -130,7 +130,8 @@ class BrowserSession {
     final declaredArgs = params
         .map((param) => param['named'] == true ? 'named ${param['type']}' : '${param['type']}')
         .join(', ');
-    final declaredSignature = "${declared['returns']} $name($declaredArgs)";
+    final declaredSignature = declared['callback'] == true
+        ? 'void $name(callback)' : "${declared['returns']} $name($declaredArgs)";
     if (requiredSignature != declaredSignature) {
       return {
         'type': 'validationCall', 'ok': false, 'notExecuted': true,
@@ -175,7 +176,8 @@ class BrowserSession {
     return {
       'type': 'validationCall', 'ok': issues.isEmpty,
       'expectedReturn': expected, 'actualReturn': returned,
-      'returnIsVoid': declared['returns'] == 'void',
+      // Callback-based traversals expose their captured visits, not a Dart return.
+      'returnIsVoid': declared['returns'] == 'void' && declared['callback'] != true,
       'expectedContents': unordered ? comparedExpected : expectedContents,
       'actualContents': unordered ? comparedActual : actualContents,
       'contentsComparedAsUnordered': unordered,
@@ -233,7 +235,8 @@ class BrowserSession {
         };
       }
       final canVerify = adapter.standardMethods.contains(name) &&
-          (const {'pop', 'dequeue', 'removeMin', 'peek', 'isEmpty', 'isFull', 'length'}
+          (descriptor(name)['callback'] == true ||
+              const {'pop', 'dequeue', 'removeMin', 'peek', 'isEmpty', 'isFull', 'length'}
                   .contains(name) ||
               (args.length == 1 && args.single is int) ||
               (args.length == 2 && args.every((arg) => arg is int)));
@@ -247,7 +250,8 @@ class BrowserSession {
       final problems = adapter.executionProblems();
       final ok = checked && actual.join(',') == expected.join(',') && problems.isEmpty;
       r.steps.add(r.snapshot());
-      final returnsVoid = descriptor(name)['returns'] == 'void';
+      final returnsVoid = descriptor(name)['returns'] == 'void' &&
+          descriptor(name)['callback'] != true;
       final label = '$name(${args.join(', ')})';
       final verdict = !ok
           ? 'CHECK FAILED${problems.map((problem) => ' ($problem)').join()}'
@@ -266,6 +270,7 @@ class BrowserSession {
       'calls': {
         'planned': commands.length, 'completed': completed,
         'stoppedEarly': stoppedEarly, 'fromEmpty': fromEmpty,
+        if (message['sample'] == true) 'sample': true,
       },
     };
   }
