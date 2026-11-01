@@ -58,6 +58,28 @@ class BrowserSession {
       (m) => m['name'] == name,
       orElse: () => throw FormatException('Unknown method: $name'));
 
+  bool declares(String name) => methods.any((m) => m['name'] == name);
+
+  /// The signature of the student's [name] in the form of
+  /// [StructureAdapter.requiredMethodSignature].
+  String declaredSignature(String name) {
+    final declared = descriptor(name);
+    if (declared['callback'] == true) return 'void $name(callback)';
+    final args = (declared['params'] as List)
+        .cast<Map<String, dynamic>>()
+        .map((param) => param['named'] == true ? 'named ${param['type']}' : '${param['type']}')
+        .join(', ');
+    return "${declared['returns']} $name($args)";
+  }
+
+  /// Extension methods the student's file does not provide yet (or provides
+  /// with another signature); the browser offers stubs for them.
+  List<String> missingMethods() => [
+        for (final name in adapter.extensionMethods)
+          if (!declares(name) || declaredSignature(name) != adapter.requiredMethodSignature(name))
+            name,
+      ];
+
   Object? scalar(Object? raw, String type) => switch (type) {
         'int' when raw is int && raw.abs() <= maxValue => raw,
         'double' when raw is num && raw.isFinite => raw.toDouble(),
@@ -120,18 +142,26 @@ class BrowserSession {
   /// operation, not only when a later get()/contains()/peek() is called.
   Map<String, Object?> validateCall(Map<String, dynamic> message) {
     final name = message['method'] as String;
+    final requiredSignature = adapter.requiredMethodSignature(name);
+    // A method added to the exercise later is a failed check, not a crash.
+    if (!declares(name)) {
+      return {
+        'type': 'validationCall', 'ok': false, 'notExecuted': true, 'missingMethod': true,
+        'expectedContents': List<int>.of(reference),
+        'actualContents': adapter.actualValues(),
+        'checks': [
+          {'aspect': 'Method', 'expected': requiredSignature, 'actual': 'not declared'}
+        ],
+        'message': '$name is not implemented yet',
+      };
+    }
     final declared = descriptor(name);
     final params = (declared['params'] as List).cast<Map<String, dynamic>>();
     final raw = message['arguments'];
     if (raw is! List || raw.length != params.length) {
       throw const FormatException('Wrong number of test arguments.');
     }
-    final requiredSignature = adapter.requiredMethodSignature(name);
-    final declaredArgs = params
-        .map((param) => param['named'] == true ? 'named ${param['type']}' : '${param['type']}')
-        .join(', ');
-    final declaredSignature = declared['callback'] == true
-        ? 'void $name(callback)' : "${declared['returns']} $name($declaredArgs)";
+    final declaredSignature = this.declaredSignature(name);
     if (requiredSignature != declaredSignature) {
       return {
         'type': 'validationCall', 'ok': false, 'notExecuted': true,
@@ -147,6 +177,7 @@ class BrowserSession {
       for (var i = 0; i < raw.length; i++) scalar(raw[i], params[i]['type'] as String),
     ];
     final expected = adapter.expectedReturn(name, args);
+    adapter.beforeCall(name);
     // Instrumented student methods expect an active recorder. This one is
     // disposable; its trace is never interpreted as a test result.
     final returned = invokeRecorded(adapter.createRecorder(lines), name, args);
@@ -173,6 +204,7 @@ class BrowserSession {
     check('Contents', comparedExpected, comparedActual,
         comparedExpected.join(',') == comparedActual.join(','));
     adapter.structuralChecks(check);
+    adapter.callChecks(name, check);
     return {
       'type': 'validationCall', 'ok': issues.isEmpty,
       'expectedReturn': expected, 'actualReturn': returned,
@@ -208,6 +240,7 @@ class BrowserSession {
       Object? result;
       Object? executionError;
       StackTrace? executionStack;
+      adapter.beforeCall(name);
       try {
         result = invokeRecorded(r, name, args);
       } catch (error, stack) {
@@ -247,7 +280,10 @@ class BrowserSession {
         actual.sort();
         expected.sort();
       }
-      final problems = adapter.executionProblems();
+      final problems = [...adapter.executionProblems()];
+      adapter.callChecks(name, (aspect, expected, actual, [passed]) {
+        if (!(passed ?? expected == actual)) problems.add(aspect);
+      });
       final ok = checked && actual.join(',') == expected.join(',') && problems.isEmpty;
       r.steps.add(r.snapshot());
       final returnsVoid = descriptor(name)['returns'] == 'void' &&
@@ -312,7 +348,9 @@ Future<void> runWorker(StructureAdapter adapter,
     {required String sourcePath, required String generatedFile}) async {
   final session =
       BrowserSession(adapter, sourcePath: sourcePath, generatedFile: generatedFile);
-  stdout.writeln(jsonEncode({'type': 'hello', 'trace': session.initial()}));
+  stdout.writeln(jsonEncode({
+    'type': 'hello', 'trace': session.initial(), 'missingMethods': session.missingMethods(),
+  }));
   await for (final line in stdin.transform(utf8.decoder).transform(const LineSplitter())) {
     final progressClock = Stopwatch()..start();
     var lastProgressMicros = -100000, printCount = 0, printBytes = 0;

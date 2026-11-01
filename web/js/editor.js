@@ -16,6 +16,11 @@
   let pendingDiagnostics = null, diagnosticMarks = [];
   let formatting = false, formatRequest = 0, formatDraft = null, formatRevision = null;
   let suggestions = [], suggestionIndex = 0, suppressSuggestions = false;
+  // Methods added to the exercise after this file was written (worker hello).
+  const notice = $('method-notice'), noticeText = $('method-notice-text');
+  const noticeInsert = $('method-notice-insert');
+  let missing = [], stubsInserted = false;
+  let stubbing = false, stubRequest = 0, stubDraft = null, stubRevision = null;
   // selection.js owns the selection; the editor also works (and is tested) alone.
   const currentVariant = () => (typeof variant === 'string' ? variant : '');
   const locationKey = () => `${selectedStudent}/${structure}:${currentVariant()}`;
@@ -199,6 +204,79 @@
     editor.setCursor({line, ch: Math.min(position.ch, editor.getLine(line).length)});
     setStatus('Formatted · review and save your changes with Ctrl+S');
   }
+  const listing = names => names.length < 2 ? names.join('') :
+    `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  function paintNotice() {
+    notice.hidden = !missing.length || stubsInserted || revision === null;
+    noticeText.textContent = `New in this exercise: ${listing(missing)}. ` +
+      `${missing.length === 1 ? 'It is' : 'They are'} not in your file yet; Run tests checks ` +
+      `${missing.length === 1 ? 'it' : 'them'} too.`;
+    noticeInsert.disabled = stubbing || saving || loading || formatting || !connected();
+  }
+  /** Asks the host for the draft with the missing method stubs (Dart only). */
+  function insertStubs() {
+    if (revision === null || saving || loading || formatting || stubbing || !connected() ||
+        selection !== locationKey() || !missing.length) return;
+    hideSuggestions();
+    stubbing = true;
+    stubDraft = editor.getValue();
+    stubRevision = revision;
+    const requestId = ++stubRequest;
+    paintNotice();
+    setStatus('Inserting method stubs…');
+    socket.send(JSON.stringify({action: 'insertStubs', requestId, revision,
+      content: stubDraft}));
+  }
+  function receiveStubs(message) {
+    if (!stubbing || message.requestId !== stubRequest) return;
+    stubbing = false;
+    const current = message.student === selectedStudent &&
+      message.structure === structure && sameVariant(message) && selection === locationKey() &&
+      revision === stubRevision && message.revision === stubRevision &&
+      editor.getValue() === stubDraft && !saving && !loading && !sourceOutdated;
+    stubDraft = null; stubRevision = null;
+    paintNotice();
+    if (!current) {
+      setStatus('Draft changed while inserting; click Insert method stubs again.', true);
+      return;
+    }
+    if (message.type === 'sourceStubsError') {
+      setStatus(message.message || 'Could not insert the method stubs.', true);
+      return;
+    }
+    if (typeof message.content !== 'string') {
+      setStatus('Stub insertion returned invalid source text.', true); return;
+    }
+    const inserted = Array.isArray(message.inserted) ? message.inserted : [];
+    // Declared under the right name but not recognized: the signature differs.
+    const different = (Array.isArray(message.existing) ? message.existing : [])
+      .filter(name => missing.includes(name));
+    if (inserted.length) {
+      editor.operation(() => {
+        const last = editor.lastLine();
+        editor.replaceRange(message.content, {line: 0, ch: 0},
+          {line: last, ch: editor.getLine(last).length}, '+stubs');
+      });
+      const line = message.content.split('\n')
+        .findIndex(text => text.includes(` ${inserted[0]}(`));
+      if (line >= 0) {
+        editor.setCursor({line, ch: 0});
+        editor.scrollIntoView({line, ch: 0}, 90);
+      }
+      stubsInserted = true;
+      paintNotice();
+    }
+    const parts = [];
+    if (inserted.length) parts.push(`Inserted ${listing(inserted)} · implement and save with Ctrl+S`);
+    for (const name of different) {
+      parts.push(`${name} exists with another signature; declare it as ` +
+        `${message.signatures?.[name] ?? name}`);
+    }
+    setStatus(parts.join(' · ') || 'The draft already declares every new method.',
+      different.length > 0);
+  }
+  noticeInsert.addEventListener('click', insertStubs);
+
   container.hidden = false;
   oldView.hidden = true;
   container.classList.add('source-empty');
@@ -300,6 +378,7 @@
     revert.disabled = !dirty || saving;
     formatButton.disabled = revision === null || saving || loading || formatting || !connected();
     setStatus(dirty ? 'Unsaved changes · Ctrl+S to save · Ctrl+Shift+K deletes a line' : 'Saved');
+    paintNotice();
   }
   editor.on('change', (cm, change) => {
     if (suppressChange || revision === null) return;
@@ -336,6 +415,8 @@
     hideSuggestions();
     formatting = false; formatDraft = null; formatRevision = null;
     formatRequest++; // Ignore formatter replies after switching implementations.
+    stubbing = false; stubDraft = null; stubRevision = null; stubsInserted = false;
+    stubRequest++;
     clearDiagnostics();
     selection = null; loading = false; saving = false; dirty = false;
     revision = null; original = ''; pendingContent = null; sourceOutdated = false;
@@ -345,6 +426,7 @@
     revert.disabled = true;
     formatButton.disabled = true;
     setStatus('');
+    paintNotice();
   }
   function receive(message) {
     if (message.type === 'sourceFile') {
@@ -397,6 +479,7 @@
     formatButton.disabled = revision === null || saving || loading || formatting || !connected();
     save.disabled = !dirty || saving || loading || !connected();
     revert.disabled = !dirty || saving;
+    paintNotice();
   }
   function saveChanges() {
     if (revision === null || !dirty || saving || loading ||
@@ -451,6 +534,7 @@
     highlight(null);
     clearDiagnostics();
     write(original);
+    stubsInserted = false; // The reverted file lacks the stubs again.
     updateDirty();
     if (sourceOutdated) requestSource();
     else setStatus('Reverted to last saved source');
@@ -535,9 +619,16 @@
     receive, canLeave, highlight,
     renderSource(src) {this.lastSource = src; renderSource(src);},
     beforeSelection,
-    receiveDiagnostics, receiveFormat,
+    receiveDiagnostics, receiveFormat, receiveStubs,
+    /** Extension methods the selected file lacks; [] hides the notice. */
+    missingMethods(names) {
+      missing = Array.isArray(names) ? names.filter(name => typeof name === 'string') : [];
+      if (!dirty) stubsInserted = false; // Unsaved inserted stubs are still there.
+      paintNotice();
+    },
     connectionLost() {formatting = false; formatRequest++; formatDraft = null;
-      formatRevision = null; hideSuggestions(); updateButtons();},
+      formatRevision = null; stubbing = false; stubRequest++; stubDraft = null;
+      stubRevision = null; hideSuggestions(); updateButtons();},
     compiled() {if (!dirty) clearDiagnostics();},
     sourceChanged() {
       if (selection !== locationKey()) return;

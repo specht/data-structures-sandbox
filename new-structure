@@ -182,6 +182,13 @@ if [[ -n "$variant" ]]; then target_name="${filename%.$ext}_${variant}.$ext"; fi
 target="structures/$student/$target_name"
 if [[ -e "$target" ]]; then echo "File exists; not overwriting: $target" >&2; exit 73; fi
 cp "$source" "$target"
+# The Dart example trees run breadth-first traversal on the example linked
+# queue; bring it along unless the student already has their own.
+queue="structures/$student/my_linked_queue.dart"
+if "$example" && grep -q "^import 'my_linked_queue.dart';" "$target" && [[ ! -e "$queue" ]]; then
+  cp templates/example/my_linked_queue.dart "$queue"
+  echo "Created $queue from templates/example/my_linked_queue.dart (used by the example's breadthFirst)."
+fi
 # Only an explicit choice that actually created a file is remembered.
 [[ "$reason" == "your choice" ]] && remember_language "$language"
 echo "Created $target from $source in the separate student Git repository ($(label_of "$language"): $reason)."

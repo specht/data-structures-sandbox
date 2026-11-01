@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'instrument.dart' as instrument;
+import 'method_stubs.dart';
 
 Future<void> main() async {
   stdout.writeln(jsonEncode({'type': 'ready', 'pid': pid}));
@@ -11,6 +12,21 @@ Future<void> main() async {
     int? id;
     try {
       final request = jsonDecode(line);
+      if (request is Map<String, dynamic> && request['op'] == 'stubs') {
+        if (request['id'] is! int || request['kind'] is! String || request['content'] is! String) {
+          throw const FormatException('Invalid stub request.');
+        }
+        id = request['id'] as int;
+        try {
+          final result = insertMethodStubs(request['kind'] as String, request['content'] as String);
+          stdout.writeln(jsonEncode({'id': id, 'ok': true, 'content': result.content,
+            'inserted': result.inserted, 'existing': result.existing,
+            'signatures': {for (final name in result.existing) name: stubSignatures[name]}}));
+        } on FormatException catch (error) {
+          stdout.writeln(jsonEncode({'id': id, 'ok': false, 'error': error.message}));
+        }
+        continue;
+      }
       if (request is! Map<String, dynamic> ||
           request['id'] is! int || request['kind'] is! String ||
           request['source'] is! String || request['out'] is! String) {

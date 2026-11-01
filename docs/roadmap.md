@@ -63,6 +63,16 @@ outdated entries rather than requiring decrease-key initially. The graph
 renderer cannot simply reuse tree reachability/layout rules: cycles, multiple
 incoming edges and disconnected components are normal graph states.
 
+## Next: traversals in the other languages
+
+BST/AVL traversals (`preorder`, `inorder`, `postorder`, `breadthFirst` with a
+visit callback) are part of the Dart exercise, with stubs offered for older
+files (see [traversals](tree-traversal-lab.md)). TODO for Python, JavaScript
+and Java: callback discovery and visit recording in each worker, a
+`TreeNodeQueue` equivalent around the student's own queue, starter stubs and
+stub insertion in each daemon. Then remove the Dart-only gate in
+`validationCasesFor` (tool/student_validation.dart).
+
 ## Further candidates — not yet scheduled
 
 - An array-backed *dynamic-capacity* list, with visible reallocation, distinct

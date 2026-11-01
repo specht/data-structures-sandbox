@@ -87,6 +87,16 @@ abstract class StructureAdapter {
   /// Detailed structural checks for the separate test runner.
   void structuralChecks(Check check) {}
 
+  /// Methods added to the contract after students began the exercise. Files
+  /// without them still run; the browser offers to insert stubs.
+  Set<String> get extensionMethods => const {};
+
+  /// Called right before the student's [name] runs (manual runs and tests).
+  void beforeCall(String name) {}
+
+  /// Checks of HOW [name] did its work, beyond return value and storage.
+  void callChecks(String name, Check check) {}
+
   bool returnMatches(String name, Object? expected, Object? returned) =>
       expected == returned;
 

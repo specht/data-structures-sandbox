@@ -23,15 +23,14 @@ class MyAVL {
     return false;
   }
 
-
-  // Write recursive helper functions to visit nodes in the requested order.
-  // The Sandbox supplies visit and checks the sequence of callback calls.
-  void inorder(void Function(int value) visit) {
-    // TODO: Left subtree, node, right subtree.
-  }
-
+  // Traversals: the Sandbox supplies visit and checks the order of your
+  // visit(value) calls. Private recursive helper methods are welcome.
   void preorder(void Function(int value) visit) {
     // TODO: Node, left subtree, right subtree.
+  }
+
+  void inorder(void Function(int value) visit) {
+    // TODO: Left subtree, node, right subtree.
   }
 
   void postorder(void Function(int value) visit) {
@@ -39,17 +38,9 @@ class MyAVL {
   }
 
   void breadthFirst(void Function(int value) visit) {
-    // TODO: Visit by level; use TreeNodeQueue with one of your own queues.
-  }
-
-  bool dfs(int target) {
-    // TODO: Depth-first search; return true if target exists.
-    return false;
-  }
-
-  bool bfs(int target) {
-    // TODO: Breadth-first search; use one of your own queues.
-    return false;
+    // TODO: Visit level by level, left to right, with one of your own queues:
+    // import 'my_linked_queue.dart'; (or 'my_array_queue.dart') at the top,
+    // then use TreeNodeQueue(MyLinkedQueue()) (or MyArrayQueue()).
   }
 }
 

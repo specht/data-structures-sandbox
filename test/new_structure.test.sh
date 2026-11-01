@@ -24,6 +24,12 @@ cmp templates/starter/my_linked_stack.dart structures/alice/my_linked_stack.dart
 cmp templates/example/my_linked_stack.dart structures/bob/my_linked_stack.dart
 ./new-structure carol queue nodes
 cmp templates/starter/my_linked_queue.dart structures/carol/my_linked_queue.dart
+# The example tree's breadthFirst needs a linked queue: copied if missing only.
+./new-structure bob tree bst --example > /dev/null
+cmp templates/example/my_bst.dart structures/bob/my_bst.dart
+cmp templates/example/my_linked_queue.dart structures/bob/my_linked_queue.dart
+./new-structure carol tree avl --example > /dev/null
+cmp templates/starter/my_linked_queue.dart structures/carol/my_linked_queue.dart
 ./new-structure dave tree avl
 cmp templates/starter/my_avl.dart structures/dave/my_avl.dart
 ./new-structure dora heap array

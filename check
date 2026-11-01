@@ -32,6 +32,7 @@ bash test/precompiled_run.test.sh
 
 step 'Models, registry and validation scenarios'
 for test in list_model stack_model heap_model node_heap_model hash_model avl_model \
+    tree_traversal_model method_stubs_test \
     list_size_contract student_validation.test implementation_variants.test \
     specialized_worker_test cache_cleanup_test source_editor.test; do
   dart "test/$test.dart"
@@ -39,7 +40,8 @@ done
 
 step 'Builds and workers (Dart)'
 for test in instrument_daemon_test editor_format_integration runtime_diagnostics_test \
-    command_sequence_test validation_contract_regression validation_integration; do
+    command_sequence_test validation_contract_regression validation_integration \
+    traversal_upgrade_test; do
   dart "test/$test.dart"
 done
 

@@ -22,9 +22,12 @@ Future<void> main() async {
   try {
     final student = Directory('${root.path}/alice')
       ..createSync(recursive: true);
-    File('${student.path}/my_avl.dart').writeAsStringSync(
-      File('templates/example/my_avl.dart').readAsStringSync(),
-    );
+    // The example's breadthFirst imports the example linked queue.
+    for (final file in ['my_avl.dart', 'my_linked_queue.dart']) {
+      File('${student.path}/$file').writeAsStringSync(
+        File('templates/example/$file').readAsStringSync(),
+      );
+    }
 
     final workerPath = await prepare('alice', 'avl', root.path);
     process = await Process.start(

@@ -124,17 +124,31 @@ Map<String,Object?> auditAvl(TreeNode? root) {
 /// and isEmpty(). The adapter stores node IDs in that queue and resolves them
 /// back to TreeNode objects. It does not implement FIFO itself.
 /// A circular queue with capacity eight can hold at most eight pending nodes.
+/// Breadth-first traversal is checked to go through this adapter, so only the
+/// student's own queue classes are accepted.
 class TreeNodeQueue {
+  static const ownQueues = {'MyLinkedQueue', 'MyArrayQueue'};
+
+  /// Successful enqueues since the worker last reset the count (per call).
+  static int enqueues = 0;
+
   final dynamic storage;
   final Map<int, TreeNode> _pending = {};
 
-  TreeNodeQueue(this.storage);
+  TreeNodeQueue(this.storage) {
+    final type = '${storage.runtimeType}';
+    if (!ownQueues.contains(type)) {
+      throw ArgumentError('TreeNodeQueue needs one of your own queues: '
+          'TreeNodeQueue(MyLinkedQueue()) or TreeNodeQueue(MyArrayQueue()), not $type.');
+    }
+  }
 
   void enqueue(TreeNode node) {
     if (storage.enqueue(node.id) != true) {
       throw StateError('Student queue rejected an enqueue (capacity reached?).');
     }
     _pending[node.id] = node;
+    enqueues++;
   }
 
   TreeNode? dequeue() {

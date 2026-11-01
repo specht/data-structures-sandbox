@@ -27,12 +27,25 @@ class TreeAdapter extends StructureAdapter {
       tree_api.TreeRecorder.active = recorder as tree_api.TreeRecorder;
 
   @override
-  Set<String> get standardMethods => const {
-    'insert', 'contains', 'remove',
-    'inorder', 'preorder', 'postorder', 'breadthFirst', 'dfs', 'bfs',
-  };
+  Set<String> get standardMethods => const {'insert', 'contains', 'remove', ...traversals};
 
-  static const traversals = {'inorder', 'preorder', 'postorder', 'breadthFirst'};
+  static const traversals = {'preorder', 'inorder', 'postorder', 'breadthFirst'};
+
+  @override
+  Set<String> get extensionMethods => traversals;
+
+  @override
+  void beforeCall(String name) => tree_api.TreeNodeQueue.enqueues = 0;
+
+  /// Breadth-first traversal must use the student's own queue (through
+  /// TreeNodeQueue); a Dart List as the queue does not count.
+  @override
+  void callChecks(String name, Check check) {
+    if (name != 'breadthFirst' || root == null) return;
+    final used = tree_api.TreeNodeQueue.enqueues > 0;
+    check('Uses your own queue', 'TreeNodeQueue(MyLinkedQueue()) or TreeNodeQueue(MyArrayQueue())',
+        used ? 'TreeNodeQueue used' : 'no TreeNodeQueue enqueue', used);
+  }
 
   @override
   bool get insertReturnsVoid => true;
@@ -88,7 +101,6 @@ class TreeAdapter extends StructureAdapter {
   Object? expectedReturn(String name, List<Object?> args) {
     if (name == 'insert') return null;
     if (traversals.contains(name)) return traversalOrder(name);
-    if (name == 'dfs' || name == 'bfs') return reference.contains(args.single);
     return super.expectedReturn(name, args);
   }
 
@@ -149,8 +161,6 @@ class TreeAdapter extends StructureAdapter {
         }
         return true;
       case 'contains':
-      case 'dfs':
-      case 'bfs':
         return returned == present;
       case 'remove':
         reference.remove(value);

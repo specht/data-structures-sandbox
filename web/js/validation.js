@@ -71,7 +71,9 @@ function validationRows(){
           entry.append(stepIcon,call);
           if(step.notExecuted){
             const explanation=document.createElement('p');
-            explanation.textContent='Not executed: the method declaration does not match the required signature.';
+            explanation.textContent=step.missingMethod
+              ?'Not executed: this method is not in your file yet. Use “Insert method stubs” above the editor.'
+              :'Not executed: the method declaration does not match the required signature.';
             entry.append(explanation);
           }
           if('expectedReturn' in step&&!step.notExecuted){

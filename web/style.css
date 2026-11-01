@@ -897,3 +897,12 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 #tree-visit-values{white-space:nowrap;color:#9be6c4;font-weight:650}
 @media(max-width:650px){.scene-top{flex-wrap:wrap}.scene-top .tree-sample{order:2;margin-left:0}.scene-top .tree-sample+.scene-zoom{margin-left:auto}}
 .progress-summary-started{margin-left:5px;font:500 10px/1 system-ui,sans-serif;color:#91a2b7}
+/* New exercise methods (e.g. BST traversals) missing from an older student file. */
+.method-notice[hidden]{display:none!important}
+.method-notice{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:9px 13px;background:#2a2414;border-bottom:1px solid #8a6a2c;color:#ffeccb;
+  font-size:12px;line-height:1.45}
+.method-notice span{flex:1 1 16em;overflow-wrap:anywhere}
+.method-notice button{height:29px;padding:0 10px;font-size:11px;border-radius:5px;
+  background:#6b4f17;border-color:var(--gold);color:#fff3dc}
+.method-notice button:hover{background:#80601d}

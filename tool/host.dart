@@ -113,12 +113,13 @@ final progressCache=_loadProgressCache();
 Future<void>? progressSweep;
 String progressStatusMessage='Open class progress to check current implementations.';
 String? progressStatusStudent,progressStatusStructure;
-const progressCacheVersion=2;
+// 3: BST/AVL traversals joined the Dart test suite.
+const progressCacheVersion=3;
 
 String _progressKey(String student,String kind,[String variant=''])=>
     variant.isEmpty?'$student/$kind':'$student/$kind:$variant';
 
-int progressCheckCount(String kind)=>validationCases(kind)
+int progressCheckCount(String kind,String variant)=>validationCasesFor(kind,variant)
     .fold<int>(0,(total,scenario)=>total+scenario.calls.length);
 
 Map<String,dynamic>? _cachedProgress(String student,String kind,String revision,[String variant='']){
@@ -180,7 +181,7 @@ Map<String,Object?> progressSnapshot(){
         final cached=_cachedProgress(student,spec.id,revision,variant);
         final Map<String,Object?> cell;
         if(cached==null){
-          cell={'state':'pending','tested':false,'total':progressCheckCount(spec.id)};
+          cell={'state':'pending','tested':false,'total':progressCheckCount(spec.id,variant)};
         }else{
           final passed=(cached['passed'] as num?)?.toInt()??0;
           final total=(cached['total'] as num?)?.toInt()??0;
@@ -388,7 +389,7 @@ Future<Process> startWorkerProcess(List<String> command)=>Process.start(
 final progressRuns=<String,Future<ProgressResult>>{};
 
 Future<ProgressResult> _runProgressValidation(ProgressJob job) async {
-  final scenarios=validationCases(job.kind);
+  final scenarios=validationCasesFor(job.kind,job.variant);
   final totalChecks=scenarios.fold<int>(
       0,(total,scenario)=>total+scenario.calls.length);
   StudentWorker? runner;
@@ -733,7 +734,7 @@ class Client {
       send({'type':'validationError','message':'Wait for the selected implementation to compile.'});
       return;
     }
-    final scenarios=validationCases(selectedKind);
+    final scenarios=validationCasesFor(selectedKind,selectedVariant);
     final epoch=++validationEpoch;
     validationRunning=true;
     send({'type':'validationStart','tests':[for(final test in scenarios)test.name]});
@@ -796,6 +797,7 @@ class Client {
               'actualReturn':reply['actualReturn'],
               'returnIsVoid':reply['returnIsVoid'],
               'notExecuted':reply['notExecuted']==true,
+              'missingMethod':reply['missingMethod']==true,
               'contentsComparedAsUnordered':reply['contentsComparedAsUnordered'],
               'expectedContents':reply['expectedContents'],
               'actualContents':reply['actualContents'],
@@ -889,6 +891,41 @@ class Client {
       } catch(error) {
         final explanation=error is FormatException ? error.message : error.toString();
         send({'type':'sourceFormatError',...response,
+          'message':explanation.length>1800?explanation.substring(0,1800):explanation});
+      }
+      return;
+    }
+    if(message['action']=='insertStubs') {
+      // Like formatSource: the draft comes back changed, the file does not.
+      final requestId=message['requestId'];
+      final selected=student, selectedKind=kind, selectedVariant=variant;
+      final response=<String,dynamic>{
+        'requestId':requestId,'revision':message['revision'],
+        'student':selected,'structure':selectedKind,'variant':selectedVariant,
+      };
+      try {
+        if(requestId is! int || requestId<1 ||
+            message['revision'] is! String || message['content'] is! String ||
+            selected==null || selectedKind==null) {
+          throw const FormatException('Invalid stub request.');
+        }
+        if(splitVariant(selectedVariant).extension!='.dart'){
+          throw const FormatException('Method stubs are only available for Dart files so far.');
+        }
+        final content=message['content'] as String;
+        if(utf8.encode(content).length>maxSourceBytes){
+          throw const FormatException('Source must be smaller than 256 KiB.');
+        }
+        final result=await insertDartStubs(selectedKind,content);
+        if(result['ok']!=true||result['content'] is! String){
+          throw FormatException(result['error']?.toString()??'Could not insert the method stubs.');
+        }
+        send({'type':'sourceStubs',...response,'content':result['content'],
+          'inserted':result['inserted'],'existing':result['existing'],
+          'signatures':result['signatures']});
+      } catch(error) {
+        final explanation=error is FormatException ? error.message : error.toString();
+        send({'type':'sourceStubsError',...response,
           'message':explanation.length>1800?explanation.substring(0,1800):explanation});
       }
       return;

@@ -26,6 +26,9 @@ function connect(){
       if(data.type==='sourceFormatted'||data.type==='sourceFormatError'){
         window.sandboxEditor?.receiveFormat(data);return;
       }
+      if(data.type==='sourceStubs'||data.type==='sourceStubsError'){
+        window.sandboxEditor?.receiveStubs(data);return;
+      }
       if(data.type==='compileDiagnostics'){
         showCompiling(false);
         ui.connection.textContent='Compilation failed';
@@ -61,6 +64,7 @@ function connect(){
       if(data.type==='hello'){
         window.sandboxEditor?.compiled();
         window.sandboxEditor?.ready();
+        window.sandboxEditor?.missingMethods(data.missingMethods??[]);
         validationUI.button.disabled=false;
         validationUI.rerun.disabled=false;
         showCompiling(false);

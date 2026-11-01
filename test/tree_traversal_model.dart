@@ -6,7 +6,8 @@ class _Example {
   TreeNode? root;
 }
 
-class _OwnIntegerQueue {
+// Named like a student's queue: TreeNodeQueue accepts only those classes.
+class MyLinkedQueue {
   final _contents = <int>[];
   bool enqueue(int value) { _contents.add(value); return true; }
   int? dequeue() => _contents.isEmpty ? null : _contents.removeAt(0);
@@ -53,7 +54,15 @@ void main() {
   equal('postorder', [10, 30, 20, 50, 70, 60, 40]);
   equal('breadthFirst', [40, 20, 60, 10, 30, 50, 70]);
 
-  final queue = TreeNodeQueue(_OwnIntegerQueue());
+  var rejected = false;
+  try {
+    TreeNodeQueue(<int>[]);
+  } on ArgumentError {
+    rejected = true;
+  }
+  check(rejected, 'A Dart List must not count as the student queue');
+  TreeNodeQueue.enqueues = 0;
+  final queue = TreeNodeQueue(MyLinkedQueue());
   queue.enqueue(n40);
   queue.enqueue(n20);
   check(identical(queue.dequeue(), n40), 'Queue lost FIFO order');
@@ -62,5 +71,6 @@ void main() {
   check(identical(queue.dequeue(), n60), 'Queue lost third node');
   check(queue.dequeue() == null, 'Queue should be empty');
   check(queue.isEmpty, 'Queue isEmpty disagrees');
+  check(TreeNodeQueue.enqueues == 3, 'Enqueues through the adapter are counted');
   print('PASS: reference traversals and student integer-queue bridge');
 }

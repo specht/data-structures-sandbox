@@ -154,6 +154,12 @@ class InstrumentClient {
   Future<Map<String, dynamic>> format(String content) =>
       _request({'op': 'format', 'content': content}, studentErrors: false);
 
+  /// Dart: inserts the missing extension-method stubs of [kind] into an
+  /// editor draft. Returns `{ok, content, inserted, existing}` or
+  /// `{ok: false, error}`.
+  Future<Map<String, dynamic>> insertStubs(String kind, String content) =>
+      _request({'op': 'stubs', 'kind': kind, 'content': content}, studentErrors: false);
+
   Future<Map<String, dynamic>> _request(Map<String, Object?> payload,
       {required bool studentErrors}) async {
     // Retry only transport/process failures. Invalid student code must be

@@ -300,3 +300,6 @@
 :root[data-theme="light"] .progress-table tfoot td{background:#cdd8e7;color:#212d3d;border-top:1px solid #8baace}
 :root[data-theme="light"] .progress-summary{color:#00391f}
 :root[data-theme="light"] .progress-summary-started{color:#4a596c}
+:root[data-theme="light"] .method-notice{background:#f1e4c6;border-bottom-color:#b88f3d;color:#2b2210}
+:root[data-theme="light"] .method-notice button{background:#e3c77f;border-color:#8a6420;color:#231a07}
+:root[data-theme="light"] .method-notice button:hover{background:#d8b65f}

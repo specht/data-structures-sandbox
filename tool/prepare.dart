@@ -37,6 +37,11 @@ void warmInstrumenter() {
   }());
 }
 
+/// Inserts the missing extension-method stubs into a Dart editor draft
+/// (tool/method_stubs.dart, run by the persistent analyzer).
+Future<Map<String, dynamic>> insertDartStubs(String kind, String content) =>
+    _instrumenter.insertStubs(kind, content);
+
 /// Stops the persistent instrumenter (and the daemons of other languages).
 /// Tests call this at the end; otherwise its open pipes keep the test process
 /// alive after the last PASS line.

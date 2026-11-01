@@ -1,5 +1,7 @@
 // Deterministic, implementation-independent scenarios for the web test runner.
 // These specify public behavior only; the existing worker checks actual storage.
+import 'registry.dart' show splitVariant;
+
 class ValidationCall {
   final String method;
   final int? value, second;
@@ -21,6 +23,44 @@ class ValidationCase {
 }
 
 ValidationCall c(String method, [int? value, int? second]) => ValidationCall(method, value, second);
+
+const treeTraversals = ['preorder', 'inorder', 'postorder', 'breadthFirst'];
+
+/// Callback traversals of BST/AVL: one group per method, so a finished
+/// traversal passes even while another one is still a stub. Each group runs
+/// its method on an empty tree, the complete sample tree, and that tree after
+/// four more inserts (uneven; an AVL rotates). Trees are built with the
+/// student's own insert; expected orders follow the tree's ACTUAL shape.
+List<ValidationCase> traversalCases() => [
+      for (final (name, label) in const [
+        ('preorder', 'Preorder: node, left, right'),
+        ('inorder', 'Inorder: left, node, right'),
+        ('postorder', 'Postorder: left, right, node'),
+        ('breadthFirst', 'Breadth-first: level by level with your own queue'),
+      ])
+        ValidationCase(label, [
+          c(name),
+          for (final v in [40, 20, 60, 10, 30, 50, 70]) c('insert', v),
+          c(name),
+          for (final v in [35, 45, 75, 80]) c('insert', v),
+          c(name),
+        ]),
+    ];
+
+/// The test suite of one implementation file. Traversal callbacks are only
+/// supported by the Dart worker so far.
+// TODO: Python, JavaScript and Java traversals (callback discovery, visit
+// recording and stub insertion in their workers/daemons); then drop the gate.
+List<ValidationCase> validationCasesFor(String kind, String variant) {
+  final cases = validationCases(kind);
+  if ((kind == 'tree' || kind == 'avl') && splitVariant(variant).extension != '.dart') {
+    return [
+      for (final scenario in cases)
+        if (!scenario.calls.any((call) => treeTraversals.contains(call.method))) scenario,
+    ];
+  }
+  return cases;
+}
 
 List<ValidationCase> validationCases(String kind) {
   if (kind == 'stack' || kind == 'linked_stack') {
@@ -123,6 +163,7 @@ List<ValidationCase> validationCases(String kind) {
       ValidationCase('Zigzag insertions', [c('insert', 30), c('insert', 10), c('insert', 20), c('insert', 50), c('insert', 40), c('contains', 20)]),
       ValidationCase('Balance after removals', [for (var i = 1; i <= 9; i++) c('insert', i), c('remove', 1), c('remove', 2), c('remove', 3), c('remove', 4), c('contains', 9)]),
     ]);
+    cases.addAll(traversalCases());
     return cases;
   }
   if (kind == 'array_heap' || kind == 'node_heap') return [

@@ -1,4 +1,5 @@
 import '../../lib/tree_sandbox.dart';
+import 'my_linked_queue.dart';
 
 // Ordinary, UNBALANCED binary search tree.
 // Duplicate policy: not allowed; inserting an existing value changes nothing.
@@ -67,5 +68,44 @@ class MyBST {
       parent.right = child;
     }
     return true;
+  }
+
+  // Depth-first traversals: the order of visit(value) relative to the two
+  // recursive calls is the only difference between them.
+  void preorder(void Function(int value) visit) => _preorder(root, visit);
+  void inorder(void Function(int value) visit) => _inorder(root, visit);
+  void postorder(void Function(int value) visit) => _postorder(root, visit);
+
+  void _preorder(TreeNode? node, void Function(int value) visit) {
+    if (node == null) return;
+    visit(node.value);
+    _preorder(node.left, visit);
+    _preorder(node.right, visit);
+  }
+
+  void _inorder(TreeNode? node, void Function(int value) visit) {
+    if (node == null) return;
+    _inorder(node.left, visit);
+    visit(node.value);
+    _inorder(node.right, visit);
+  }
+
+  void _postorder(TreeNode? node, void Function(int value) visit) {
+    if (node == null) return;
+    _postorder(node.left, visit);
+    _postorder(node.right, visit);
+    visit(node.value);
+  }
+
+  // Breadth-first: the own linked queue stores the nodes still to visit.
+  void breadthFirst(void Function(int value) visit) {
+    final queue = TreeNodeQueue(MyLinkedQueue());
+    if (root != null) queue.enqueue(root!);
+    while (!queue.isEmpty) {
+      final current = queue.dequeue()!;
+      visit(current.value);
+      if (current.left != null) queue.enqueue(current.left!);
+      if (current.right != null) queue.enqueue(current.right!);
+    }
   }
 }

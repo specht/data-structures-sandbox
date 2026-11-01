@@ -15,7 +15,7 @@ assert.match(html,/checks incomplete/);
 assert.match(html,/tabler-icons\.svg#ti-loader-2/);
 assert.match(html,/tabler-icons\.svg#ti-check/);
 assert.match(host,/\.runtime\/progress\.json/);
-assert.match(host,/progressCacheVersion=2/);
+assert.match(host,/progressCacheVersion=3/);
 assert.match(host,/message\['action'\]=='progressOverview'/);
 assert.match(host,/pendingProgressJobs\(\)/);
 assert.match(host,/visibleStructures\(\)/);
