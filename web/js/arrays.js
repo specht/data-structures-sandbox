@@ -123,8 +123,9 @@ function renderQueue(){
       class:`queue-indicator ${name}`,'text-anchor':'middle'});
     label.textContent=`${name} = ${position}`;
     const arrow=makeArrow(`ref-arrow queue-${name}`);
+    // From below, the arrow stops under the index label instead of crossing it.
     drawArrow(arrow,above?{x,y:174}:{x,y:365},
-      above?{x,y:y-3}:{x,y:y+65+3},'straight');
+      above?{x,y:y-3}:{x,y:y+65+24},'straight');
     ui.stackView.append(label,arrow);
   }
   indicator('front',front,true);

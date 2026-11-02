@@ -57,4 +57,11 @@ assert.equal(elements.get('null-rail').querySelectorAll('.null-rail').length,1,'
 run("structure='sorted_linked_list';ensureViewport(structure);");
 run(`autoFrameLinked([{kind:'snapshot',head:1,nodes:Array.from({length:16},(_,i)=>({id:i+1,next:i===15?null:i+2}))}]);`);
 assert.ok(run('viewport.w')>1100,'Long list must zoom out instead of overlapping nodes');
+// Jumping in the trace during a label glide: the label belongs above its
+// node at once, not where the interrupted glide had moved it.
+run(`references={};head=1;labelTween={before:{head:{x:56,y:62}},after:{head:{x:56,y:62}},t:.1};
+  traceInitial={kind:'snapshot',head:1,nodes:[{id:1,value:7,next:null}]};frames=[];restore(0)`);
+assert.equal(run('labelTween'),null,'Restoring a trace position ends any label glide');
+const headLabel=elements.get('reference-labels').querySelectorAll('.ref-label').find(label=>label.textContent==='head');
+assert.notEqual(Number(headLabel.getAttribute('y')),62,'The head label is not left at the null dock');
 console.log('PASS: interface-first labels, anchored references, null rail and pointer-aware Fit');

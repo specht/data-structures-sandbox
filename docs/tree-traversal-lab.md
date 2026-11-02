@@ -75,7 +75,7 @@ if the student has none, because the example's `breadthFirst` uses it.
 
 ## Try it
 
-1. Select a BST or AVL and click **Build sample tree**. The tool resets the
+1. Select a BST or AVL and click **Build example**. The tool resets the
    selected tree and calls the student's `insert` method seven times (40, 20,
    60, 10, 30, 50, 70); it never injects a completed tree.
 2. Implement the traversals, save, and select `inorder()` from the method picker.

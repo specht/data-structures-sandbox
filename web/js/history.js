@@ -3,7 +3,7 @@
 // was last empty, per implementation (student, structure and file). After a
 // save, a restart or a page reload the structure starts empty again; with
 // "Rebuild after save" on, these calls run again by themselves, so a tree
-// built by clicking survives every edit of the code. Reset (or Build sample
+// built by clicking survives every edit of the code. Reset (or Build example
 // tree) starts a new history.
 const historyStorageKey='data-structure-sandbox.v2.history';
 const rebuildStorageKey='data-structure-sandbox.v2.rebuild';
@@ -105,17 +105,19 @@ function setRebuildAfterSave(enabled){
  * the history itself and are not recorded again. showResult: jump to the
  * final state instead of playing the trace.
  */
-function runCalls(calls,{reset=false,replay=false,showResult=false,focus=true,label=null,done=null}={}){
+function runCalls(calls,{reset=false,replay=false,showResult=false,focus=true,label=null,done=null,sample=false}={}){
   if(!calls.length)return;
   const chunks=[];
   for(let i=0;i<calls.length;i+=MAX_CALLS)chunks.push(calls.slice(i,i+MAX_CALLS));
-  sequence={total:calls.length,replay,showResult,label,focus,done};
+  sequence={total:calls.length,replay,showResult,label,focus,done,sample};
   sequenceQueue=chunks.slice(1);
   sendChunk(chunks[0],reset);
 }
 function sendChunk(calls,reset){
   const options={focus:sequence?.focus??true};
-  send(callsRequest(calls,{reset}),{...options,sequence:true});
+  const request=callsRequest(calls,{reset});
+  if(sequence?.sample)request.sample=true; // Build example: says what it replaced.
+  send(request,{...options,sequence:true});
   if(sequence?.label)ui.cmdStatus.textContent=sequence.label;
 }
 /** Called by send() for every request to the worker. */

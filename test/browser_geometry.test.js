@@ -118,7 +118,7 @@ run('override=null;renderAll();');
   assert.equal(frontArrow.querySelector('.arrow-shaft').getAttribute('d').includes(' L '),true);
   assert.equal(rearArrow.querySelector('.arrow-shaft').getAttribute('d').includes(' L '),true);
   const [frontTipY,rearTipY]=[point(frontArrow)[1],point(rearArrow)[1]];
-  assert.equal(frontTipY,232);assert.equal(rearTipY,303);
+  assert.equal(frontTipY,232);assert.equal(rearTipY,324,'The rear arrow stops below the index label');
   run(`applySnapshot({cells:[1,2,3,4,5,6,7,8],front:2,rear:2,size:8});`);
   assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 8 / 8, FULL');
   assert.equal(arrayView.children.find(c=>c.classList.contains('ref-arrow')&&c.classList.contains('queue-front'))!=null,true);

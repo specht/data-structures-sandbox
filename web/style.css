@@ -891,16 +891,16 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .progress-summary-cell{white-space:nowrap}
 
 /* BST/AVL teaching controls and callback visit sequence. */
-.tree-sample[hidden],.tree-visit-output[hidden]{display:none!important}
-.scene-top .tree-sample{margin-left:auto;padding:5px 10px;height:31px;border-radius:6px;
+.build-example[hidden],.tree-visit-output[hidden]{display:none!important}
+.scene-top .build-example{margin-left:auto;padding:5px 10px;height:31px;border-radius:6px;
   background:#26466a;border:1px solid #4f779d;color:#ecf4ff;font-size:11px;white-space:nowrap}
-.scene-top .tree-sample+.scene-zoom{margin-left:0}
+.scene-top .build-example:not([hidden])+.scene-zoom{margin-left:0}
 .tree-visit-output{display:flex;align-items:center;gap:10px;min-height:34px;
   padding:6px 15px;background:#172b3f;border-top:1px solid var(--border);
   color:#d5e5f6;font:12px var(--mono);overflow-x:auto}
 .tree-visit-output strong{font:600 11px system-ui,sans-serif;white-space:nowrap;color:#adc9e7}
 #tree-visit-values{white-space:nowrap;color:#9be6c4;font-weight:650}
-@media(max-width:650px){.scene-top{flex-wrap:wrap}.scene-top .tree-sample{order:2;margin-left:0}.scene-top .tree-sample+.scene-zoom{margin-left:auto}}
+@media(max-width:650px){.scene-top{flex-wrap:wrap}.scene-top .build-example{order:2;margin-left:0}.scene-top .build-example:not([hidden])+.scene-zoom{margin-left:auto}}
 .progress-summary-started{margin-left:5px;font:500 10px/1 system-ui,sans-serif;color:#91a2b7}
 /* New exercise methods (e.g. BST traversals) missing from an older student
    file. Amber in every theme: it has to catch the eye. */
@@ -986,11 +986,11 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
    outlined. This block comes last on purpose: it overrides the older layers.
    Colors are literals (and resets use the transparent #0000), because
    tool/light-theme.mjs mirrors literal colors only. */
-.command-line button,.topright button,.scene-top .tree-sample,.history-actions button,
+.command-line button,.topright button,.scene-top .build-example,.history-actions button,
 .source-actions button,.source-shortcuts button,.dialog-actions button,.validation-show{
   border-radius:8px;border-color:#2a3e5a;background:#1a2a40}
 .command-line button:not(:disabled):hover,.topright button:not(:disabled):hover,
-.scene-top .tree-sample:not(:disabled):hover,.history-actions button:not(:disabled):hover,
+.scene-top .build-example:not(:disabled):hover,.history-actions button:not(:disabled):hover,
 .source-actions button:not(:disabled):hover,.source-shortcuts button:not(:disabled):hover,
 .validation-show:hover{filter:none;background:#22364f;border-color:#46658d}
 .command-line .validation-button,.command-line .progress-button{background:#1a2a40;border-color:#2a3e5a}

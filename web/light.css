@@ -298,7 +298,7 @@
 :root[data-theme="light"] .progress-table tfoot th,
 :root[data-theme="light"] .progress-table tfoot td{background:#cdd8e7;color:#212d3d;border-top:1px solid #8baace}
 :root[data-theme="light"] .progress-summary{color:#00391f}
-:root[data-theme="light"] .scene-top .tree-sample{background:#91b5df;border:1px solid #5c85ac;color:#141a21}
+:root[data-theme="light"] .scene-top .build-example{background:#91b5df;border:1px solid #5c85ac;color:#141a21}
 :root[data-theme="light"] .tree-visit-output{background:#c6d3e2;color:#192532}
 :root[data-theme="light"] .tree-visit-output strong{color:#243b54}
 :root[data-theme="light"] #tree-visit-values{color:#023927}
@@ -327,7 +327,7 @@
 :root[data-theme="light"] .progress-cell .progress-more{background:#dde5f2}
 :root[data-theme="light"] .command-line button,
 :root[data-theme="light"] .topright button,
-:root[data-theme="light"] .scene-top .tree-sample,
+:root[data-theme="light"] .scene-top .build-example,
 :root[data-theme="light"] .history-actions button,
 :root[data-theme="light"] .source-actions button,
 :root[data-theme="light"] .source-shortcuts button,
@@ -335,7 +335,7 @@
 :root[data-theme="light"] .validation-show{border-color:#a4bcde;background:#c7d3e3}
 :root[data-theme="light"] .command-line button:not(:disabled):hover,
 :root[data-theme="light"] .topright button:not(:disabled):hover,
-:root[data-theme="light"] .scene-top .tree-sample:not(:disabled):hover,
+:root[data-theme="light"] .scene-top .build-example:not(:disabled):hover,
 :root[data-theme="light"] .history-actions button:not(:disabled):hover,
 :root[data-theme="light"] .source-actions button:not(:disabled):hover,
 :root[data-theme="light"] .source-shortcuts button:not(:disabled):hover,

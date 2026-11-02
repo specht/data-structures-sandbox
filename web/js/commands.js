@@ -147,7 +147,7 @@ function acceptTrace(data){
     // contents; say so loudly instead of letting them vanish.
     if(calls.fromEmpty&&previousValues?.length){
       if(calls.sample){
-        ui.cmdStatus.textContent=`The sample tree replaced the previous tree. `+
+        ui.cmdStatus.textContent=`The example replaced the previous structure. `+
           ui.cmdStatus.textContent;
       }else{
         ui.cmdStatus.textContent=`Repeat is on, so this Run started from an empty structure and discarded `+

@@ -96,7 +96,9 @@ async function animateSettle(snapshot){
   ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':
     `${count} node${count===1?'':'s'} reachable from ${isTree()?'root':'head'}.`;
 }
-function clearView(){treeEdgeMotion=0;treeMovingNodes=new Set();nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.referenceLabels?.replaceChildren();ui.nullRail.replaceChildren();
+// A restored trace position must not inherit a half-finished glide (a label
+// would stay where an interrupted animation left it).
+function clearView(){treeEdgeMotion=0;treeMovingNodes=new Set();labelTween=null;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.referenceLabels?.replaceChildren();ui.nullRail.replaceChildren();
   head=null;tailId=null;rootId=null;linkedListSize=0;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};arrayListState={cells:[],size:0};arrayListHot=null;heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   resetTreeVisitDisplay();
   currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='';ui.description.hidden=true;
