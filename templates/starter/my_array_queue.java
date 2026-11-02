@@ -33,7 +33,7 @@ class MyArrayQueue {
     }
 }
 
-// Quick reference · QueueMemory
+// Quick reference: QueueMemory
 //   memory.length          Physical capacity (8)
 //   memory.get(i)          Read a cell: an Integer or null
 //   memory.set(i, value)   Write a value (null clears a cell)

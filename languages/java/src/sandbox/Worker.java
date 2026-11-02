@@ -510,7 +510,7 @@ public final class Worker {
                 }
                 Object shown = descriptor.returns.startsWith("double") && result instanceof Number number
                         ? (Object) number.doubleValue() : result;
-                String text = label + " " + (returnsVoid ? "completed" : "⇒ " + Recorders.show(shown)) + " · " + verdict;
+                String text = label + " " + (returnsVoid ? "completed" : "⇒ " + Recorders.show(shown)) + ", " + verdict;
                 recorder.end(result, ok, returnsVoid, text);
                 if (!ok) {
                     stoppedEarly = completed < commands.size();

@@ -33,7 +33,7 @@ class MyUnsortedArrayList {
     }
 }
 
-// Quick reference · ListMemory
+// Quick reference: ListMemory
 //   memory.length          Physical capacity (8)
 //   memory.get(i)          Read a cell: an Integer or null
 //   memory.set(i, value)   Write a value (null clears a cell)

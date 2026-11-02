@@ -29,7 +29,7 @@ class MySortedLinkedList {
     }
 }
 
-// Quick reference · ListNode
+// Quick reference: ListNode
 //   new ListNode(value)   Create a node
 //   node.value            Stored int
 //   node.next             Successor node or null

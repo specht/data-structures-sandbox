@@ -31,7 +31,7 @@ class MyNodeHeap {
 }
 
 /*
-Quick reference · TreeNode
+Quick reference: TreeNode
   TreeNode(value)   Create a node
   node.value       Stored int
   node.left/right  Nullable child references

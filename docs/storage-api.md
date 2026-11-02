@@ -1,4 +1,4 @@
-# Observable storage APIs · student reference
+# Observable storage APIs: student reference
 
 The `lib/` files are **sandbox storage adapters**, not solutions. Students
 implement the algorithms inside their own `My…` classes. No imports of a

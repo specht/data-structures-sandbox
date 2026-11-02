@@ -1,4 +1,4 @@
-# Data Structure Sandbox · extension architecture
+# Data Structure Sandbox: extension architecture
 
 The browser owns only display state, not the student's data. Dart executes a
 selected student implementation; the trace adapter sends immutable moments and

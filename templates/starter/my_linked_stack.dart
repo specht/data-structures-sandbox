@@ -31,7 +31,7 @@ class MyLinkedStack {
 }
 
 /*
-Quick reference · ListNode
+Quick reference: ListNode
   ListNode(value)  Create a node
   node.value      Stored int
   node.next       Nullable successor reference

@@ -25,18 +25,17 @@ function autoFrameHeap(steps,force=false){
   const depth=n?Math.floor(Math.log2(n)):0;
   const bottom=heapTreeTop(n)+depth*100+105;
   const required=Math.max(SCENE_WIDTH,width+160,bottom*ratio);
-  const w=force?required:Math.max(viewport.w,required),h=w/ratio;
-  viewport={x:(SCENE_WIDTH-w)/2,y:(bottom-h)/2-30,w,h};
-  paintViewport();
+  const w=required,h=w/ratio,target={x:(SCENE_WIDTH-w)/2,y:(bottom-h)/2-30,w,h};
+  if(force){viewport=target;paintViewport();}else autoViewport(target);
 }
 function renderHeap(){
   ui.stackView.replaceChildren();
   const cells=heapState.cells,n=cells.length,highlight=new Set(heapHot);
   const heading=svg('text',{x:SCENE_WIDTH/2,y:70,class:'heap-title','text-anchor':'middle'});
-  heading.textContent=`MIN-HEAP · ${n} element${n===1?'':'s'}${heapState.heapOrder?'':' · HEAP ORDER VIOLATED'}`;
+  heading.textContent=`MIN-HEAP: ${n} element${n===1?'':'s'}${heapState.heapOrder?'':', HEAP ORDER VIOLATED'}`;
   ui.stackView.append(heading);
   const arrayHeading=svg('text',{x:SCENE_WIDTH/2,y:105,class:'heap-section','text-anchor':'middle'});
-  arrayHeading.textContent='ARRAY STORAGE · index i';ui.stackView.append(arrayHeading);
+  arrayHeading.textContent='ARRAY STORAGE (index i)';ui.stackView.append(arrayHeading);
   const count=n;
   for(let i=0;i<count;i++){
     const row=Math.floor(i/10),col=i%10,cols=Math.min(10,count-row*10);
@@ -50,7 +49,7 @@ function renderHeap(){
   }
   const top=heapTreeTop(n);
   const label=svg('text',{x:SCENE_WIDTH/2,y:top-55,class:'heap-section','text-anchor':'middle'});
-  label.textContent='SAME ARRAY · binary-tree projection';ui.stackView.append(label);
+  label.textContent='THE SAME ARRAY as a binary tree';ui.stackView.append(label);
   // Edges are index relationships, never references. Both projections show
   // exactly cells[i], including duplicate values at different indices.
   for(let i=1;i<n;i++){

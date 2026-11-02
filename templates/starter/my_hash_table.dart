@@ -47,7 +47,7 @@ class MyHashTable {
 }
 
 /*
-Quick reference · HashBuckets / ListNode
+Quick reference: HashBuckets / ListNode
   buckets.length         Number of buckets
   buckets.indexFor(key)  Validated bucket index
   buckets[i]             Read/write a ListNode? bucket head

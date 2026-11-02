@@ -9,8 +9,50 @@ const SCENE_WIDTH = 1100, WIDTH = 112, HEIGHT = 68, ROW = 276, START_X = 112, GA
 // Manual zoom/pan takes precedence until Fit is pressed. Auto framing uses
 // the final reachable tree, not transient unlinked nodes or the whole registry.
 let viewport={x:0,y:0,w:1100,h:510},viewportKind=null,cameraMode='auto';
-function paintViewport(){
-  ui.scene.setAttribute('viewBox',`${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`);
+// Manual zoom stops at twice the natural size; zooming out stops at six
+// scene widths (or 1.5 times what the automatic camera needed).
+const MIN_ZOOM_WIDTH=560;
+let autoWidth=SCENE_WIDTH;
+// `viewport` is the logical camera (zoom, pan and tests use it); the drawn
+// viewBox may still be gliding towards it.
+let paintedViewport=null;
+function paintBox(box){
+  ui.scene.setAttribute('viewBox',`${box.x} ${box.y} ${box.w} ${box.h}`);
+  paintedViewport={...box};
+}
+function paintViewport(){paintBox(viewport);}
+/** Glides the drawn camera to [next] (at once without a visible page). */
+function glideTo(next,duration=420){
+  const from=paintedViewport??{...viewport};
+  viewport={...next};
+  const token=++cameraAnimationId;
+  const still=typeof requestAnimationFrame!=='function'||typeof document==='undefined'||
+    document.visibilityState!=='visible'||
+    (typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if(still||Math.abs(from.w-next.w)+Math.abs(from.x-next.x)+Math.abs(from.y-next.y)<.5){paintViewport();return;}
+  const start=performance.now();
+  function frame(now){
+    if(token!==cameraAnimationId)return;
+    const t=Math.max(0,Math.min(1,(now-start)/duration));
+    const e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+    paintBox({x:from.x+(viewport.x-from.x)*e,y:from.y+(viewport.y-from.y)*e,
+      w:from.w+(viewport.w-from.w)*e,h:from.h+(viewport.h-from.h)*e});
+    if(t<1)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+/**
+ * The automatic camera: centred on [target] (a box in the scene's aspect).
+ * It zooms out as soon as the structure needs room and back in only when it
+ * has clearly shrunk, so small changes never make the zoom pump.
+ */
+function autoViewport(target){
+  const ratio=target.w/target.h;
+  let w=target.w;
+  if(w<viewport.w&&w>viewport.w*.72)w=viewport.w;
+  autoWidth=w;
+  const h=w/ratio,cx=target.x+target.w/2,cy=target.y+target.h/2;
+  glideTo({x:cx-w/2,y:cy-h/2,w,h});
 }
 function ensureViewport(kind){
   if(viewportKind!==kind){
@@ -33,7 +75,7 @@ function zoomScene(factor,clientX=null,clientY=null){
     u=Math.max(0,Math.min(1,(clientX-(bounds.left??0)-gutterX)/(viewport.w*scale)));
     v=Math.max(0,Math.min(1,(clientY-(bounds.top??0)-gutterY)/(viewport.h*scale)));
   }
-  const w=Math.max(230,Math.min(200000,viewport.w*factor));
+  const w=Math.max(MIN_ZOOM_WIDTH,Math.min(Math.max(SCENE_WIDTH*6,autoWidth*1.5),viewport.w*factor));
   const h=viewport.h*w/viewport.w;
   viewport={x:viewport.x+u*(viewport.w-w),y:viewport.y+v*(viewport.h-h),w,h};
   paintViewport();
@@ -55,41 +97,25 @@ function fitScene(){
   const y0=Math.min(Math.min(...visible.map(n=>n.y))-48,marker.minY-26);
   const y1=Math.max(Math.max(...visible.map(n=>n.y+HEIGHT))+70,marker.maxY+28);
   const ratio=treeSceneRatio();
-  const w=Math.max(isTree()?880:460,x1-x0,(y1-y0)*ratio);
+  // Never closer than the natural scale: nodes do not grow beyond it.
+  const w=Math.max(SCENE_WIDTH,x1-x0,(y1-y0)*ratio);
   const h=w/ratio;
   viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
   paintViewport();
 }
 let cameraAnimationId=0;
+/** Zoom and Fit buttons: run [action], then glide the drawn camera there. */
 function animateCamera(action){
-  const before={...viewport};
-  const token=++cameraAnimationId;
+  const before=paintedViewport??{...viewport};
   action();
   const after={...viewport};
-  if(typeof requestAnimationFrame!=='function'||
-     (typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches))return;
-  viewport=before;paintViewport();
-  const start=performance.now();
-  function frame(now){
-    if(token!==cameraAnimationId)return;
-    const t=Math.max(0,Math.min(1,(now-start)/220));
-    const eased=1-Math.pow(1-t,3);
-    viewport={
-      x:before.x+(after.x-before.x)*eased,
-      y:before.y+(after.y-before.y)*eased,
-      w:before.w+(after.w-before.w)*eased,
-      h:before.h+(after.h-before.h)*eased,
-    };
-    paintViewport();
-    if(t<1)requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
+  paintBox(before);
+  glideTo(after,240);
 }
 
 // Compute the eventual reachable tree's world-space bounds BEFORE playback.
-// A single camera update here avoids per-step jumps and keeps pointer-first
-// rotations smooth. Preserve the previous scale when the tree gets smaller;
-// Reset (empty tree) and Fit can zoom in again.
+// A single camera move per command avoids per-step jumps and keeps
+// pointer-first rotations smooth.
 function autoFrameTree(steps){
   if(!isTree()||cameraMode!=='auto')return;
   const snapshots=steps.filter(step=>step.kind==='snapshot'&&Array.isArray(step.nodes));
@@ -107,8 +133,9 @@ function autoFrameTree(steps){
     pending.push(node.left,node.right);
   }
   if(!positions.length){
-    viewport={x:0,y:0,w:SCENE_WIDTH,h:620};
-    paintViewport();
+    // An empty tree: exactly the first view of the page (root above null).
+    autoWidth=SCENE_WIDTH;
+    glideTo({x:0,y:0,w:SCENE_WIDTH,h:620});
     return;
   }
   // Include the node outline, root label/arrow and breathing room at every
@@ -129,10 +156,9 @@ function autoFrameTree(steps){
   const y0=Math.min(...positions.map(p=>p.y))-(110+(stacked-1)*30);
   const y1=Math.max(...positions.map(p=>p.y+TREE_RADIUS*2))+78;
   const ratio=treeSceneRatio();
-  const requiredW=Math.max(SCENE_WIDTH,x1-x0,(y1-y0)*ratio);
-  const w=Math.max(viewport.w,requiredW),h=w/ratio;
-  // Keep the scale while centering the final reachable structure on EVERY
-  // command; zoom out only when the new bounds genuinely need more room.
-  viewport={x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h};
-  paintViewport();
+  const w=Math.max(SCENE_WIDTH,x1-x0,(y1-y0)*ratio),h=w/ratio;
+  // Centre the final reachable structure on every command (autoViewport
+  // keeps the zoom steady and glides there).
+  autoViewport({x:(x0+x1-w)/2,y:(y0+y1-h)/2,w,h});
 }
+

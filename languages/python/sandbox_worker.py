@@ -1311,7 +1311,7 @@ class Session:
                 verdict = "checked"
             else:
                 verdict = "not automatically verified"
-            text = f"{label} {'completed' if returns_void else '⇒ ' + show(result)} · {verdict}"
+            text = f"{label} {'completed' if returns_void else '⇒ ' + show(result)}, {verdict}"
             recorder.end(result, ok, returns_void, text)
             if not ok:
                 stopped_early = completed < len(commands)

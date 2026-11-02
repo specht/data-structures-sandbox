@@ -24,7 +24,7 @@ export default class MyBST {
   }
 }
 
-// Quick reference · TreeNode
+// Quick reference: TreeNode
 //   new TreeNode(value)     Create a node
 //   node.value              Stored integer
 //   node.left / node.right  Child nodes or null

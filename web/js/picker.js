@@ -1,6 +1,6 @@
 'use strict';
 // One searchable dropdown of every implementation in the class, the same
-// picker as in the Sorting Sandbox: "Tree (AVL) · alice [Python]". Typing
+// picker as in the Sorting Sandbox: "Tree (AVL), alice [Python]". Typing
 // filters by structure, student, file variant or language. Language tags
 // appear (for Dart, too) as soon as the class writes in more than one language.
 function pickerNode(tag, className, text) {
@@ -135,7 +135,7 @@ class ImplementationPicker {
     this.button.replaceChildren();
     if (item) {
       this.describe(item, this.button);
-      this.button.title = `${item.name} · ${item.student} · ${item.language}`;
+      this.button.title = `${item.name} by ${item.student} (${item.language})`;
     } else {
       this.button.append(pickerNode('span', 'picker-placeholder',
         this.items.length ? 'Choose an implementation' : 'No implementations yet'));

@@ -26,9 +26,9 @@ void main() {
     final found = implementationForFile(spec.filename);
     check(found?.kind == spec.id && found?.variant == '', 'unique ${spec.filename}');
   }
-  check(implementationLabel('tree', 'recursive') == 'Tree (binary search) · recursive · Dart', 'label');
-  check(implementationLabel('tree', '') == 'Tree (binary search) · Dart', 'Dart label');
-  check(implementationName('avl', 'iterative.java') == 'Tree (AVL) · iterative', 'name without language');
+  check(implementationLabel('tree', 'recursive') == 'Tree (binary search), recursive, Dart', 'label');
+  check(implementationLabel('tree', '') == 'Tree (binary search), Dart', 'Dart label');
+  check(implementationName('avl', 'iterative.java') == 'Tree (AVL), iterative', 'name without language');
 
   // Other languages keep their extension in the variant; Dart variants are unchanged.
   check(implementationFile(bst, '.py') == 'my_bst.py', 'Python base file');
@@ -38,8 +38,8 @@ void main() {
   check(java?.kind == 'sorted_linked_list' && java?.variant == 'v2.java', 'Java variant detected');
   check(implementationForFile('my_bst.json') == null && implementationForFile('my_bst_.py') == null,
       'other extensions ignored');
-  check(implementationLabel('avl', '.py') == 'Tree (AVL) · Python', 'Python label');
-  check(implementationLabel('avl', 'iterative.java') == 'Tree (AVL) · iterative · Java', 'Java label');
+  check(implementationLabel('avl', '.py') == 'Tree (AVL), Python', 'Python label');
+  check(implementationLabel('avl', 'iterative.java') == 'Tree (AVL), iterative, Java', 'Java label');
   check(languageNameOf('') == 'Dart' && languageNameOf('x.js') == 'JavaScript', 'language names');
   for (final unsafe in ['../x', 'x.py.py', '.dart', 'X.py', '.rb']) {
     var refused = false;

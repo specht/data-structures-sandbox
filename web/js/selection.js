@@ -10,20 +10,36 @@ function loadPlaybackPreferences(){
   }catch(_){return {};}
 }
 const playbackPreferences=loadPlaybackPreferences();
+// The speed slider has fixed stops: slow enough to follow every pointer, or
+// fast enough to skim a long trace. Its value is the index of a stop.
+const SPEED_STOPS=[
+  {speed:.25,label:'¼×',text:'quarter speed, slow motion'},{speed:.5,label:'½×',text:'half speed'},
+  {speed:1,label:'1×',text:'normal'},{speed:1.5,label:'1½×',text:'one and a half times'},
+  {speed:2,label:'2×',text:'double speed'},{speed:4,label:'4×',text:'four times, to skim'},
+];
+function playbackSpeed(){return SPEED_STOPS[Number(ui.speed.value)]?.speed??1;}
+function showSpeed(){
+  const stop=SPEED_STOPS[Number(ui.speed.value)]??SPEED_STOPS[2];
+  ui.speedOutput.textContent=stop.label;
+  ui.speed.setAttribute('aria-valuetext',`${stop.label}, ${stop.text}`);
+  ui.speed.title=`Animation speed: ${stop.label} (${stop.text})`;
+}
+// The preference stores the speed itself; older versions stored any value
+// between 0.5 and 4, which snaps to the nearest stop.
 const storedSpeed=Number(playbackPreferences.speed);
-if(playbackPreferences.speed!=null&&Number.isFinite(storedSpeed)&&
-   storedSpeed>=Number(ui.speed.min)&&storedSpeed<=Number(ui.speed.max)){
-  ui.speed.value=String(storedSpeed);
+if(playbackPreferences.speed!=null&&Number.isFinite(storedSpeed)){
+  let nearest=2;
+  SPEED_STOPS.forEach((stop,index)=>{
+    if(Math.abs(stop.speed-storedSpeed)<Math.abs(SPEED_STOPS[nearest].speed-storedSpeed))nearest=index;
+  });
+  ui.speed.value=String(nearest);
 }
 function rememberPlaybackPreferences(){
   try{localStorage.setItem(playbackPreferencesKey,
-    JSON.stringify({speed:Number(ui.speed.value),mode:playbackMode}));}catch(_){}
+    JSON.stringify({speed:playbackSpeed(),mode:playbackMode}));}catch(_){}
 }
-ui.speed.addEventListener('input',()=>{
-  ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
-  rememberPlaybackPreferences();
-});
-ui.speedOutput.textContent=`${Number(ui.speed.value).toFixed(1).replace(/\.0$/,'')}×`;
+ui.speed.addEventListener('input',()=>{showSpeed();rememberPlaybackPreferences();});
+showSpeed();
 function isTree(){return structure==='tree'||structure==='avl'||structure==='node_heap';}
 function isArrayList(){return structure==='unsorted_array_list'||structure==='sorted_array_list';}
 const STRUCTURE_LABELS={unsorted_array_list:'List (unsorted, array)',unsorted_linked_list:'List (unsorted, singly linked)',sorted_array_list:'List (sorted, array)',hash:'Hash table (separate chaining)',array_heap:'Heap (array)',sorted_linked_list:'List (sorted, singly linked)',tree:'Tree (binary search)',avl:'Tree (AVL)',stack:'Stack (fixed array)',array_queue:'Queue (circular array)',linked_stack:'Stack (linked list)',linked_queue:'Queue (linked list)'};
@@ -37,18 +53,18 @@ function parseImplementation(value){
   const [kind,...rest]=String(value??'').split(':');
   return {kind,variant:rest.join(':')};
 }
-// '' → 'Tree (AVL)', 'recursive.py' → 'Tree (AVL) · recursive' (the host sends
+// '' → 'Tree (AVL)', 'recursive.py' → 'Tree (AVL), recursive' (the host sends
 // this as `name`; older hosts only sent `label`).
 function implementationName(kind,suffix){
   const name=typeof variantName==='function'?variantName(suffix):suffix;
-  return [STRUCTURE_LABELS[kind]??kind,name].filter(Boolean).join(' · ');
+  return [STRUCTURE_LABELS[kind]??kind,name].filter(Boolean).join(', ');
 }
 function studentImplementations(entry){
   if(Array.isArray(entry?.implementations))return entry.implementations.map(item=>{
     const suffix=item.variant??'';
     const name=item.name??implementationName(item.structure,suffix);
     const language=item.language??(typeof languageOfVariant==='function'?languageOfVariant(suffix).label:'Dart');
-    return {kind:item.structure,variant:suffix,name,language,label:item.label??`${name} · ${language}`};
+    return {kind:item.structure,variant:suffix,name,language,label:item.label??`${name}, ${language}`};
   });
   return (entry?.structures??[]).map(kind=>({kind,variant:'',name:STRUCTURE_LABELS[kind]??kind,
     language:'Dart',label:STRUCTURE_LABELS[kind]??kind}));

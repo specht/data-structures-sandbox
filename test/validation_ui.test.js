@@ -55,7 +55,9 @@ assert.equal(ui('validation-results').children.length,2);
 vm.runInContext("validationMessage({type:'validationRunning',index:0,name:'Empty'})",context);
 assert.match(ui('validation-results').children[0].textContent,/running/);
 vm.runInContext("validationMessage({type:'validationResult',index:0,name:'Empty',passed:true,completed:1,total:2,passedCount:1})",context);
-assert.equal(ui('validation-progress').value,1);
+assert.deepEqual(ui('validation-progress').children.map(segment=>segment.className),
+  ['validation-segment validation-segment-pass','validation-segment validation-segment-pending'],
+  'One segment per group, colored by its result as soon as it is known');
 assert.match(ui('validation-results').children[0].children[0].innerHTML,/svg/);
 vm.runInContext("validationMessage({type:'validationResult',index:1,name:'Capacity',passed:false,message:'push(9): return value, contents',completed:2,total:2,passedCount:1,steps:[{call:'push(1)',passed:true,actualReturn:true,expectedReturn:true,actualContents:[1],expectedContents:[1],checks:[]},{call:'push(9)',passed:false,actualReturn:false,expectedReturn:true,actualContents:[1],expectedContents:[1,9],checks:[{aspect:'Return value',actual:false,expected:true},{aspect:'Contents',actual:[1],expected:[1,9]}]}]})",context);
 assert.match(ui('validation-results').children[1].children[1].textContent,/push\(9\)/);

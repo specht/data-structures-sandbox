@@ -45,7 +45,7 @@ for(const a of ['head','current'])for(const b of ['head','current']){
 const tips=run(`['head','current','previous'].map(name=>referencePoint(name,1).x)`);
 assert.equal(new Set(tips).size,3,'Reference arrowheads must not share one point');
 run("renderReferences()");
-assert.equal(elements.get('references').querySelectorAll('.ref-label').length,3);
+assert.equal(elements.get('reference-labels').querySelectorAll('.ref-label').length,3,'Labels are drawn above the nodes');
 run('fitScene()');
 const vb=elements.get('scene').getAttribute('viewBox').split(' ').map(Number);
 assert.ok(vb[1]<=run('pointerBounds().minY')-12,'Fit must include reference labels');

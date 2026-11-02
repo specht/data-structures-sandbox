@@ -13,7 +13,7 @@ const run = source => vm.runInContext(source, context);
 run(`structure='unsorted_array_list';ensureViewport(structure);arrayListState={cells:[5,8,3,null,null,null,null,null],size:3};renderArrayList();`);
 const pane=document.getElementById('stack-view');
 assert.equal(pane.querySelectorAll('.memory-cell').length,8);
-assert.deepEqual(pane.querySelectorAll('.memory-value').map(el=>el.textContent),['5','8','3','·','·','·','·','·']);
+assert.deepEqual(pane.querySelectorAll('.memory-value').map(el=>el.textContent),['5','8','3','','','','','']);
 run(`instantArrayList({kind:'memoryWriteAndSettle',index:2,oldValue:3,value:8,snapshot:{cells:[5,8,8,3,null,null,null,null],size:3}});`);
 assert.equal(pane.querySelectorAll('.memory-cell').filter(el=>el.classList.contains('selected')).length,1);
 run(`structure='sorted_array_list';arrayListState={cells:[-3,2,2,8,null,null,null,null],size:4};renderArrayList();`);

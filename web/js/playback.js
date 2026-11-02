@@ -8,7 +8,7 @@ function tween(milliseconds,update){
     const start=performance.now();
     function frame(now){
       if(generation!==animationGeneration){reject(CANCELLED);return;}
-      const speed=Number(ui.speed.value);
+      const speed=playbackSpeed();
       const progress=Math.min(1,(now-start)*(Number.isFinite(speed)?speed:1000)/milliseconds);
       update(easing(progress));
       if(progress>=1)resolve();else requestAnimationFrame(frame);
@@ -16,19 +16,36 @@ function tween(milliseconds,update){
     requestAnimationFrame(frame);
   });
 }
-async function animateCreate(data){const node=newNode(data);const startY=node.y;ui.phase.textContent='NEW OBJECT';
-  ui.status.textContent=`Node #${node.id} created. It is not yet linked into the list.`;
-  await tween(430,t=>{node.y=lerp(startY,156,t);node.opacity=t;renderAll();});
+async function animateCreate(data){const node=newNode(data);ui.phase.textContent='NEW OBJECT';
+  // Lists: new nodes drop into the row above the chain. Trees: a new node
+  // fades in where it was placed, just below the node being examined.
+  const endY=isTree()?node.y:156,startY=isTree()?node.y-24:node.y;
+  ui.status.textContent=`Node #${node.id} created. It is not yet linked into the ${isTree()?'tree':'list'}.`;
+  await tween(430,t=>{node.y=lerp(startY,endY,t);node.opacity=t;renderAll();});
 }
 async function animateReference(name,to){
   const old=name==='head'?head:name==='tail'?tailId:name==='root'?rootId:references[name];
-  const dock=dockFor(name);
-  const start=referencePoint(name,old);
-  const end=referencePoint(name,to);
-  hotReference=name;override={from:['head','tail','root'].includes(name)?`root:${name}`:`var:${name}`,...start,nullTarget:to==null};
+  // Labels before and after the change: the moving label and any label
+  // sharing its old or new node glide together (see labelTween).
+  const before=labelAnchors(referenceValues());
+  const after=labelAnchors({...referenceValues(),[name]:to});
+  const startLabel=before[name]??nullDock(name),endLabel=after[name]??nullDock(name);
+  const start=referenceTip(name,old,startLabel);
+  const end=referenceTip(name,to,endLabel);
+  const from=['head','tail','root'].includes(name)?`root:${name}`:`var:${name}`;
+  hotReference=name;override={from,...start,label:startLabel,nullTarget:to==null};
   ui.phase.textContent=(name==='head'||name==='tail'||name==='root')?'ROOT POINTER':'LOCAL POINTER';
   ui.status.textContent=`${name}: ${old==null?'null':'#'+old} → ${to==null?'null':'#'+to}. Nodes remain stationary.`;
-  await tween(570,t=>{override={from:override.from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t),nullTarget:to==null};renderReferences();});
+  // Long moves take a little longer, so the label glides instead of zipping.
+  const distance=Math.hypot(end.x-start.x,end.y-start.y);
+  try{
+    await tween(Math.min(1000,480+distance*.9),t=>{
+      labelTween={before,after,t};
+      override={from,x:lerp(start.x,end.x,t),y:lerp(start.y,end.y,t),
+        label:{x:lerp(startLabel.x,endLabel.x,t),y:lerp(startLabel.y,endLabel.y,t)},nullTarget:to==null};
+      renderReferences();
+    });
+  }finally{labelTween=null;}
   if(name==='head')head=to;else if(name==='tail')tailId=to;else if(name==='root')rootId=to;else references[name]=to;
   override=null;hotReference=null;renderAll();
 }
@@ -60,20 +77,29 @@ async function animateSettle(snapshot){
   const starts=new Map([...nodes].map(([id,n])=>[id,{x:n.x,y:n.y,opacity:n.opacity}]));
   ui.phase.textContent='SETTLING';ui.phase.classList.remove('hot');
   ui.status.textContent='Pointer change complete. The reachable list now rearranges smoothly.';
-  await tween(850,t=>{
-    for(const [id,target] of targets){const node=nodes.get(id),start=starts.get(id);
-      node.x=lerp(start.x,target.x,t);node.y=lerp(start.y,target.y,t);
-      node.opacity=lerp(start.opacity,target.opacity,t);node.detached=target.detached;}
-    if(isTree())treeEdgeMotion=Math.sin(Math.PI*t);
-    renderAll();
-  });
+  treeMovingNodes=movingNodeIds(starts,targets);
+  // Nothing moves (e.g. a snapshot after a value write): no animation at all.
+  if(treeMovingNodes.size){
+    try{
+      await tween(850,t=>{
+        for(const [id,target] of targets){const node=nodes.get(id),start=starts.get(id);
+          node.x=lerp(start.x,target.x,t);node.y=lerp(start.y,target.y,t);
+          node.opacity=lerp(start.opacity,target.opacity,t);node.detached=target.detached;}
+        // Straight edges follow settling nodes: only a pointer change bends.
+        renderAll();
+      });
+    }finally{treeMovingNodes=new Set();}
+  }else{
+    for(const [id,target] of targets)nodes.get(id).detached=target.detached;
+  }
   treeEdgeMotion=0;hotNode=null;hotLink=null;renderAll();
-  ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':`${count} node(s) reachable from head.`;
+  ui.status.textContent=cycle?'Cycle detected. Traversal stopped.':
+    `${count} node${count===1?'':'s'} reachable from ${isTree()?'root':'head'}.`;
 }
-function clearView(){treeEdgeMotion=0;nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.nullRail.replaceChildren();
+function clearView(){treeEdgeMotion=0;treeMovingNodes=new Set();nodes.clear();nodeViews.clear();links.clear();ui.nodes.replaceChildren();ui.edges.replaceChildren();ui.references.replaceChildren();ui.referenceLabels?.replaceChildren();ui.nullRail.replaceChildren();
   head=null;tailId=null;rootId=null;linkedListSize=0;references={};override=null;ui.stackView.replaceChildren();stackState={cells:Array(savedCapacity).fill(null),top:-1};queueState={cells:Array(savedCapacity).fill(null),front:0,rear:0,size:0};arrayListState={cells:[],size:0};arrayListHot=null;heapState={cells:[],heapOrder:true};heapHot=[];hashState={buckets:Array(8).fill(null),nodes:[],size:0,capacity:8};hashHotBucket=null;hashHotNode=null;ui.returnValue.textContent='';hotNode=null;hotLink=null;hotReference=null;activeLine=null;
   resetTreeVisitDisplay();
-  currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='Step through the recorded execution.';
+  currentOperation='Ready';lastResult='Ready';ui.operation.textContent='Ready';ui.description.textContent='';ui.description.hidden=true;
   ui.phase.textContent='READY';ui.phase.classList.remove('hot');ui.result.textContent='Ready';
   ui.code.querySelector('.code-line.active')?.classList.remove('active');
 }
@@ -115,9 +141,9 @@ function instant(frame){
   if(structure==='hash'){instantHash(frame);return;}
   switch(frame.kind){
     case 'line':break;
-    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.textContent=frame.description;resetTreeVisitDisplay();break;
-    case 'traversalVisit':hotNode=frame.id;recordTreeVisit(frame.value);break;
-    case 'createNode':{const n=newNode(frame.node);n.opacity=1;n.y=156;break;}
+    case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=currentOperation;ui.returnValue.textContent='';ui.description.hidden=true;resetTreeVisitDisplay();break;
+    case 'traversalVisit':hotNode=frame.id;recordTreeVisit(frame.value,frame.id);break;
+    case 'createNode':{const n=newNode(frame.node);n.opacity=1;if(!isTree())n.y=156;break;}
     case 'variableWrite':references[frame.name]=frame.to;break;
     case 'visit':hotNode=frame.id;break;
     case 'compare':hotNode=frame.id;break;
@@ -139,7 +165,10 @@ function instant(frame){
 function restore(index){clearView();applySnapshot(traceInitial);
   for(let i=0;i<index;i++)instant(frames[i]);stepIndex=index;
   ui.phase.textContent=index?'REVISIT':'READY';ui.phase.classList.remove('hot');
-  ui.status.textContent=index?'Previous recorded state restored.':frames.length?'At the start of the trace. Step forward to inspect the operation.':'Choose a method above to begin.';
+  ui.status.textContent=!frames.length?'Choose a method above to begin.':
+    !index?'Start of the trace: step forward (→) to watch the call run.':
+    index===frames.length?`End of the trace. ${lastResult}`:
+    `After step ${index} of ${frames.length}. ← / → steps, Shift+← / → jumps a whole call.`;
   sync();
 }
 let traceInitial=null;
@@ -158,10 +187,10 @@ async function animate(frame){
   switch(frame.kind){
     case 'line':ui.phase.textContent='SOURCE LINE';break;
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;ui.returnValue.textContent='';
-      ui.description.textContent=frame.description;lastResult='Running…';ui.result.textContent=lastResult;
+      ui.description.hidden=true;lastResult='Running…';ui.result.textContent=lastResult;
       resetTreeVisitDisplay();hotNode=null;ui.phase.textContent='METHOD CALL';ui.phase.classList.remove('hot');renderAll();break;
-    case 'traversalVisit':hotNode=frame.id;recordTreeVisit(frame.value);ui.phase.textContent='CALLBACK';
-      ui.status.textContent=`Callback visit(${frame.value}) · ${treeVisitValues.join(' → ')}`;
+    case 'traversalVisit':hotNode=frame.id;recordTreeVisit(frame.value,frame.id);ui.phase.textContent='CALLBACK';
+      ui.status.textContent=`Callback visit(${frame.value}): ${treeVisitValues.join(' → ')}`;
       renderAll();await tween(320,()=>{});break;
     case 'visit':hotNode=frame.id;ui.phase.textContent='VISIT';
       ui.status.textContent=`Visiting node #${frame.id} (value ${nodes.get(frame.id)?.value??'?'})`;
@@ -183,7 +212,7 @@ async function animate(frame){
       ui.status.textContent=`Student-owned size: ${frame.oldValue} → ${frame.value}`;
       await tween(220,()=>{});break;
     case 'retireAndSettle':await animateRetire(frame.ids,frame.snapshot);break;
-    case 'operationEnd':references={};hotNode=null;showReturnValue(frame);ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
+    case 'operationEnd':await settleReferenceLabels({});hotNode=null;showReturnValue(frame);ui.phase.textContent=frame.ok?'DONE':'CHECK FAILED';
       lastResult=frame.result;ui.result.textContent=lastResult;ui.status.textContent=frame.result;showLine(null);renderAll();break;
     default:throw Error('Unknown event '+frame.kind);
   }
@@ -225,7 +254,7 @@ async function playTrace(token){
     if(playbackMode!=='play'||token!==playbackToken||stepIndex<=oldIndex)return;
     // Give users time to understand each mutation; source-only events are quicker.
     const delay=frames[oldIndex]?.kind==='line'?140:260;
-    await new Promise(resolve=>setTimeout(resolve,delay/Math.max(.1,Number(ui.speed.value)||1)));
+    await new Promise(resolve=>setTimeout(resolve,delay/Math.max(.1,playbackSpeed())));
   }
 }
 function choosePlaybackMode(mode){
@@ -302,24 +331,30 @@ async function backward(){
   stepIndex=target;sync();
   try{
     if(frame.kind==='writeAndSettle'||frame.kind==='snapshot'||frame.kind==='retireAndSettle'||frame.kind==='memoryWriteAndSettle'){
-      ui.phase.textContent='REWIND · SETTLING';
+      ui.phase.textContent='REWIND: SETTLING';
       const starts=new Map([...nodes].map(([id,n])=>[id,{x:n.x,y:n.y,opacity:n.opacity}]));
-      await tween(650,t=>{
-        for(const [id,n] of nodes){const a=starts.get(id),b=previous.get(id);
-          if(!b)continue;
-          n.x=lerp(a.x,b.x,t);n.y=lerp(a.y,b.y,t);
-          n.opacity=lerp(a.opacity,b.opacity,t);
-        }
-        if(isTree())treeEdgeMotion=Math.sin(Math.PI*t);
-        renderAll();
-      });
+      treeMovingNodes=movingNodeIds(starts,new Map([...nodes.keys()].filter(id=>previous.has(id))
+        .map(id=>[id,previous.get(id)])));
+      if(treeMovingNodes.size){
+        try{
+          await tween(650,t=>{
+            for(const [id,n] of nodes){const a=starts.get(id),b=previous.get(id);
+              if(!b)continue;
+              n.x=lerp(a.x,b.x,t);n.y=lerp(a.y,b.y,t);
+              n.opacity=lerp(a.opacity,b.opacity,t);
+            }
+            // Straight edges follow settling nodes: only a pointer change bends.
+            renderAll();
+          });
+        }finally{treeMovingNodes=new Set();}
+      }
       treeEdgeMotion=0;renderAll();
       if(frame.kind==='retireAndSettle'){
-        ui.phase.textContent='REWIND · RESTORING OBJECT';
+        ui.phase.textContent='REWIND: RESTORING OBJECT';
         ui.status.textContent='Restoring an earlier, still-referenced object.';
       }
       if(frame.kind==='writeAndSettle'){
-        ui.phase.textContent='REWIND · POINTER';
+        ui.phase.textContent='REWIND: POINTER';
         await animateWrite({from:frame.from,oldTo:frame.to,to:frame.oldTo});
       }
     } else if(frame.kind==='variableWrite'){
@@ -327,7 +362,7 @@ async function backward(){
     } else if(frame.kind==='createNode'){
       const node=nodes.get(frame.node.id);
       if(node){const startY=node.y,startOpacity=node.opacity;
-        ui.phase.textContent='REWIND · OBJECT';
+        ui.phase.textContent='REWIND: OBJECT';
         await tween(380,t=>{node.y=lerp(startY,startY-42,t);node.opacity=lerp(startOpacity,0,t);renderAll();});
       }
     }

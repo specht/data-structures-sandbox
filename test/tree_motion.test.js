@@ -19,12 +19,14 @@ assert.match(shaft(left),/ L /);
 assert.match(shaft(right),/ L /);
 assert.doesNotMatch(shaft(left),/ C /);
 const [x,y]=tip(left), centre=run('treeCentre(nodes.get(2))');
-assert.ok(Math.abs(Math.hypot(x-centre.x,y-centre.y)-37)<.05,'Tip clipped at circle outline');
-run('treeEdgeMotion=.7;renderEdges()');
+assert.ok(Math.abs(Math.hypot(x-centre.x,y-centre.y)-run('TREE_RADIUS+1'))<.05,'Tip clipped at circle outline');
+run('treeMovingNodes=new Set([2]);treeEdgeMotion=.7;renderEdges()');
 assert.match(shaft(left),/ C /,'Curves during transition');
+assert.match(shaft(right),/ L /,'An edge whose nodes stay put does not bow (no twitch)');
+run('treeMovingNodes=new Set()');
 run('treeEdgeMotion=0;renderEdges()');
 assert.match(shaft(left),/ L /,'Returns to a straight segment');
-const rootLabel=document.getElementById('references').querySelector('.ref-label');
+const rootLabel=document.getElementById('reference-labels').querySelector('.ref-label');
 const rootPointer=document.getElementById('references').querySelector('.ref-arrow');
 assert.equal(Number(rootLabel.getAttribute('x')),run('treeCentre(nodes.get(1)).x'),
   'Root label must be centred over the root node');
@@ -34,7 +36,7 @@ assert.equal(rx,run('treeCentre(nodes.get(1)).x'));
 assert.equal(ry,run('nodes.get(1).y-1'));
 run('nodes.get(1).x+=25;renderReferences()');
 assert.equal(Number(rootLabel.getAttribute('x'))+25,
-  Number(document.getElementById('references').querySelector('.ref-label').getAttribute('x')),
+  Number(document.getElementById('reference-labels').querySelector('.ref-label').getAttribute('x')),
   'Root label must follow the root node during layout changes');
 // A one-sided tree of depth >20 must retain every node in the layout.
 const chain=Array.from({length:27},(_,i)=>({id:i+1,value:i+1,left:null,right:i<26?i+2:null}));
@@ -173,6 +175,6 @@ run(`structure='avl';viewportKind=null;ensureViewport('avl');
 const chainTargets=run(`treeLayout(${JSON.stringify({root:1,nodes:chain})}).targets`);
 const xs=[...chainTargets.values()].map(p=>p.x);
 const box=run('({...viewport})');
-assert.ok(Math.abs((Math.min(...xs)+Math.max(...xs)+72)/2-(box.x+box.w/2))<.0001,
+assert.ok(Math.abs((Math.min(...xs)+Math.max(...xs)+2*run('TREE_RADIUS'))/2-(box.x+box.w/2))<.0001,
   'An asymmetrical tree is centred after the command');
 console.log('PASS: Tree edges are centre-clipped, straight at rest, curved while moving.');

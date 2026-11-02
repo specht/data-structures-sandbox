@@ -100,7 +100,7 @@ assert.match(elements.get('console-output').children[0].children[1].textContent,
 assert.match(elements.get('console-output').children[1].children[1].textContent,/Runtime error at line 14/);
 assert.equal(elements.get('command-status').classList.contains('error'),false,
   'The command bar must not duplicate the detailed runtime error in red.');
-assert.equal(elements.get('command-status').textContent,'Execution stopped · details are in the Console.');
+assert.equal(elements.get('command-status').textContent,'Execution stopped. The details are in the Console.');
 
 run(`discovered=new Map([
   ['push',{name:'push',params:[{name:'value',type:'int'}]}],
@@ -119,44 +119,109 @@ assert.deepEqual(
     {method:'pop',arguments:[]},
   ]},
 );
-run(`ui.callInput.value='push(30)';setSequenceMode(true);appendSequenceCall('push(20)')`);
-assert.equal(elements.get('call-input').value,'push(30); push(20)');
+run(`ui.callInput.value='push(30)';appendSequenceCall('push(20)')`);
+assert.equal(elements.get('call-input').value,'push(30); push(20)','Shift+click adds a call to the field');
 assert.equal(elements.get('call-input').rows,1,'A semicolon sequence should keep the toolbar compact.');
 assert.equal(elements.get('call-run-label').textContent,'Run 2');
-// Repeat: Run starts from an empty structure; after a fresh start (save,
-// another implementation, Retry) the remembered calls run again by themselves.
-assert.deepEqual(JSON.parse(run(`JSON.stringify(commandRequest('push(1)',{reset:true}))`)),
+assert.deepEqual(JSON.parse(run(`JSON.stringify(callsRequest([{method:'push',arguments:[1]}],{reset:true}))`)),
   {action:'run',method:'push',arguments:[1],reset:true});
+
+// The call history records what ran and rebuilds it after a fresh start.
 const storage=new Map();
-context.localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,String(value))};
+context.localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,String(value)),
+  removeItem:key=>storage.delete(key)};
 context.sent=[];
+const history=()=>JSON.parse(run('JSON.stringify(callHistory.map(formatCall))'));
 run(`socket.readyState=WebSocket.OPEN;socket.send=message=>globalThis.sent.push(JSON.parse(message));
-  frames=[];structure='linked_stack';callsKind='linked_stack';
-  ui.callInput.value='push(1); push(2)';ui.callInput.oninput();setRepeatCalls(true);ui.callForm.onsubmit({preventDefault(){}});`);
-assert.equal(context.sent.at(-1).reset,true,'Run with Repeat must start from an empty structure');
+  frames=[];selectedStudent='alice';structure='linked_stack';variant='';callsKind='linked_stack';
+  setRebuildAfterSave(true);useHistory();
+  ui.callInput.value='push(1); push(2)';ui.callInput.oninput();ui.callForm.onsubmit({preventDefault(){}});`);
 assert.equal(context.sent.at(-1).commands.length,2);
-assert.equal(JSON.parse(storage.get('data-structure-sandbox.v1.calls')).linked_stack,'push(1); push(2)');
-assert.equal(storage.get('data-structure-sandbox.v1.repeat'),'1');
-run(`repeatAfterFreshStart()`);
-assert.equal(context.sent.length,2,'A fresh structure repeats the remembered calls');
+assert.equal(context.sent.at(-1).reset,undefined,'Run builds on the current structure');
+run(`settleRun({type:'trace',calls:{planned:2,completed:2},steps:[]})`);
+assert.deepEqual(history(),['push(1)','push(2)']);
+assert.deepEqual(JSON.parse(storage.get('data-structure-sandbox.v2.history'))['alice/linked_stack:'].length,2,
+  'The history survives a page reload');
+run(`send({action:'run',method:'push',arguments:[3]});settleRun({type:'trace',steps:[{kind:'operationEnd',ok:true}]})`);
+run(`send({action:'run',commands:[{method:'push',arguments:[4]},{method:'pop',arguments:[]}]});
+  settleRun({type:'trace',calls:{planned:2,completed:1,stoppedEarly:true},steps:[]})`);
+assert.deepEqual(history(),['push(1)','push(2)','push(3)','push(4)'],
+  'A call whose check failed still changed the structure; the calls after it did not run');
+run(`send({action:'run',method:'push',arguments:[9]});
+  settleRun({type:'executionError',calls:{planned:1,completed:0,stoppedEarly:true}})`);
+assert.equal(history().length,4,'A call that threw is not part of the history');
+assert.equal(run('historyUI.title.textContent'),
+  '4 calls since empty');
+
+run(`commandTakesFocus=true;rebuildAfterFreshStart()`);
+assert.deepEqual(JSON.parse(JSON.stringify(context.sent.at(-1).commands.map(c=>c.arguments[0]))),[1,2,3,4],
+  'A fresh structure (save, restart, reload) is rebuilt from the history');
 assert.equal(context.sent.at(-1).reset,undefined,'A fresh worker needs no reset');
-assert.equal(run('commandTakesFocus'),false,'Repeating after a save keeps the focus in the editor');
-run(`ui.callInput.value='push(1); push(';repeatAfterFreshStart()`);
-assert.equal(context.sent.length,2,'Edited, not yet remembered text is not repeated');
+assert.equal(run('commandTakesFocus'),false,'Rebuilding after a save keeps the focus in the editor');
+assert.equal(run('showsResultOnly()'),true,'A rebuild shows its final state');
+run(`settleRun({type:'trace',calls:{planned:4,completed:4},steps:[]})`);
+assert.equal(history().length,4,'Rebuilding does not record the calls twice');
+assert.match(elements.get('command-status').textContent,/Rebuilt from your history: 4 calls/);
+
+// More calls than one request carries are sent in parts.
+run(`setHistory(Array.from({length:25},(_,i)=>({method:'push',arguments:[i]})));rebuildAfterFreshStart()`);
+assert.equal(context.sent.at(-1).commands.length,20);
+run(`settleRun({type:'trace',calls:{planned:20,completed:20},steps:[]})`);
+assert.equal(context.sent.at(-1).commands.length,5,'The second part follows the first');
+run(`settleRun({type:'trace',calls:{planned:5,completed:5},steps:[]})`);
+
+// A rebuild that fails waits for the next code change instead of looping.
+const before=context.sent.length;
+run(`rebuildAfterFreshStart();settleRun({type:'trace',calls:{planned:20,completed:3,stoppedEarly:true},steps:[]})`);
+assert.equal(elements.get('command-status').classList.contains('error'),true);
+assert.match(elements.get('command-status').textContent,/^push\(2\) failed its check\./,
+  'A failed rebuild names the failing call');
+assert.equal(run('rebuildAfterFreshStart()'),false,'No new rebuild before the code changes');
+assert.equal(context.sent.length,before+1);
+run('codeChanged()');
+assert.equal(run('rebuildAfterFreshStart()'),true,'A saved change may fix it');
+run(`abandonRun();setRebuildAfterSave(false)`);
+assert.equal(run('rebuildAfterFreshStart()'),false,'Rebuild after save can be turned off');
+assert.equal(storage.get('data-structure-sandbox.v2.rebuild'),'0');
+run(`setRebuildAfterSave(true)`);
+
+// Rebuild up to an earlier call; Edit as text; Reset; another implementation.
+run(`setHistory([{method:'push',arguments:[1]},{method:'push',arguments:[2]},{method:'push',arguments:[3]}]);rebuildTo(2)`);
+assert.deepEqual(history(),['push(1)','push(2)']);
+assert.equal(context.sent.at(-1).reset,true,'Rebuilding up to a call starts from empty');
+run(`settleRun({type:'trace',calls:{planned:2,completed:2},steps:[]});historyUI.copy.onclick()`);
+assert.equal(elements.get('call-input').value,'push(1); push(2)');
+run(`variant='recursive';useHistory()`);
+assert.deepEqual(history(),[],'Each implementation has its own history');
+run(`variant='';useHistory()`);
+assert.deepEqual(history(),['push(1)','push(2)']);
 let submitted=0;
-run(`ui.callInput.value='push(1)';ui.callInput.oninput();ui.callForm.requestSubmit=()=>globalThis.submitted();`);
-context.submitted=()=>submitted++;
-const key=init=>({key:'Enter',shiftKey:false,ctrlKey:false,metaKey:false,isComposing:false,
-  prevented:false,preventDefault(){this.prevented=true;},...init});
-const enter=key({}),shiftEnter=key({shiftKey:true});
-context.ui_event=enter;run(`ui.callInput.onkeydown(globalThis.ui_event)`);
-context.ui_event=shiftEnter;run(`ui.callInput.onkeydown(globalThis.ui_event)`);
-assert.equal(submitted,1,'Enter runs, Shift+Enter only starts a new line');
-assert.equal(enter.prevented,true);assert.equal(shiftEnter.prevented,false);
-run(`setRepeatCalls(false)`);
 run(`socket.readyState=WebSocket.OPEN;
   setRuntimeConsole([{kind:'stdout',text:'session output'}]);
   ui.reset.onclick()`);
 assert.equal(run('runtimeConsoleEntries.length'),0,'Reset must clear the Console session history.');
+
+// The speed slider snaps to named stops.
+run(`ui.speed.value='0';showSpeed()`);
+assert.equal(elements.get('speed-output').textContent,'¼×');
+assert.equal(run('playbackSpeed()'),.25);
+run(`ui.speed.value='5';showSpeed()`);
+assert.equal(run('playbackSpeed()'),4);
+assert.match(elements.get('speed').getAttribute('aria-valuetext'),/4×/);
+// A failed check explains itself next to the operation.
+run(`showReturnValue({ok:false,returnedVoid:true,result:'insert(5) completed, CHECK FAILED: contents [], expected [5]'})`);
+assert.equal(elements.get('description').hidden,false);
+assert.equal(elements.get('description').textContent,'contents [], expected [5]');
+run(`showReturnValue({ok:true,returnedVoid:false,value:[1,2],result:'inorder() ⇒ [1, 2], checked'})`);
+assert.equal(elements.get('description').hidden,true);
+// Traversal visits are numbered per node (a node visited twice keeps both).
+run(`resetTreeVisitDisplay();recordTreeVisit(40,1);recordTreeVisit(20,2);recordTreeVisit(40,1)`);
+assert.equal(run(`treeVisitOrder.get(1).join(',')`),'1,3');
+assert.equal(elements.get('tree-visit-values').textContent,'40 → 20 → 40');
+// A test group runs again in the visualizer with exactly its calls.
+assert.equal(run(`JSON.stringify(scenarioCalls({steps:[{call:'push(1)'},{call:'pop()'}]}).calls)`),
+  JSON.stringify([{method:'push',arguments:[1]},{method:'pop',arguments:[]}]));
+assert.equal(run(`scenarioCalls({steps:[{call:'push(1)'},{call:'missing()'}]}).blocked`),'missing',
+  'A test needing a method the file lacks cannot be recreated yet, and says which');
 
 console.log('PASS: step-synced persistent console, runtime diagnostics and command-sequence composer.');

@@ -115,13 +115,13 @@ function renderSuggestions(){
       if(suggestion.args.some(arg=>typeof arg==='number'&&values.includes(arg)))
         button.classList.add('has-present-argument');
       button.title=suggestion.hint;
-      button.setAttribute('aria-label',`${button.textContent} — ${suggestion.hint}`);
+      button.setAttribute('aria-label',`${button.textContent}: ${suggestion.hint}`);
       button.dataset.scenario=suggestion.hint;
       // Batch size is not the data-structure capacity. Keep suggestions usable
       // after 12 (or more) successful insertions into a persistent worker.
       button.addEventListener('click',event=>{
-        // Collect mode or Shift+click: add the call to the field instead.
-        if(sequenceMode||event?.shiftKey){appendSequenceCall(callLabel(method,suggestion.args));return;}
+        // Shift+click: add the call to the field instead.
+        if(event?.shiftKey){appendSequenceCall(callLabel(method,suggestion.args));return;}
         send({action:'run',method:method.name,arguments:suggestion.args});
       });
       group.append(button);

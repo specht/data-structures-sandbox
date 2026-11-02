@@ -17,29 +17,39 @@ assert.match(js,/button\.classList\.add\('has-present-argument'\)/);
 assert.match(css,/\.source-actions\{display:inline-flex!important;flex-direction:row!important/);
 assert.match(css,/\.CodeMirror-scrollbar-filler/);
 assert.match(css,/\.call-suggestion\.has-present-argument/);
-const source=js.match(/let cameraAnimationId=0;\nfunction animateCamera\(action\)\{[\s\S]*?\n\}/)?.[0];
-assert.ok(source,'Missing camera easing implementation');
-const queued=[];
+// The camera: the logical viewport changes at once, the drawn viewBox glides.
+const source=['let paintedViewport=null;','function glideTo(','let cameraAnimationId=0;']
+  .map(marker=>js.slice(js.indexOf(marker)))
+  .map(rest=>rest.match(/^[\s\S]*?\n\}\n/)?.[0]??rest.split('\n')[0]+'\n');
+assert.ok(source.every(Boolean)&&js.includes('function animateCamera(action)'),'Missing camera easing implementation');
+const camera=js.slice(js.indexOf('let paintedViewport=null;'),js.indexOf('function autoViewport('))+
+  js.slice(js.indexOf('let cameraAnimationId=0;'),js.indexOf('\n}\n',js.indexOf('function animateCamera('))+3);
+const queued=[],painted=[];
 const context={
-  viewport:{x:0,y:0,w:1000,h:500},paintViewport(){},
+  viewport:{x:0,y:0,w:1000,h:500},
+  ui:{scene:{setAttribute:(name,value)=>painted.push(value.split(' ').map(Number))}},
+  document:{visibilityState:'visible'},
   performance:{now:()=>0},requestAnimationFrame(fn){queued.push(fn)},
 };
 vm.createContext(context);
-vm.runInContext(source,context);
+vm.runInContext(camera,context);
+const drawn=()=>painted.at(-1);
+vm.runInContext('paintViewport()',context);
 vm.runInContext('animateCamera(()=>{viewport={x:100,y:50,w:500,h:250};paintViewport();})',context);
-assert.equal(context.viewport.x,0,'Button click must begin at the previous camera');
+assert.equal(context.viewport.x,100,'The logical camera is at its target at once');
+assert.equal(drawn()[0],0,'The drawn camera begins at the previous view');
 assert.equal(queued.length,1);
 queued.shift()(110);
-assert.ok(context.viewport.x>0&&context.viewport.x<100,'The camera must move between frames');
-queued.shift()(220);
-assert.equal(context.viewport.x,100);
-assert.equal(context.viewport.w,500);
+assert.ok(drawn()[0]>0&&drawn()[0]<100,'The drawn camera moves between frames');
+queued.shift()(260);
+assert.deepEqual(drawn(),[100,50,500,250]);
 // A later camera action invalidates callbacks from an earlier one.
 vm.runInContext('animateCamera(()=>{viewport={x:200,y:100,w:300,h:150};paintViewport();})',context);
 const stale=queued.shift();
 vm.runInContext('animateCamera(()=>{viewport={x:150,y:75,w:350,h:175};paintViewport();})',context);
+const before=painted.length;
 stale(110);
-assert.equal(context.viewport.x,100,'A stale animation must not move the new camera');
-queued.shift()(220);
-assert.equal(context.viewport.x,150);
+assert.equal(painted.length,before,'A stale animation must not move the new camera');
+queued.shift()(260);
+assert.deepEqual(drawn(),[150,75,350,175]);
 console.log('PASS: UI labels, bundled controls, compact layout, and interruptible camera easing.');

@@ -3,19 +3,17 @@
 //  - Enter runs, Shift+Enter starts a new line (also a call separator).
 //  - The text is remembered per structure kind, so it survives reloads, saves
 //    and switching between implementations (recursive vs iterative variants).
-//  - Repeat: Run starts from an empty structure, and the calls run again by
-//    themselves whenever the structure starts fresh (after a save, a switch
-//    of implementation or Retry). It is off after every page load, because a
-//    forgotten Repeat silently discards the structure on each Run.
-//  - Collect (or Shift+click on a suggestion) adds a suggestion to the text
-//    instead of running it.
+//  - Shift+click on a suggestion adds that call to the text instead of
+//    running it. Rebuilding a structure after a save is the call history's
+//    job (history.js), not the field's.
+// One request carries at most this many calls; longer sequences are split.
 const MAX_CALLS=20;
 const callsStorageKey='data-structure-sandbox.v1.calls';
-// Older versions remembered Repeat across reloads; that key is now removed.
+// Older versions had a Repeat toggle; its key is removed.
 const repeatStorageKey='data-structure-sandbox.v1.repeat';
-let repeatCalls=false;
 // The kind whose remembered text is in the input (see updateMethodCatalog).
 let callsKind=null;
+const callClear=document.getElementById('call-clear');
 
 function commandParts(text){
   const match=/^\s*([A-Za-z_]\w*)\s*\((.*)\)\s*;?\s*$/.exec(text);
@@ -64,20 +62,28 @@ function splitCommandText(text){
   if(tail)calls.push(tail);
   return calls;
 }
-function commandRequest(text,{reset=false}={}){
+/** The calls of [text] as {method, arguments}, validated against the catalog. */
+function parseCalls(text){
   const calls=splitCommandText(text);
   if(!calls.length)throw Error('Enter at least one method call.');
-  if(calls.length>MAX_CALLS)throw Error(`Use at most ${MAX_CALLS} calls in one run.`);
-  const parsed=calls.map((call,index)=>{
-    try{return commandParts(call);}catch(error){
+  if(calls.length>MAX_HISTORY)throw Error(`Use at most ${MAX_HISTORY} calls at once.`);
+  return calls.map((call,index)=>{
+    try{const {method,arguments:args}=commandParts(call);return {method,arguments:args};}catch(error){
       throw Error(calls.length>1?`Call ${index+1} (${call}): ${error.message}`:error.message);
     }
   });
-  const request=parsed.length===1?parsed[0]:{action:'run',commands:parsed.map(call=>({
-    method:call.method,arguments:call.arguments,
-  }))};
+}
+/** One worker request for at most MAX_CALLS calls. */
+function callsRequest(calls,{reset=false}={}){
+  const request=calls.length===1?{action:'run',method:calls[0].method,arguments:calls[0].arguments}:
+    {action:'run',commands:calls.map(call=>({method:call.method,arguments:call.arguments}))};
   if(reset)request.reset=true;
   return request;
+}
+function commandRequest(text,options){
+  const calls=parseCalls(text);
+  if(calls.length>MAX_CALLS)throw Error(`Use at most ${MAX_CALLS} calls in one request.`);
+  return callsRequest(calls,options);
 }
 
 // ------------------------------------------------------------ remembering
@@ -109,25 +115,14 @@ function updateCommandComposer(){
   const lines=Math.max(1,ui.callInput.value.split('\n').length);
   ui.callInput.rows=Math.min(3,lines);
   ui.callForm.classList.toggle('has-multiline',lines>1);
-  ui.callRunLabel.textContent=(count>1?`Run ${count}`:'Run')+(repeatCalls?' from empty':'');
-  ui.callRun.title=(repeatCalls?'Start from an empty structure, then run ':'Run ')+
-    (count>1?`these ${count} calls`:'this call')+' (Enter)';
-}
-function setSequenceMode(enabled){
-  sequenceMode=enabled;
-  ui.sequenceMode.classList.toggle('selected',enabled);
-  ui.sequenceMode.setAttribute('aria-pressed',String(enabled));
-}
-function setRepeatCalls(enabled){
-  repeatCalls=enabled;
-  ui.repeatCalls.classList.toggle('selected',enabled);
-  ui.repeatCalls.setAttribute('aria-pressed',String(enabled));
-  updateCommandComposer();
+  ui.callRunLabel.textContent=count>1?`Run ${count}`:'Run';
+  if(callClear)callClear.hidden=!ui.callInput.value.trim();
+  ui.callRun.title=`Run ${count>1?`these ${count} calls`:'this call'} on the current structure (Enter)`;
 }
 function appendSequenceCall(call){
   try{
     const current=ui.callInput.value.trim();
-    if(current&&splitCommandText(current).length>=MAX_CALLS)throw Error(`Use at most ${MAX_CALLS} calls in one run.`);
+    if(current&&splitCommandText(current).length>=MAX_HISTORY)throw Error(`Use at most ${MAX_HISTORY} calls at once.`);
     ui.callInput.value=current?`${current.replace(/;\s*$/,'')}; ${call}`:call;
     updateCommandComposer();
     rememberCalls();
@@ -138,35 +133,22 @@ function appendSequenceCall(call){
 }
 function runComposer(){
   try{
-    const request=commandRequest(ui.callInput.value,{reset:repeatCalls});
+    const calls=parseCalls(ui.callInput.value);
     rememberCalls();
-    if(repeatCalls)setRuntimeConsole([],null,{autoExpand:false});
-    send(request);
+    runCalls(calls);
   }catch(error){ui.cmdStatus.textContent=error.message;ui.cmdStatus.classList.add('error');}
 }
-/**
- * Called when the structure has just started empty (first connection, a
- * save, another implementation, Retry). With Repeat on, the remembered calls
- * run again. Focus stays where it is, e.g. in the code editor after Ctrl+S.
- */
-function repeatAfterFreshStart(){
-  if(!repeatCalls||!structure)return;
-  const text=ui.callInput.value;
-  if(!text.trim()||savedCallsFor(structure)!==text)return; // Only the student's own calls.
-  let request;
-  try{request=commandRequest(text);}catch(error){
-    ui.cmdStatus.textContent=`Repeat skipped: ${error.message}`;ui.cmdStatus.classList.add('error');return;
-  }
-  send(request,{focus:false});
-  ui.cmdStatus.textContent='Repeating your calls on the fresh structure…';
-}
 
+function clearCalls(){
+  ui.callInput.value='';
+  updateCommandComposer();rememberCalls();
+  ui.callInput.focus();
+}
 try{localStorage.removeItem(repeatStorageKey);}catch(_){ }
-setRepeatCalls(false);
-ui.sequenceMode.addEventListener('click',()=>setSequenceMode(!sequenceMode));
-ui.repeatCalls.addEventListener('click',()=>setRepeatCalls(!repeatCalls));
+callClear?.addEventListener('click',clearCalls);
 ui.callInput.addEventListener('input',()=>{updateCommandComposer();rememberCalls();});
 ui.callInput.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&ui.callInput.value){event.preventDefault();clearCalls();return;}
   if(event.key!=='Enter'||event.isComposing)return;
   // Shift+Enter: a new line, which also separates calls.
   if(event.shiftKey&&!(event.ctrlKey||event.metaKey))return;

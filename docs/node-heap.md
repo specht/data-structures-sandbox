@@ -1,4 +1,4 @@
-# Node min-heap · classroom example
+# Node min-heap: classroom example
 
 This implementation uses **TreeNode references**, not a hidden array. Each
 insertion allocates a node and connects it to the next available child slot

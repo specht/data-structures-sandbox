@@ -1,4 +1,4 @@
-# Data Structure Sandbox · student-facing contracts
+# Data Structure Sandbox: student-facing contracts
 
 This document defines the **current** executable contracts. A data structure's
 abstract operations come first; its memory representation is a separate choice.

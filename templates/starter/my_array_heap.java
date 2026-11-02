@@ -27,7 +27,7 @@ class MyArrayHeap {
     }
 }
 
-// Quick reference · HeapMemory
+// Quick reference: HeapMemory
 //   memory.size()          Number of stored values
 //   memory.isEmpty()       True when nothing is stored
 //   memory.get(i)          Read the int at index i

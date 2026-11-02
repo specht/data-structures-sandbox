@@ -79,7 +79,9 @@ if the student has none, because the example's `breadthFirst` uses it.
    selected tree and calls the student's `insert` method seven times (40, 20,
    60, 10, 30, 50, 70); it never injects a completed tree.
 2. Implement the traversals, save, and select `inorder()` from the method picker.
-3. Step through the trace. **Traversal visits** shows the actual callback calls;
+3. Step through the trace. **Traversal visits** shows the actual callback calls,
+   and each visited node gets a badge with its position in the visit order (a
+   node visited twice shows both numbers);
    the method report says whether the sequence was correct.
 4. Compare preorder, inorder, postorder and breadthFirst on the same tree.
 

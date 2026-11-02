@@ -8,7 +8,7 @@ function renderArrayList(){
   const valid=Number.isInteger(size)&&size>=0&&size<=cells.length;
   const subtitle=svg('text',{x:SCENE_WIDTH/2,y:110,
     class:'queue-size','text-anchor':'middle'});
-  subtitle.textContent=`${structure==='sorted_array_list'?'SORTED':'UNSORTED'} · size = ${size} / ${cells.length}${valid?'':' · INVALID'}`;
+  subtitle.textContent=`${structure==='sorted_array_list'?'SORTED':'UNSORTED'}, size = ${size} / ${cells.length}${valid?'':', INVALID'}`;
   ui.stackView.append(subtitle);
   const cellWidth=94,start=(SCENE_WIDTH-((cells.length-1)*cellWidth+80))/2,y=235;
   for(let i=0;i<cells.length;i++){
@@ -18,7 +18,7 @@ function renderArrayList(){
     if(i===arrayListHot)classes.push('selected');
     const rect=svg('rect',{x,y,width:80,height:65,rx:8,class:classes.join(' ')});
     const value=svg('text',{x:x+40,y:y+38,class:'memory-value'});
-    value.textContent=cells[i]===null?'·':String(cells[i]);
+    value.textContent=cells[i]===null?'':String(cells[i]);
     const label=svg('text',{x:x+40,y:y+82,class:'memory-index'});
     label.textContent=`[${i}]`;
     ui.stackView.append(rect,value,label);
@@ -69,7 +69,7 @@ function renderStack(){
     const x=start+i*w;
     const rect=svg('rect',{x,y,width:80,height:65,rx:8,class:i===stackState.top?'memory-cell selected':'memory-cell'});
     const text=svg('text',{x:x+40,y:y+38,class:'memory-value'});
-    text.textContent=cells[i]===null?'·':String(cells[i]);
+    text.textContent=cells[i]===null?'':String(cells[i]);
     const label=svg('text',{x:x+40,y:y+82,class:'memory-index'});label.textContent=`[${i}]`;
     ui.stackView.append(rect,text,label);
     if(i===stackState.top){
@@ -93,7 +93,7 @@ function renderQueue(){
   const valid=size>=0 && size<=cells.length && front>=0 && front<cells.length &&
     rear>=0 && rear<cells.length;
   const status=svg('text',{x:SCENE_WIDTH/2,y:100,class:'queue-size','text-anchor':'middle'});
-  status.textContent=`size = ${size} / ${cells.length}${!valid?' · INVALID':size===0?' · EMPTY':size===cells.length?' · FULL':''}`;
+  status.textContent=`size = ${size} / ${cells.length}${!valid?', INVALID':size===0?', EMPTY':size===cells.length?', FULL':''}`;
   ui.stackView.append(status);
   for(let i=0;i<cells.length;i++){
     const x=start+i*w;
@@ -106,7 +106,7 @@ function renderQueue(){
     if(i===rear)classes.push('queue-rear');
     const rect=svg('rect',{x,y,width:80,height:65,rx:8,class:classes.join(' ')});
     const value=svg('text',{x:x+40,y:y+38,class:'memory-value'});
-    value.textContent=cells[i]===null?'·':String(cells[i]);
+    value.textContent=cells[i]===null?'':String(cells[i]);
     const index=svg('text',{x:x+40,y:y+82,class:'memory-index'});
     index.textContent=`[${i}]`;
     ui.stackView.append(rect,value,index);

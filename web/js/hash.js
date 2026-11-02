@@ -30,9 +30,8 @@ function autoFrameHash(steps,force=false){
   const capacity=Math.max(1,...snapshots.map(s=>s.buckets.length));
   const width=(capacity-1)*126+98+160;
   const ratio=treeSceneRatio(),required=Math.max(1100,width,(bottom+100)*ratio);
-  const w=force?required:Math.max(viewport.w,required);
-  viewport={x:(1100-w)/2,y:(bottom+20-w/ratio)/2,w,h:w/ratio};
-  paintViewport();
+  const w=required,target={x:(1100-w)/2,y:(bottom+20-w/ratio)/2,w,h:w/ratio};
+  if(force){viewport=target;paintViewport();}else autoViewport(target);
 }
 function renderHash(){
   ui.stackView.replaceChildren();
@@ -42,10 +41,10 @@ function renderHash(){
   const center=SCENE_WIDTH/2,spacing=126; // Fixed cell width; camera fits chosen count.
   const first=center-(capacity-1)*spacing/2;
   const heading=svg('text',{x:center,y:51,class:'heap-title','text-anchor':'middle'});
-  heading.textContent=`HASH TABLE · ${state.size} key${state.size===1?'':'s'} · ${occupied}/${capacity} buckets · α = ${(state.size/Math.max(1,capacity)).toFixed(2)}`;
+  heading.textContent=`HASH TABLE: ${state.size} key${state.size===1?'':'s'}, ${occupied}/${capacity} buckets, α = ${(state.size/Math.max(1,capacity)).toFixed(2)}`;
   ui.stackView.append(heading);
   const note=svg('text',{x:center,y:80,class:'heap-section','text-anchor':'middle'});
-  note.textContent='index = student hash(key, capacity) · collision chains';ui.stackView.append(note);
+  note.textContent='index = student hash(key, capacity), with collision chains';ui.stackView.append(note);
   for(let i=0;i<capacity;i++){
     const x=first+i*spacing,head=chains[i][0];
     ui.stackView.append(svg('rect',{x:x-49,y:106,width:98,height:61,rx:11,
@@ -91,7 +90,7 @@ function instantHash(frame){
   if(frame.line!=null)showLine(frame.line);
   switch(frame.kind){
     case 'operationStart':currentOperation=frame.operation;ui.operation.textContent=frame.operation;
-      ui.description.textContent=frame.description??'Executing the student method.';
+      ui.description.hidden=true;
       ui.returnValue.textContent='';hashHotBucket=null;hashHotNode=null;break;
     case 'bucketRead':hashHotBucket=frame.index;hashHotNode=frame.to;break;
     case 'visit':case 'compare':hashHotNode=frame.id;break;

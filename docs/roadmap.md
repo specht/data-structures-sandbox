@@ -1,4 +1,4 @@
-# Data Structure Sandbox · curriculum and development roadmap
+# Data Structure Sandbox: curriculum and development roadmap
 
 This file tracks teaching plans, planned interfaces and development work.
 The [registry](../tool/registry.dart) and [contracts](contracts.md) describe

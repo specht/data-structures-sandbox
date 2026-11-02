@@ -1,4 +1,4 @@
-# Student quick start · Stack (fixed array)
+# Student quick start: Stack (fixed array)
 
 Your files live in a **separate `structures/` Git repository**, with one folder
 per student. If it is not present yet, clone the class repository into
@@ -47,15 +47,22 @@ You write the logic, **not** the drawing code. `top == -1` means empty, and
    stored values or the highlighted top position.
 
 The method-call box accepts only methods exposed by your selected class. To
-reproduce a longer scenario, separate up to 20 calls with semicolons (or
-Shift+Enter for a new line), for example `insert(30); insert(20); insert(10)`,
-and press Enter or Run. The box remembers its text for each structure. Switch
-on **Repeat** to replay the scenario from an empty structure: Run (now labelled
-**Run from empty**) then discards the current structure, and the calls run again
-by themselves after every save. Repeat is off again after a page reload. **Collect** (or
-Shift+click) makes the suggestion buttons add their call to the box instead of
-running it.
-Use Step and the arrow keys to inspect writes; Home/End jump through the
+reproduce a longer scenario, separate calls with semicolons (or Shift+Enter for
+a new line), for example `insert(30); insert(20); insert(10)`, and press Enter
+or Run. The box remembers its text for each structure. Shift+click on a
+suggestion button adds its call to the box instead of running it.
+
+Below the suggestions, the **History** lists every call since the structure was
+last empty. After a save, a **Restart** or a page reload the structure starts
+empty again; with **Rebuild after save** on (the default) the history runs again
+by itself, so a tree built by clicking survives every code change. Click an
+earlier call to rebuild only up to it, **Replay** to watch the whole build step by
+step, or **Edit as text** to copy the calls into the box. **Reset** empties the
+structure and starts a new history. If a rebuild fails because the changed code
+behaves differently, the app says so and waits for your next save.
+A failed check names what differs (for example `contents [], expected [5]`)
+next to the operation; in **Run tests**, **Show in visualizer** replays a test
+group up to its failing call. Use Step and the arrow keys to inspect writes; Home/End jump through the
 trace when focus is outside a text editor or slider. The source display
 highlights your Dart file; the instrumented worker lives outside your student
 repository.
@@ -68,8 +75,8 @@ line of a timed-out call appear in the same Console, with a short hint for
 typical mistakes (for example a `null` node or an index outside the memory). Select a line number there
 to jump to that source line. Console output is retained between calls and is
 cleared when you select **Reset** (or explicitly use the Console's clear
-button). A failed or timed-out worker is stopped; use **Retry** after fixing or
-inspecting the problem.
+button). A failed or timed-out worker is stopped; **Restart** starts it again and rebuilds
+your history without the failing call.
 
 Commit your file in the **separate** `structures/` repository when your
 implementation passes its checks.

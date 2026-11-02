@@ -32,7 +32,7 @@ export default class MyArrayStack {
   }
 }
 
-// Quick reference · FixedMemory
+// Quick reference: FixedMemory
 //   memory.length       Physical capacity (8)
 //   memory[i]           Read a cell: an integer or null
 //   memory[i] = value   Write an integer (null clears a cell)

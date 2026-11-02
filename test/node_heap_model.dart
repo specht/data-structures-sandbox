@@ -52,7 +52,7 @@ void main() {
     if (auditNodeHeap(a, 2)['complete'] != false) throw StateError('Incomplete shape undetected');
     a.left = b;
     if (auditNodeHeap(a, 3)['acyclic'] != false) throw StateError('Shared child undetected');
-    print('PASS: node heap · 250 randomized operations, duplicates, shape, order, shared pointers');
+    print('PASS: node heap, 250 randomized operations, duplicates, shape, order, shared pointers');
   } finally {
     TreeRecorder.active = null;
   }

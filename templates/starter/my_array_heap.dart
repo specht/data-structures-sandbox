@@ -30,7 +30,7 @@ class MyArrayHeap {
 }
 
 /*
-Quick reference · HeapMemory
+Quick reference: HeapMemory
   memory.length         Number of stored values
   memory[i]             Read an int at index i
   memory[i] = value     Replace an existing value

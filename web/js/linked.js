@@ -54,11 +54,15 @@ function newNode(data, initial=false) {
   if(nodes.has(data.id))return nodes.get(data.id);
   const marker=references.current??references.previous;
   const around=nodes.get(marker)??[...nodes.values()].at(-1);
+  // A new tree node appears in the child row of the node being examined, the
+  // place it is about to be linked to. Spawning it higher up would let it
+  // fly down through its own parent, swinging the new edge around.
+  const parent=isTree()&&!initial?nodes.get(hotNode)??nodes.get(marker)??null:null;
   const node={id:data.id,value:data.value,next:data.next??null,left:data.left??null,right:data.right??null,
     height:data.height??1,balance:null,avlInvalid:false,heapIndex:null,heapInvalid:false,
-    x:initial?(isTree()?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2):
-      (around?.x??(isTree()?SCENE_WIDTH/2-36:SCENE_WIDTH/2-WIDTH/2))+55,
-    y:initial?ROW:135,
+    x:initial?(isTree()?SCENE_WIDTH/2-TREE_RADIUS:SCENE_WIDTH/2-WIDTH/2):
+      parent?parent.x:(around?.x??(isTree()?SCENE_WIDTH/2-TREE_RADIUS:SCENE_WIDTH/2-WIDTH/2))+55,
+    y:initial?ROW:parent?parent.y+90:135,
     opacity:initial?1:0,detached:false,wasReachable:false};nodes.set(node.id,node);
   const group=svg('g',{class:'node'});
   group.append(svg('rect',{class:'card',x:0,y:0,width:WIDTH,height:HEIGHT,rx:10}),
@@ -70,13 +74,29 @@ function newNode(data, initial=false) {
   const avlInfo=svg('text',{class:'avl-info',x:36,y:61});
   group.append(value,id,pointer,avlInfo);
   if(isTree()){
-    if(structure==='avl'||structure==='node_heap'){value.setAttribute('y',27);id.setAttribute('y',44);}
-    group.querySelector('.card').setAttribute('width',72);
-    group.querySelector('.card').setAttribute('height',72);
-    group.querySelector('.card').setAttribute('rx',36);
+    // Circles: every label is centred on the circle, derived from its radius.
+    const r=TREE_RADIUS;
+    group.classList.add('tree-node');
+    for(const text of [value,id,avlInfo])text.setAttribute('x',r);
+    // AVL / node heap: value and height and balance (or slot) only. Keys are
+    // unique, so the value names the node; the freed line keeps them legible.
+    const stacked=structure==='avl'||structure==='node_heap';
+    group.classList.toggle('stacked',stacked);
+    value.setAttribute('y',stacked?r+1:r+3);
+    id.setAttribute('y',r+16);
+    if(stacked)id.setAttribute('display','none');
+    avlInfo.setAttribute('y',r+16);
+    group.querySelector('.card').setAttribute('width',2*r);
+    group.querySelector('.card').setAttribute('height',2*r);
+    group.querySelector('.card').setAttribute('rx',r);
     group.querySelector('.divider').setAttribute('display','none');
     group.querySelector('.port').setAttribute('display','none');
     pointer.setAttribute('display','none');
+    // The node's position(s) in the current traversal's visit order.
+    const badge=svg('g',{class:'visit-badge',display:'none'});
+    badge.append(svg('rect',{x:2*r-22,y:-8,width:26,height:22,rx:11}),
+      svg('text',{x:2*r-9,y:7,'text-anchor':'middle'}));
+    group.append(badge);
   }
   ui.nodes.append(group);nodeViews.set(node.id,group);
   renderNode(node);return node;
@@ -89,8 +109,23 @@ function renderNode(node){
   view.classList.toggle('hot',hotNode===node.id);view.classList.toggle('detached',node.detached);
   view.classList.toggle('avl-invalid',(structure==='avl'&&node.avlInvalid)||(structure==='node_heap'&&node.heapInvalid));
   view.querySelector('.avl-info').textContent=structure==='avl'
-    ?`h${node.height} · b${node.balance==null?'?':node.balance>0?'+'+node.balance:node.balance}`
+    // Height and balance factor, compact enough to fit the circle's width.
+    ?`h${node.height} b${node.balance==null?'?':node.balance>0?'+'+node.balance:node.balance}`
     :structure==='node_heap'&&node.heapIndex!=null?`slot ${node.heapIndex}`:'';
+  const badge=view.querySelector('.visit-badge');
+  if(badge){
+    const order=typeof treeVisitOrder==='undefined'?null:treeVisitOrder.get(node.id);
+    badge.setAttribute('display',order?'inline':'none');
+    if(order){
+      const text=order.join(',');
+      badge.querySelector('text').textContent=text;
+      // Wider for a node visited twice (a wrong traversal shows that, too).
+      const width=Math.max(22,10+text.length*8);
+      badge.querySelector('rect').setAttribute('width',width);
+      badge.querySelector('rect').setAttribute('x',2*TREE_RADIUS-9-width/2);
+      badge.classList.toggle('repeated',order.length>1);
+    }
+  }
   const nil=!isTree()&&node.next==null && override?.from!==`node:${node.id}.next`;
   const pointer=view.querySelector('.pointer-label');
   pointer.textContent=isTree()?'':(nil?'null':'→');
@@ -215,6 +250,11 @@ function dockFor(name){
   return DOCKS[name];
 }
 const NULL_RAIL_TOP=123;
+// Where a null reference sits. Lists share one rail for all null references;
+// a tree's root is centred above the place its first node will appear.
+function nullDock(name){
+  return isTree()&&name==='root'?{x:SCENE_WIDTH/2,y:DOCKS.root.y}:dockFor(name);
+}
 // References to real objects live beside those objects. Only a null reference
 // uses a fixed dock and the shared null rail. This is also used by Fit.
 function referenceValues(){
@@ -237,6 +277,7 @@ function referenceAnchors(actual){
     if(!groups.has(id))groups.set(id,[]);
     groups.get(id).push(name);
   }
+  if(isTree())return treeLabelAnchors(groups,anchors);
   for(const [id,names] of groups){
     const n=nodes.get(id),centre=n.x+(isTree()?TREE_RADIUS:WIDTH/2);
     // Put two labels on each row, on opposite sides of the target. Stacking
@@ -256,17 +297,90 @@ function referenceAnchors(actual){
   }
   return anchors;
 }
+// Trees: each label takes the first free spot around its node, so a long name
+// (right_child) never covers a neighbouring node or another label. root,
+// placed first, keeps its place centred above its node.
+const LABEL_HALF_HEIGHT=16;
+const labelWidth=name=>Math.max(40,referenceLabel(name).length*9);
+function treeLabelAnchors(groups,anchors){
+  const R=TREE_RADIUS,placed=[];
+  const circles=[...nodes.values()].filter(n=>n.opacity>.05).map(treeCentre);
+  const free=(x,y,w)=>{
+    const box={x0:x-w/2-4,x1:x+w/2+4,y0:y-LABEL_HALF_HEIGHT-2,y1:y+LABEL_HALF_HEIGHT-2};
+    return circles.every(c=>Math.hypot(Math.max(box.x0,Math.min(c.x,box.x1))-c.x,
+        Math.max(box.y0,Math.min(c.y,box.y1))-c.y)>R+5)&&
+      placed.every(b=>b.x1<box.x0||b.x0>box.x1||b.y1<box.y0||b.y0>box.y1)&&
+      (placed.push(box),true);
+  };
+  const ordered=[...groups].sort(([,a],[,b])=>Number(b.includes('root'))-Number(a.includes('root')));
+  for(const [id,names] of ordered){
+    const c=treeCentre(nodes.get(id));
+    for(const name of names){
+      const w=labelWidth(name),side=R+w/2+34; // Room for a visible arrow beside the node.
+      const spots=[[0,-R-35],[w/2+20,-R-14],[-w/2-20,-R-14],[side,4],[-side,4],
+        [w/2+20,R+30],[-w/2-20,R+30],[0,-R-77],[0,R+44]];
+      const spot=spots.find(([dx,dy])=>free(c.x+dx,c.y+dy,w))??spots[0];
+      anchors.set(name,{x:c.x+spot[0],y:c.y+spot[1]});
+    }
+  }
+  return anchors;
+}
+/**
+ * Where a reference arrow leaves its label: on the side facing the node, so
+ * the arrow never crosses its own label (below a label above the node, above
+ * a label below it, at the near edge of a label beside it).
+ */
+function labelStart(name,anchor,id){
+  const n=nodes.get(id);
+  if(!isTree()||!n)return {x:anchor.x,y:anchor.y+10};
+  const c=treeCentre(n),w=labelWidth(name);
+  if(anchor.y-LABEL_HALF_HEIGHT>c.y)return {x:anchor.x,y:anchor.y-LABEL_HALF_HEIGHT-2};
+  if(Math.abs(anchor.x-c.x)>w/2+TREE_RADIUS)return {x:anchor.x+(anchor.x>c.x?-w/2-2:w/2+2),y:anchor.y-5};
+  return {x:anchor.x,y:anchor.y+10};
+}
+// While a reference changes, every label glides from where it rested to
+// where it will rest, also labels that only move aside because a second
+// reference now shares their node. Without this they would jump at once.
+let labelTween=null;
+function labelAnchors(actual){
+  const anchors=referenceAnchors(actual),out={};
+  for(const name of Object.keys(actual))out[name]=anchors.get(name)??nullDock(name);
+  return out;
+}
+function tweenedAnchor(name){
+  const from=labelTween?.before[name],to=labelTween?.after[name];
+  if(!from||!to)return null;
+  return {x:lerp(from.x,to.x,labelTween.t),y:lerp(from.y,to.y,labelTween.t)};
+}
+// The tip of a reference arrow whose label sits at [anchor].
+function referenceTip(name,id,anchor){
+  const n=nodes.get(id);
+  if(!n)return {x:nullDock(name).x,y:NULL_RAIL_TOP};
+  return arrowGeometry(labelStart(name,anchor,id),nodeTarget(n))?.tip??
+    {x:n.x+(isTree()?TREE_RADIUS:WIDTH/2),y:n.y-1};
+}
+/** Glides the labels to their places for [references] (e.g. at method end). */
+async function settleReferenceLabels(next){
+  const before=labelAnchors(referenceValues());
+  references=next;
+  const after=labelAnchors(referenceValues());
+  const moves=Object.keys(after).some(name=>before[name]&&
+    Math.hypot(before[name].x-after[name].x,before[name].y-after[name].y)>1);
+  if(!moves){renderAll();return;}
+  try{await tween(260,t=>{labelTween={before,after,t};renderReferences();});}
+  finally{labelTween=null;renderAll();}
+}
 // Where a reference arrow starts: just below its label.
 function referenceStart(name,id){
   const n=nodes.get(id);
   const anchor=referenceAnchors(referenceValues()).get(name)??
     {x:n.x+(isTree()?TREE_RADIUS:WIDTH/2),y:n.y-(isTree()?65:50)};
-  return {x:anchor.x,y:anchor.y+10};
+  return labelStart(name,anchor,id);
 }
 // The tip of a reference arrow: aimed from the label at the node's centre and
 // clipped at its outline. Labels side by side therefore get separate tips.
 function referencePoint(name,id){
-  const n=nodes.get(id),dock=dockFor(name);
+  const n=nodes.get(id),dock=nullDock(name);
   if(!n)return {x:dock.x,y:NULL_RAIL_TOP};
   const geometry=arrowGeometry(referenceStart(name,id),nodeTarget(n));
   return geometry?.tip??{x:n.x+(isTree()?TREE_RADIUS:WIDTH/2),y:n.y-1};
@@ -285,14 +399,16 @@ function pointerBounds(actual=referenceValues()){
   for(const [name,id] of Object.entries(actual)){
     const moving=(override?.from===`root:${name}`||override?.from===`var:${name}`) &&
       Number.isFinite(override.x)&&Number.isFinite(override.y);
-    const anchor=moving?{x:override.x,y:override.y-70}:anchors.get(name)??dockFor(name);
+    const anchor=moving?{x:override.x,y:override.y-70}:anchors.get(name)??nullDock(name);
     const textWidth=Math.max(40,referenceLabel(name).length*9);
     include(anchor.x-textWidth/2,anchor.y-17,anchor.x+textWidth/2,anchor.y+13);
     const tip=moving?{x:override.x,y:override.y}:referencePoint(name,id);
     include(Math.min(anchor.x,tip.x)-12,Math.min(anchor.y,tip.y)-8,
       Math.max(anchor.x,tip.x)+12,Math.max(anchor.y,tip.y)+12);
   }
-  if(nullNames.length){
+  if(nullNames.length&&isTree()){
+    for(const name of nullNames){const x=nullDock(name).x;include(x-34,NULL_RAIL_TOP,x+34,NULL_RAIL_TOP+27);}
+  }else if(nullNames.length){
     const railWidth=Math.max(690,...nullNames.map(name=>dockFor(name).x+35));
     include(28,NULL_RAIL_TOP,railWidth+55,NULL_RAIL_TOP+27);
   }
@@ -300,7 +416,7 @@ function pointerBounds(actual=referenceValues()){
 }
 function renderReferences(){
   if(structure==='stack'||structure==='array_queue')return;
-  ui.references.replaceChildren();ui.nullRail.replaceChildren();
+  ui.references.replaceChildren();ui.referenceLabels?.replaceChildren();ui.nullRail.replaceChildren();
   const actual=referenceValues(),anchors=referenceAnchors(actual);
   Object.keys(actual).forEach(dockFor);
   // Null remains an absence of a target; all null references share one rail.
@@ -309,7 +425,15 @@ function renderReferences(){
     const name=override.from.replace(/^(root|var):/,'');
     if(!nullNames.includes(name)){dockFor(name);nullNames.push(name);}
   }
-  if(nullNames.length){
+  if(nullNames.length&&isTree()){
+    // Trees: one small null box under each null reference.
+    for(const name of nullNames){
+      const x=nullDock(name).x;
+      ui.nullRail.append(svg('rect',{x:x-30,y:NULL_RAIL_TOP,width:60,height:25,rx:9,class:'null-rail'}));
+      const caption=svg('text',{x,y:NULL_RAIL_TOP+17,class:'null-rail-label','text-anchor':'middle'});
+      caption.textContent='null';ui.nullRail.append(caption);
+    }
+  }else if(nullNames.length){
     const railWidth=Math.max(690,...nullNames.map(name=>dockFor(name).x+35));
     ui.nullRail.append(svg('rect',{x:28,y:NULL_RAIL_TOP,width:railWidth-28,height:25,rx:9,class:'null-rail'}));
     const caption=svg('text',{x:railWidth+14,y:NULL_RAIL_TOP+17,class:'null-rail-label'});
@@ -323,18 +447,22 @@ function renderReferences(){
   for(const [name,id] of Object.entries(actual)){
     const moving=(override?.from===`root:${name}`||override?.from===`var:${name}`) &&
       Number.isFinite(override.x)&&Number.isFinite(override.y);
-    const anchor=moving?{x:override.x,y:override.y-70}:anchors.get(name)??dockFor(name);
+    const anchor=moving?(override.label??{x:override.x,y:override.y-70}):
+      tweenedAnchor(name)??anchors.get(name)??nullDock(name);
     const active=hotReference===name, label=svg('text',{x:anchor.x,y:anchor.y,class:`ref-label ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'active':''}`});
     label.textContent=referenceLabel(name);labels.push(label);
     const target=override?.from===`root:${name}`||override?.from===`var:${name}`
       ?{x:override.x,y:override.y}:referencePoint(name,id);
     const arrow=makeArrow(`ref-arrow ${(name==='head'||name==='root'||name==='tail')?'':'local'} ${active?'hot':''}`);
     const stationary=id!=null&&nodes.has(id)&&override?.from!==`root:${name}`&&override?.from!==`var:${name}`;
-    if(stationary)drawArrowTo(arrow,{x:anchor.x,y:anchor.y+10},nodeTarget(nodes.get(id)));
-    else drawArrow(arrow,{x:anchor.x,y:anchor.y+10},target,'reference');
+    const start=labelStart(name,anchor,id);
+    if(stationary)drawArrowTo(arrow,start,nodeTarget(nodes.get(id)));
+    else drawArrow(arrow,start,target,'reference');
     ui.references.append(arrow);
   }
-  ui.references.append(...labels); // Text stays above intersecting pointer paths.
+  // Labels go in a layer above the nodes: a long name (right_child) beside
+  // another node must not disappear behind it.
+  (ui.referenceLabels??ui.references).append(...labels);
 }
 function renderAll(){
   if(structure==='unsorted_linked_list'||structure==='sorted_linked_list'){

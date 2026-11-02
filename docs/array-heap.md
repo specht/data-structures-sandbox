@@ -1,4 +1,4 @@
-# Array min-heap · classroom introduction
+# Array min-heap: classroom introduction
 
 This adapter represents a **dynamic array**, not linked objects. The two
 visual projections refer to exactly the same storage index `i`:

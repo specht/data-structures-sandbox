@@ -14,17 +14,17 @@ let progressSnapshotData=null;
 let progressChecking=null;
 
 const PROGRESS_LABELS={
-  unsorted_array_list:'Unsorted list · array',
-  unsorted_linked_list:'Unsorted list · nodes',
-  sorted_array_list:'Sorted list · array',
-  sorted_linked_list:'Sorted list · nodes',
+  unsorted_array_list:'Unsorted list (array)',
+  unsorted_linked_list:'Unsorted list (nodes)',
+  sorted_array_list:'Sorted list (array)',
+  sorted_linked_list:'Sorted list (nodes)',
   tree:'BST',
   avl:'AVL',
-  stack:'Stack · array',
-  linked_stack:'Stack · nodes',
-  array_queue:'Queue · array',
-  linked_queue:'Queue · nodes',
-  array_heap:'Heap · array',
+  stack:'Stack (array)',
+  linked_stack:'Stack (nodes)',
+  array_queue:'Queue (array)',
+  linked_queue:'Queue (nodes)',
+  array_heap:'Heap (array)',
   hash:'Hash table',
 };
 
@@ -53,22 +53,22 @@ function progressDescription(cell){
   const list=progressImplementations(cell);
   if(list.length>1){
     const working=list.filter(entry=>entry.state==='complete').length;
-    return `${progressDescription({...cell,implementations:1,implementationList:null})} · `+
+    return `${progressDescription({...cell,implementations:1,implementationList:null})}. `+
       `${list.length} implementations, ${working} passing all checks: `+
-      list.map(progressImplementationDescription).join(' · ');
+      list.map(progressImplementationDescription).join('; ');
   }
   if(cell.implementations>1){
     const best=globalThis.describeVariant?describeVariant(cell.variant??''):cell.variant?`the “${cell.variant}” variant`:'the main file';
-    return `${progressDescription({...cell,implementations:1})} · best of ${cell.implementations} implementations (${best})`;
+    return `${progressDescription({...cell,implementations:1})}, the best of ${cell.implementations} implementations (${best})`;
   }
   if(cell.state==='complete'){
-    return `Fully verified · ${cell.passed} / ${cell.total} checks passed`;
+    return `Fully verified: ${cell.passed} / ${cell.total} checks passed`;
   }
   if(cell.tested){
-    if(cell.error)return `Started · tests could not complete: ${cell.error}`;
-    return `Started · ${cell.passed} / ${cell.total} checks passed`;
+    if(cell.error)return `Started, but the tests could not complete: ${cell.error}`;
+    return `Started: ${cell.passed} / ${cell.total} checks passed`;
   }
-  return 'Started · awaiting automated checks';
+  return 'Started, awaiting automated checks';
 }
 
 function renderProgress(data){
@@ -92,7 +92,7 @@ function renderProgress(data){
     if(structureInfo.id===loadedStructure){
       th.className='progress-loaded-column';
       th.setAttribute('aria-current','true');
-      th.title=`${th.title} · currently loaded`;
+      th.title=`${th.title} (currently loaded)`;
     }
     header.append(th);
   }
@@ -106,6 +106,7 @@ function renderProgress(data){
     const name=document.createElement('th');
     name.scope='row';
     name.textContent=student.id;
+    name.title=student.id; // Long names are shortened with an ellipsis.
     if(loadedRow){
       name.setAttribute('aria-current','true');
       name.title='Currently loaded student';
@@ -157,7 +158,7 @@ function renderProgress(data){
       }
 
       const description=checking?
-        `Checking now · ${progressDescription(cell)}`:progressDescription(cell);
+        `Checking now: ${progressDescription(cell)}`:progressDescription(cell);
       marker.setAttribute('aria-label',description);
       marker.title=description;
       td.append(marker);
@@ -191,8 +192,8 @@ function renderProgressSummary(structures,students){
     summary.append(count);
     const startedNote=document.createElement('span');
     startedNote.className='progress-summary-started';
-    startedNote.textContent=`· ${started} started`;
-    const description=`${complete} of ${students.length} students pass all checks · ${started} started`;
+    startedNote.textContent=`${started} started`;
+    const description=`${complete} of ${students.length} students pass all checks, ${started} started`;
     td.title=description;
     td.setAttribute('aria-label',description);
     td.append(summary,startedNote);

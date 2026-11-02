@@ -221,7 +221,8 @@ const trace={type:'trace',source:{file:'student.dart',lines:['class List {}','vo
   // A structure switch may invalidate the displayed Dart method call.
   const pushOnly=[{name:'push',params:[{name:'value',type:'int',named:false}],returns:'bool'}];
   run(`ui.callInput.value='insert(25)';updateMethodCatalog(${JSON.stringify(pushOnly)});`);
-  assert.equal(els.get('call-input').value,'push(25)');
+  assert.equal(els.get('call-input').value,'','A call the new structure lacks is cleared');
+  assert.match(els.get('call-input').placeholder,/push\(25\)/,'The example is a placeholder');
   run(`ui.callInput.value='push(7)';updateMethodCatalog(${JSON.stringify(pushOnly)});`);
   assert.equal(els.get('call-input').value,'push(7)','Keep a valid student-written call');
   Socket.current.handlers.message({data:JSON.stringify({type:'building',recompiling:true,message:'Compiling test…'})});

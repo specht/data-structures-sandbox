@@ -197,4 +197,12 @@
     <path d="M18 13l-6 6"/>
     <path d="M6 13l6 6"/>
   </symbol>
+  <symbol id="ti-eraser" viewBox="0 0 24 24">
+    <path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3"/>
+    <path d="M18 13.3l-6.3 -6.3"/>
+  </symbol>
+  <symbol id="ti-history" viewBox="0 0 24 24">
+    <path d="M12 8l0 4l2 2"/>
+    <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/>
+  </symbol>
 </svg>

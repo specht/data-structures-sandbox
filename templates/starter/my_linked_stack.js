@@ -30,7 +30,7 @@ export default class MyLinkedStack {
   }
 }
 
-// Quick reference · ListNode
+// Quick reference: ListNode
 //   new ListNode(value)   Create a node
 //   node.value            Stored integer
 //   node.next             Successor node or null

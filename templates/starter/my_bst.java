@@ -22,7 +22,7 @@ class MyBST {
     }
 }
 
-// Quick reference · TreeNode
+// Quick reference: TreeNode
 //   new TreeNode(value)       Create a node
 //   node.value                Stored int
 //   node.left / node.right    Child nodes or null

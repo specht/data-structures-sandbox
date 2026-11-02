@@ -41,7 +41,7 @@ export default class MyHashTable {
   }
 }
 
-// Quick reference · HashBuckets / ListNode
+// Quick reference: HashBuckets / ListNode
 //   buckets.length          Number of buckets
 //   buckets.indexFor(key)   Validated bucket index (uses _hash)
 //   buckets[i]              Read or write a bucket's first node (or null)

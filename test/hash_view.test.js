@@ -44,4 +44,4 @@ run(`instantHash({kind:'memoryWriteAndSettle',index:7,to:2,snapshot:${JSON.strin
 assert.equal(run('hashHotBucket'),7);
 run(`instantHash({kind:'snapshot',snapshot:${JSON.stringify(empty)}});`);
 assert.equal(run('hashChains(hashState).chains[7].length'),0);
-console.log('PASS: hash table · stationary buckets, linked collision chains, read/write and history');
+console.log('PASS: hash table, stationary buckets, linked collision chains, read/write and history');

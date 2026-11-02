@@ -16,7 +16,7 @@ Future<void> main() async {
     final worker=await prepare('example',kind,'structures');
     final cached=await prepare('example',kind,'structures');
     if(worker!=cached)throw StateError('Cache did not reuse $kind worker: $worker vs $cached');
-    stdout.writeln('PASS: $kind · identical sources reuse ${worker.endsWith('.dill') ? 'compiled kernel' : 'validated worker'}');
+    stdout.writeln('PASS: $kind, identical sources reuse ${worker.endsWith('.dill') ? 'compiled kernel' : 'validated worker'}');
     final process=await Process.start(Platform.resolvedExecutable,[worker]);
     final lines=StreamIterator(process.stdout.transform(utf8.decoder).transform(const LineSplitter()));
     try{
@@ -56,7 +56,7 @@ Future<void> main() async {
               e['oldValue']==0&&e['value']==-1)){
           throw StateError('Array stack pop must trace 0→-1: ${popped['steps']}');
         }
-        stdout.writeln('PASS: stack · student-owned top traced on push and pop');
+        stdout.writeln('PASS: stack, student-owned top traced on push and pop');
       }
       if(kind=='hash'){
         Future<Map<String,dynamic>> hashCall(String name,[List<Object?> args=const []]) async {
@@ -84,7 +84,7 @@ Future<void> main() async {
         if(((reply['steps'] as List).last['value'] as num)-0.5 != 0){
           throw StateError('Hash load factor is not 4/8');
         }
-        stdout.writeln('PASS: hash · generated worker, collisions, duplicate, remove, load factor');
+        stdout.writeln('PASS: hash, generated worker, collisions, duplicate, remove, load factor');
       }
       if(kind=='node_heap'){
         Future<Map<String,dynamic>> call(String name, [List<Object?> args=const []]) async {
@@ -110,7 +110,7 @@ Future<void> main() async {
         }
         final empty=await call('removeMin');
         if((empty['steps'] as List).last['value']!=null)throw StateError('Empty node heap should return null');
-        stdout.writeln('PASS: node heap · persistent worker, duplicates, complete shape, sorted removal');
+        stdout.writeln('PASS: node heap, persistent worker, duplicates, complete shape, sorted removal');
       }
       if(kind=='array_heap'){
         Future<Map<String,dynamic>> heapCall(String method, [List<Object?> args=const []]) async {
@@ -134,7 +134,7 @@ Future<void> main() async {
         }
         final empty=await heapCall('removeMin');
         if((empty['steps'] as List).last['value']!=null)throw StateError('Empty heap should return null');
-        stdout.writeln('PASS: array heap · persistent worker, duplicates and sorted removal');
+        stdout.writeln('PASS: array heap, persistent worker, duplicates and sorted removal');
       }
       if(kind=='avl'){
         // A second call must use the same worker and perform an LL rotation.
@@ -164,7 +164,7 @@ Future<void> main() async {
             throw StateError('AVL reference model found invalid structure: $audit');
           }
         }
-        stdout.writeln('PASS: AVL · 25,15,5 rotation via generated worker');
+        stdout.writeln('PASS: AVL, 25,15,5 rotation via generated worker');
       }
       if (kind == 'tree') {
         // Exercise the actual persistent worker, not merely the JS layout.
@@ -179,7 +179,7 @@ Future<void> main() async {
             throw StateError('Tree stopped growing at ${n - 24} nodes: $reply');
           }
         }
-        stdout.writeln('PASS: tree · persistent worker accepts more than 12 nodes');
+        stdout.writeln('PASS: tree, persistent worker accepts more than 12 nodes');
       }
       if (kind == 'array_queue') {
         // Every operation uses the SAME worker: wraparound, duplicate values,
@@ -261,7 +261,7 @@ Future<void> main() async {
             throw StateError('Randomized FIFO mismatch at operation $i: $reply');
           }
         }
-        stdout.writeln('PASS: array_queue · FIFO · duplicates · wraparound · full/empty · reuse · physical invariants');
+        stdout.writeln('PASS: array_queue, FIFO, duplicates, wraparound, full/empty, reuse, physical invariants');
       }
       if (kind == 'linked_stack') {
         // A linked stack is LIFO, unlike the sorted linked-list example.
@@ -286,7 +286,7 @@ Future<void> main() async {
         if ((reply['steps'] as List).last['value'] != null) throw StateError('Empty pop must return null');
         reply = await call('isEmpty');
         if ((reply['steps'] as List).last['value'] != true) throw StateError('Stack must be empty');
-        stdout.writeln('PASS: linked_stack · LIFO order · empty semantics · reference model');
+        stdout.writeln('PASS: linked_stack, LIFO order, empty semantics, reference model');
       }
       if (kind == 'linked_queue') {
         Future<Map<String, dynamic>> call(String name, [List<Object?> args = const []]) async {
@@ -319,9 +319,9 @@ Future<void> main() async {
         await call('enqueue', [99]);
         reply = await call('dequeue');
         if ((reply['steps'] as List).last['value'] != 99) throw StateError('Queue must be reusable after emptying');
-        stdout.writeln('PASS: linked_queue · FIFO · duplicates · head/tail · empty/reuse');
+        stdout.writeln('PASS: linked_queue, FIFO, duplicates, head/tail, empty/reuse');
       }
-      stdout.writeln('PASS: $kind · discovered methods · instrumented source · worker reply');
+      stdout.writeln('PASS: $kind, discovered methods, instrumented source, worker reply');
     }finally{
       process.kill(ProcessSignal.sigkill);
       await lines.cancel();

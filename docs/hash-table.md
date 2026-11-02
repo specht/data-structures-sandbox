@@ -1,4 +1,4 @@
-# Hash table · separate chaining
+# Hash table: separate chaining
 
 The example is a hash **set** of integers with separate chaining. **Both**
 the number of buckets and the hash function are student choices, defined in

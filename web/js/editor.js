@@ -192,7 +192,7 @@
       setStatus('Formatter returned invalid source text.', true); return;
     }
     if (message.content === editor.getValue()) {
-      setStatus('Already formatted · no changes to save'); return;
+      setStatus('Already formatted, nothing to save'); return;
     }
     const position = editor.getCursor();
     editor.operation(() => {
@@ -202,7 +202,7 @@
     });
     const line = Math.min(position.line, editor.lastLine());
     editor.setCursor({line, ch: Math.min(position.ch, editor.getLine(line).length)});
-    setStatus('Formatted · review and save your changes with Ctrl+S');
+    setStatus('Formatted. Review the changes and save them with Ctrl+S');
   }
   const listing = names => names.length < 2 ? names.join('') :
     `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
@@ -267,12 +267,12 @@
       paintNotice();
     }
     const parts = [];
-    if (inserted.length) parts.push(`Inserted ${listing(inserted)} · implement and save with Ctrl+S`);
+    if (inserted.length) parts.push(`Inserted ${listing(inserted)}. Implement them and save with Ctrl+S`);
     for (const name of different) {
       parts.push(`${name} exists with another signature; declare it as ` +
         `${message.signatures?.[name] ?? name}`);
     }
-    setStatus(parts.join(' · ') || 'The draft already declares every new method.',
+    setStatus(parts.join('. ') || 'The draft already declares every new method.',
       different.length > 0);
   }
   noticeInsert.addEventListener('click', insertStubs);
@@ -365,19 +365,19 @@
     }
     if (!diagnosticMarks.length) return;
     problemCount.textContent = diagnosticMarks.length === 1 ?
-      '1 compilation error · select to jump to the source' :
-      `${diagnosticMarks.length} compilation errors · select to jump to the source`;
+      '1 compilation error: select it to jump to the source' :
+      `${diagnosticMarks.length} compilation errors: select one to jump to the source`;
     problems.hidden = false;
     const first = diagnosticMarks[0];
     editor.scrollIntoView({line: first.line, ch: 0}, 90);
-    setStatus('Compilation failed · fix the marked lines, then save again', true);
+    setStatus('Compilation failed. Fix the marked lines, then save again', true);
   }
   function updateDirty() {
     dirty = revision !== null && editor.getValue() !== original;
     save.disabled = !dirty || saving || loading || !connected();
     revert.disabled = !dirty || saving;
     formatButton.disabled = revision === null || saving || loading || formatting || !connected();
-    setStatus(dirty ? 'Unsaved changes · Ctrl+S to save · Ctrl+Shift+K deletes a line' : 'Saved');
+    setStatus(dirty ? 'Unsaved changes. Ctrl+S saves, Ctrl+Shift+K deletes a line' : 'Saved');
     paintNotice();
   }
   editor.on('change', (cm, change) => {
@@ -465,7 +465,7 @@
       ignoreNextSourceChanged = true;
       // A user may continue typing while the save is in flight. Keep that text.
       updateDirty();
-      ui.cmdStatus.textContent = 'Saved · updating the visualizer…';
+      ui.cmdStatus.textContent = 'Saved. Updating the visualizer…';
     } else if (message.type === 'sourceError') {
       loading = false;
       saving = false;
@@ -493,13 +493,15 @@
   // A question in the style of the other dialogs instead of the browser's
   // confirm() (the same dialog as in the CPU and Sorting sandboxes): resolves
   // true for the main action, false for Keep editing, Esc, × or a click beside it.
-  function askConfirm({title, message, note = '', ok = 'Discard', cancel = 'Keep editing'}) {
+  function askConfirm({title, message, note = '', ok = 'Discard', cancel = 'Keep editing', icon = 'ti-x'}) {
     const dialog = $('confirm-dialog');
     $('confirm-title').textContent = title;
     $('confirm-message').textContent = message;
     $('confirm-note').textContent = note;
     const okLabel = $('confirm-ok').querySelector?.('span');
     if (okLabel) okLabel.textContent = ok;
+    // Discarding shows ×; restoring the saved version shows a restore arrow.
+    $('confirm-ok').querySelector?.('use')?.setAttribute('href', `/vendor/tabler-icons.svg#${icon}`);
     $('confirm-cancel').textContent = cancel;
     return new Promise(resolve => {
       const handlers = [['confirm-ok', () => finish(true)], ['confirm-cancel', () => finish(false)],
@@ -529,7 +531,7 @@
     const key = selection;
     if (!(await askConfirm({title: 'Revert to the saved version?',
       message: `Your unsaved changes to ${currentFile()} will be lost.`,
-      ok: 'Revert', note: 'Save first (Ctrl+S) to keep them.'}))) return;
+      ok: 'Revert', icon: 'ti-restore', note: 'Save first (Ctrl+S) to keep them.'}))) return;
     if (!dirty || saving || revision === null || selection !== key) return;
     highlight(null);
     clearDiagnostics();

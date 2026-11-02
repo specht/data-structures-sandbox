@@ -8,19 +8,16 @@
 // text becomes dark text, and accents become deeper shades of themselves.
 // Shadows stay dark but get softer. Run it again after changing style.css.
 // The same script is used by all three sandboxes.
+// tool/themes.mjs imports the color helpers below; only running this file
+// writes the light theme.
 import fs from 'node:fs';
-
-const [input, output] = process.argv.slice(2);
-if (!input || !output) {
-  console.error('Usage: node light-theme.mjs style.css light.css');
-  process.exit(64);
-}
+import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------- colors
-const srgbToLinear = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-const linearToSrgb = c => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+export const srgbToLinear = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+export const linearToSrgb = c => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
 
-function toOklab([r, g, b]) {
+export function toOklab([r, g, b]) {
   [r, g, b] = [r, g, b].map(v => srgbToLinear(v / 255));
   const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
   const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
@@ -30,7 +27,7 @@ function toOklab([r, g, b]) {
     0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
 }
 
-function fromOklab([L, a, b]) {
+export function fromOklab([L, a, b]) {
   const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
   const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
   const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
@@ -39,10 +36,10 @@ function fromOklab([L, a, b]) {
     -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s].map(v => linearToSrgb(v) * 255);
 }
 
-const inGamut = rgb => rgb.every(v => v >= -0.5 && v <= 255.5);
+export const inGamut = rgb => rgb.every(v => v >= -0.5 && v <= 255.5);
 
 /** Mirrors the lightness: L 0.17 (page background) → 0.97, L 0.96 (text) → 0.22. */
-function mirror(rgb) {
+export function mirror(rgb) {
   const [L, a, b] = toOklab(rgb);
   const light = Math.min(0.985, Math.max(0.12, 1.13 - 0.95 * L));
   // Very light results are backgrounds: keep them calm.
@@ -52,7 +49,7 @@ function mirror(rgb) {
   return out.map(v => Math.round(Math.min(255, Math.max(0, v))));
 }
 
-function parseColor(text) {
+export function parseColor(text) {
   let m = text.match(/^#([0-9a-f]{3,8})$/i);
   if (m) {
     let h = m[1];
@@ -70,14 +67,14 @@ function parseColor(text) {
   return null;
 }
 
-const format = ({ rgb, alpha }) => {
+export const format = ({ rgb, alpha }) => {
   const hex = rgb.map(v => v.toString(16).padStart(2, '0')).join('');
   return alpha >= 1 ? `#${hex}` : `rgba(${rgb.join(',')},${+alpha.toFixed(3)})`;
 };
 
-const COLOR = /#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|(?<![-\w])(?:white|black)(?![-\w])/gi;
+export const COLOR = /#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|(?<![-\w])(?:white|black)(?![-\w])/gi;
 
-function transformValue(property, value) {
+export function transformValue(property, value) {
   if (property === 'color-scheme') return value.replace(/\bdark\b/, 'light');
   const shadow = /shadow$/.test(property);
   return value.replace(COLOR, literal => {
@@ -96,9 +93,9 @@ function transformValue(property, value) {
 }
 
 // ---------------------------------------------------------------- CSS
-const css = fs.readFileSync(input, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+export const readRules = file => parseBlock(fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
 
-function prefix(selectorList) {
+export function prefix(selectorList) {
   return selectorList.split(',').map(s => s.trim()).filter(Boolean).map(s => {
     if (s.startsWith(':root')) return s.replace(':root', ':root[data-theme="light"]');
     if (/^html\b/.test(s)) return s.replace(/^html/, 'html[data-theme="light"]');
@@ -107,7 +104,7 @@ function prefix(selectorList) {
 }
 
 /** Returns [{selector, declarations}] or [{media, rules}] for one block of CSS. */
-function parseBlock(text) {
+export function parseBlock(text) {
   const out = [];
   let i = 0;
   while (i < text.length) {
@@ -145,6 +142,13 @@ function themed(rules, indent = '') {
   return lines;
 }
 
-const header = `/* Light theme, generated from ${input.split('/').pop()} by light-theme.mjs. Do not edit: run the script again. */`;
-fs.writeFileSync(output, `${header}\n${themed(parseBlock(css)).join('\n')}\n`);
-console.log(`${output} written`);
+if (process.argv[1] && fileURLToPath(import.meta.url) === fs.realpathSync(process.argv[1])) {
+  const [input, output] = process.argv.slice(2);
+  if (!input || !output) {
+    console.error('Usage: node light-theme.mjs style.css light.css');
+    process.exit(64);
+  }
+  const header = `/* Light theme, generated from ${input.split('/').pop()} by light-theme.mjs. Do not edit: run the script again. */`;
+  fs.writeFileSync(output, `${header}\n${themed(readRules(input)).join('\n')}\n`);
+  console.log(`${output} written`);
+}

@@ -35,7 +35,7 @@ export default class MyUnsortedArrayList {
   }
 }
 
-// Quick reference · ListMemory
+// Quick reference: ListMemory
 //   memory.length       Physical capacity (8)
 //   memory[i]           Read a cell: an integer or null
 //   memory[i] = value   Write an integer (null clears a cell)

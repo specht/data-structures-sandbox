@@ -48,7 +48,7 @@ class MyHashTable {
     }
 }
 
-// Quick reference · HashBuckets / ListNode
+// Quick reference: HashBuckets / ListNode
 //   buckets.length          Number of buckets
 //   buckets.indexFor(key)   Validated bucket index (uses hash)
 //   buckets.get(i)          First node of bucket i (or null)

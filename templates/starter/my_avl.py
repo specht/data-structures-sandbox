@@ -24,7 +24,7 @@ class MyAVL:
         return False
 
 
-# Quick reference · TreeNode
+# Quick reference: TreeNode
 #   TreeNode(value)         Create a node
 #   node.value              Stored int
 #   node.left / node.right  Child nodes or None

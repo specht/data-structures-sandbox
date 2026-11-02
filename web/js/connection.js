@@ -33,13 +33,14 @@ function connect(){
         showCompiling(false);
         ui.connection.textContent='Compilation failed';
         window.sandboxEditor?.receiveDiagnostics(data);
-        ui.cmdStatus.textContent='Compilation failed · select an error below the editor.';
+        ui.cmdStatus.textContent='Compilation failed. Select an error below the editor.';
         ui.cmdStatus.classList.add('error');return;
       }
       if(data.type.startsWith('progress')){progressMessage(data);return;}
       if(data.type.startsWith('validation')){validationMessage(data);return;}
       if(data.type==='catalog'){receiveCatalog(data);return;}
       if(data.type==='building'||data.type==='sourceChanged'){
+        codeChanged();
         if(data.type==='sourceChanged')window.sandboxEditor?.sourceChanged();
         resetValidation('Implementation changed; previous test results are outdated.');
         showCompiling(data.type==='building'&&data.recompiling===true);
@@ -48,7 +49,7 @@ function connect(){
           'Recompiling…':'Starting…';return;
       }
       if(data.type==='executionError'){
-        acceptExecutionError(data);return;
+        acceptExecutionError(data);settleRun(data);return;
       }
       if(data.type==='workerIdle'||data.type==='workerResuming'){
         // The host paused the Dart process of this tab (or is resuming it).
@@ -58,10 +59,12 @@ function connect(){
         ui.cmdStatus.textContent=data.message;return;
       }
       if(data.type==='error'){
+        abandonRun();
         showCompiling(false);
         focusAfterCommand=false;ui.cmdStatus.textContent=data.message;ui.cmdStatus.classList.add('error');return;
       }
       if(data.type==='hello'){
+        ui.retry.classList.remove('attention');
         window.sandboxEditor?.compiled();
         window.sandboxEditor?.ready();
         window.sandboxEditor?.missingMethods(data.missingMethods??[]);
@@ -73,16 +76,16 @@ function connect(){
         if(typeof data.variant==='string')variant=data.variant;
         rememberChoice();
         restoreValidation(data.validationRevision);
-        if(savedValues===null){acceptTrace(initial);repeatAfterFreshStart();return;}
+        useHistory();
+        if(savedValues===null){acceptTrace(initial);rebuildAfterFreshStart();return;}
         if(savedSessionId===(initial.sessionId??null) && JSON.stringify(savedValues)===JSON.stringify(initial.values)){
           ui.connection.textContent='Connected';return;
         }
         acceptTrace(initial);
-        ui.cmdStatus.textContent='Session restarted; current list has been reset.';
-        repeatAfterFreshStart();
+        if(!rebuildAfterFreshStart())ui.cmdStatus.textContent='The structure started empty again (a restart or a saved change).';
         return;
       }
-      if(data.type==='trace')acceptTrace(data);
+      if(data.type==='trace'){acceptTrace(data);settleRun(data);}
     }catch(error){ui.cmdStatus.textContent=`Invalid response: ${error.message}`;
       ui.cmdStatus.classList.add('error');console.error(error);}
   });
@@ -94,7 +97,7 @@ function connect(){
     if(stopped)return;
     showCompiling(false);
     resetValidation('Connection lost; run the tests again after reconnecting.');
-    ui.connection.textContent='Connection lost · reconnecting…';
+    ui.connection.textContent='Connection lost, reconnecting…';
     console.warn('WebSocket closed',event.code,event.reason||'');
     const delay=Math.min(5000,400*Math.pow(1.8,reconnectAttempt++));
     clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,delay);

@@ -46,14 +46,17 @@ body { background:linear-gradient(#10131bc4,#10131bc4),url('/background.jpg') ce
 .node .port { fill:#29486a; stroke:#719fda; }
 .node .divider { stroke:#719fda; stroke-width:1.5; }
 .node .value { fill:#eef5ff; font-size:23px; font-weight:650; text-anchor:middle; }
-.node .node-id { fill:#9bb9dc; font:11px var(--mono); text-anchor:middle; }
+.node .node-id { fill:#a9c4e4; font:11px var(--mono); text-anchor:middle; }
 .node .pointer-label { fill:#bbd4f4; font:10px var(--mono); text-anchor:middle; }
-.node.hot .card,.node.hot .port { fill:#594124; stroke:var(--gold); stroke-width:2.8; }
-.node.hot .divider { stroke:var(--gold); }
+/* Literal gold (= --gold): the theme generators mirror literal colors only. */
+.node.hot .card,.node.hot .port { fill:#594124; stroke:#f7bf61; stroke-width:2.8; }
+.node.hot .divider { stroke:#f7bf61; }
 .node.hot .value { fill:#ffedca; }
 .node.detached .card { stroke-dasharray:5 4; }
 .node .avl-info { fill:#b9dce6; font:10px var(--mono); text-anchor:middle; }
-.node.avl-invalid .card { stroke:#ff837b; stroke-width:3; }
+/* Dashed as well as red: readable against any theme's node color (Clemenza's
+   wine, Kellerman's berry) and without color vision. */
+.node.avl-invalid .card { stroke:#ff837b; stroke-width:3; stroke-dasharray:7 4; }
 .node.avl-invalid .avl-info { fill:#ffb1a8; font-weight:700; }
 .scene-status { position:absolute; bottom:15px; left:21px; right:21px; min-height:20px; font-size:12px; color:#acc1de; pointer-events:none; }
 .timeline { border-top:1px solid var(--border); padding:17px 22px 18px; background:#111d30; }
@@ -86,7 +89,9 @@ button.subtle { margin-left:auto; background:#262c3d; }
 .workspace { padding-top:13px; }
 .code-scroll { max-height:calc(100vh - 370px); min-height:370px; }
 .node .port { stroke-width:1.5; }
-.ref-label { fill:#9ec7fb; font:600 15px var(--mono); text-anchor:middle; }
+/* A halo in the scene's color keeps a label readable over nodes and edges. */
+.ref-label { fill:#9ec7fb; font:600 15px var(--mono); text-anchor:middle;
+  paint-order:stroke; stroke:#0b121d; stroke-width:5px; stroke-linejoin:round; }
 .ref-label.local { fill:#d6b1fc; }
 .ref-label.active { fill:#f7bd66; }
 .ref-arrow { fill:none; stroke-width:2.4; }
@@ -103,7 +108,7 @@ button.subtle { margin-left:auto; background:#262c3d; }
 
 /* v0.6: explicit arrow tips, a conceptual null rail, and local next=null. */
 .edge { --arrow-color:#82a7d4; --arrow-width:2.5px; stroke:none; }
-.edge.hot { --arrow-color:var(--gold); --arrow-width:3.7px; stroke:none; }
+.edge.hot { --arrow-color:#f7bf61; --arrow-width:3.7px; stroke:none; }
 .ref-arrow { --arrow-color:#92b8ea; --arrow-width:2.4px; stroke:none; }
 .ref-arrow.local { --arrow-color:#d6b1fc; stroke:none; }
 .ref-arrow.hot { --arrow-color:#f7bd66; --arrow-width:3.4px; stroke:none; }
@@ -127,7 +132,7 @@ button.subtle { margin-left:auto; background:#262c3d; }
 .suggestions-header strong{font-size:13px;color:#e6f0ff;}
 .suggestions-header span{font-size:11px;color:#99b0ce;flex:1;}
 .suggestions-header #reset{padding:7px 12px;font-size:12px;white-space:nowrap;}
-.suggestion-row{grid-template-columns:minmax(128px,190px) minmax(0,1fr);gap:12px;align-items:center;padding:8px 10px;border:1px solid #263c57;background:#101b2c;border-radius:10px}
+.suggestion-row{grid-template-columns:minmax(128px,190px) minmax(0,1fr);gap:12px;align-items:center}
 .suggestion-method{flex-direction:column;gap:2px;min-width:0}
 .suggestion-method strong{font:600 13px var(--mono);color:#b9d7ff;}
 .suggestion-method small{font:11px var(--mono);color:#829cbc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -281,7 +286,6 @@ button:focus-visible,select:focus-visible,input:focus-visible{
 .dialog-header .dialog-close .ui-icon{width:19px;height:19px}
 .dialog-body{min-height:0;overflow:auto;padding:0 19px}
 #validation-status{display:block;color:var(--muted);font-size:13px;margin:15px 0 10px}
-#validation-progress{width:100%;height:8px;accent-color:#6ccc9a}
 .validation-results{list-style:none;padding:12px 0 0;margin:11px 0 0;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr;gap:7px}
 .validation-results[hidden]{display:none}
 .validation-results li{display:flex;align-items:flex-start;gap:8px;min-width:0;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;overflow-wrap:anywhere}
@@ -461,7 +465,9 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 @media(max-width:600px){.command-line button .ui-icon,.source-actions button .ui-icon{width:14px;height:14px}}
 
 /* UI refinement: compact headers, coherent controls and consistent ink. */
-.operation-banner #description,.operation-banner #phase{display:none!important}
+.operation-banner #phase{display:none!important}
+/* The description only explains a failed check (see showReturnValue). */
+.operation-banner #description:not(.check-failed){display:none!important}
 .code-panel .section-heading{min-height:56px;display:grid;
   grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
 .code-panel .section-heading>div:first-child{min-width:0;display:block}
@@ -488,7 +494,6 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .step-controls{display:inline-flex;align-items:stretch;flex:none;gap:0;padding:2px;
   background:#101b2b;border:1px solid #38516f;border-radius:7px;overflow:hidden}
 .timeline .step-controls button{margin:0!important;padding:0 9px!important;min-width:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;color:#d3e1f5;opacity:1}
-.timeline .step-controls button+button{border-left:1px solid #334965!important}
 .timeline .step-controls button:disabled{color:#788ea9;opacity:1}
 .timeline .step-controls button:hover:not(:disabled){background:#243954!important;filter:none}
 .timeline .step-controls #next:not(:disabled){background:#274669!important;color:#edf5ff}
@@ -777,9 +782,9 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .progress-missing .progress-marker{
   min-width:27px;
   padding:0;
-  color:#6f849e
+  color:#7f93ad
 }
-.progress-missing{color:#6f849e}
+.progress-missing{color:#7f93ad}
 .progress-pending .progress-marker{
   color:#91a2b7;
   background:#182433;
@@ -847,7 +852,7 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 .topright .theme-toggle .ui-icon{width:16px;height:16px}
 
 /* One searchable implementation picker, the same as in the Sorting and CPU
-   sandboxes: structure · student [language], filtered by typing. */
+   sandboxes: structure, student [language], filtered by typing. */
 .picker{position:relative;min-width:0;flex:0 1 380px;max-width:440px}
 .picker-button{width:100%;display:flex;align-items:center;gap:8px;text-align:left;padding:6px 10px;background:#162a44;font-size:12.5px;border-radius:5px}
 .picker-name{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -897,12 +902,191 @@ button:has(> .ui-icon){display:inline-flex;align-items:center;justify-content:ce
 #tree-visit-values{white-space:nowrap;color:#9be6c4;font-weight:650}
 @media(max-width:650px){.scene-top{flex-wrap:wrap}.scene-top .tree-sample{order:2;margin-left:0}.scene-top .tree-sample+.scene-zoom{margin-left:auto}}
 .progress-summary-started{margin-left:5px;font:500 10px/1 system-ui,sans-serif;color:#91a2b7}
-/* New exercise methods (e.g. BST traversals) missing from an older student file. */
+/* New exercise methods (e.g. BST traversals) missing from an older student
+   file. Amber in every theme: it has to catch the eye. */
 .method-notice[hidden]{display:none!important}
 .method-notice{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  padding:9px 13px;background:#2a2414;border-bottom:1px solid #8a6a2c;color:#ffeccb;
+  padding:9px 13px;background:#3a2a0c;border-bottom:1px solid #b07a22;color:#ffe9c4;
   font-size:12px;line-height:1.45}
 .method-notice span{flex:1 1 16em;overflow-wrap:anywhere}
-.method-notice button{height:29px;padding:0 10px;font-size:11px;border-radius:5px;
-  background:#6b4f17;border-color:var(--gold);color:#fff3dc}
-.method-notice button:hover{background:#80601d}
+.method-notice button{height:30px;padding:0 12px;font-size:11.5px;font-weight:650;border-radius:8px;
+  display:inline-flex;align-items:center;gap:6px;
+  background:#7c5612;border:1px solid #e0a645;color:#fff4e0;box-shadow:inset 0 1px 0 #ffffff1f}
+.method-notice button:not(:disabled):hover{background:#8f6416;border-color:#f7bf61;filter:none}
+
+/* Call history: the calls since the structure was empty, rebuilt after saves. */
+.history-line{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;min-width:0;
+  padding-top:6px;border-top:1px solid #22354f;font-size:11px}
+.history-title{font-size:11px;font-weight:650;color:#9fb6d6;white-space:nowrap}
+.call-history{display:flex;align-items:center;gap:4px;flex-wrap:wrap;list-style:none;margin:0;padding:0;
+  min-width:0;flex:0 1 auto}
+.call-history li{display:flex}
+.history-call{height:24px;padding:0 7px;border-radius:5px;font:600 11px var(--mono);
+  background:#14243a;border:1px solid #2f4868;color:#b9cfee;cursor:pointer}
+.history-call:hover:not(:disabled){background:#1e3553;border-color:#5f86b8}
+.history-call:disabled{opacity:1;cursor:default;border-color:#5f86b8;color:#e3eeff}
+.history-more{color:#8aa3c4;font:11px var(--mono);padding:0 3px;cursor:help}
+.history-empty{color:#8aa3c4}
+.history-actions{display:flex;align-items:center;gap:6px;flex:none}
+.history-actions button{height:26px;padding:0 9px;font-size:11px;border-radius:5px;gap:5px}
+.history-actions .ui-icon{width:14px;height:14px}
+.history-action:disabled{opacity:.45;cursor:default}
+.history-actions .toggle-chip{background:#172a43;border-color:#3b587a;color:#afc4df}
+.history-actions .toggle-chip.selected{background:#294e78;border-color:#72a8e7;color:#fff;
+  box-shadow:inset 0 0 0 1px #4d82bf}
+.history-line .command-status{margin-left:auto;flex:1 1 220px;max-width:none;text-align:right;
+  white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35}
+.history-line button:focus-visible{outline:2px solid #ffd080;outline-offset:2px}
+@media(max-width:800px){.history-line .command-status{flex-basis:100%;text-align:left}}
+
+/* Suggestions: one group per method, so the buttons of a method stay together. */
+.suggestion-rows{gap:6px 16px}
+.suggestion-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.suggestion-buttons{display:contents}
+
+/* A failed check says why, right under the operation. */
+.operation-banner p.check-failed{color:#ffc2b3;font-family:var(--mono);font-size:12px;margin:0;
+  overflow-wrap:anywhere;min-width:0}
+.operation-banner p[hidden]{display:none}
+.check-failed-badge{margin-left:8px;padding:2px 8px;border-radius:6px;font-size:12px;
+  background:#4a2420;border:1px solid #a4574c;color:#ffd3c9}
+
+/* Traversal visit order on tree nodes. */
+.visit-badge rect{fill:#f7bf61;stroke:#0b111c;stroke-width:2}
+.visit-badge text{fill:#1d1406;font:700 12px var(--mono)}
+.visit-badge.repeated rect{fill:#ff8c7a}
+
+/* After a runtime error, Restart is the way on. */
+.retry-button.attention{border-color:var(--gold);color:#ffe3b0;box-shadow:0 0 0 2px #f7bf6133}
+.validation-show{margin-left:auto;height:26px;padding:0 9px;font-size:11px;border-radius:5px;flex:none;
+  background:#172a43;border:1px solid #3b587a;color:#c3d6f1}
+.validation-show:hover{background:#21395a}
+
+/* Class progress fits without horizontal scrolling on laptop and Full HD
+   screens (also at 125% scaling, about 1536 CSS pixels): the columns share
+   the dialog's width. Narrower windows still scroll the matrix. */
+.progress-dialog{width:min(98vw,1880px)}
+.progress-marker{position:relative}
+.progress-cell .progress-more{position:absolute;top:-8px;right:-9px;margin:0;opacity:1;
+  background:#101b2b;line-height:12px}
+@media(min-width:1180px){
+  .progress-table{table-layout:fixed;min-width:0}
+  .progress-table th,.progress-table td{min-width:0;padding:6px 5px}
+  .progress-table thead th{max-width:none;overflow-wrap:break-word;hyphens:auto}
+  .progress-table thead th:first-child,.progress-table tbody th,.progress-table tfoot th{
+    width:136px;min-width:0;padding-left:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .progress-marker{gap:4px;min-width:0;padding:0 7px}
+  .progress-summary-cell{white-space:normal}
+  .progress-summary-started{display:block;margin:4px 0 0}
+}
+
+/* ------------------------------------------------------------------ softer UI
+   Control groups are rounded tracks with borderless buttons inside; a selected
+   mode is a filled pill. Standalone buttons are gently filled instead of
+   outlined. This block comes last on purpose: it overrides the older layers.
+   Colors are literals (and resets use the transparent #0000), because
+   tool/light-theme.mjs mirrors literal colors only. */
+.command-line button,.topright button,.scene-top .tree-sample,.history-actions button,
+.source-actions button,.source-shortcuts button,.dialog-actions button,.validation-show{
+  border-radius:8px;border-color:#2a3e5a;background:#1a2a40}
+.command-line button:not(:disabled):hover,.topright button:not(:disabled):hover,
+.scene-top .tree-sample:not(:disabled):hover,.history-actions button:not(:disabled):hover,
+.source-actions button:not(:disabled):hover,.source-shortcuts button:not(:disabled):hover,
+.validation-show:hover{filter:none;background:#22364f;border-color:#46658d}
+.command-line .validation-button,.command-line .progress-button{background:#1a2a40;border-color:#2a3e5a}
+button.primary,.command-line button.primary,.dialog-actions .dialog-primary-action,
+.source-actions #source-save:not(:disabled){
+  background:#336fc6;border-color:transparent;color:#fff;
+  box-shadow:inset 0 1px 0 #ffffff26,0 3px 12px #336fc633}
+button.primary:not(:disabled):hover,.dialog-actions .dialog-primary-action:not(:disabled):hover{
+  filter:none;background:#4a89e6;border-color:transparent}
+.history-actions .toggle-chip.selected{background:#24456d;border-color:#4f7fba;box-shadow:none}
+.call-suggestion{border-radius:7px}
+.history-call{border-radius:6px}
+.retry-button.attention{border-color:var(--gold)}
+
+/* The playback bar: three tracks (modes, navigation, trace and speed). */
+.timeline{background:#0f1a2b}
+.timeline .playback-modes,.timeline .step-controls,.timeline .trace-settings,.scene-zoom{
+  background:#0d1726!important;border:1px solid #1d2c42!important;
+  border-radius:10px!important;padding:3px!important;gap:2px;box-shadow:none}
+.timeline .playback-modes button,.timeline .step-controls button,.scene-zoom button{
+  border:0!important;border-radius:7px!important;background:transparent!important;
+  box-shadow:none!important;color:#b9cbe4}
+.timeline .playback-modes button:not(:disabled):hover,.timeline .step-controls button:hover:not(:disabled),
+.scene-zoom button:not(:disabled):hover{background:#ffffff12!important;filter:none;color:#eef4ff}
+.timeline .playback-modes button.selected{background:#336fc6!important;color:#fff!important;
+  box-shadow:inset 0 1px 0 #ffffff26!important}
+.timeline .step-controls #next:not(:disabled){background:#22406a!important;color:#f2f7ff}
+.timeline .step-controls #next:not(:disabled):hover{background:#2a4d7d!important}
+.timeline .step-controls button:disabled{color:#5f7593}
+.timeline .trace-settings{padding:3px 8px!important}
+.timeline .trace-settings #trace-mode{background:#ffffff0a;border:1px solid #0000;border-radius:7px;color:#dce8f8}
+.timeline .trace-settings #trace-mode:hover{background:#ffffff12}
+.speed-choice{border-left-color:#1d2c42}
+.timeline .seek,#seek{accent-color:#6ea4f0}
+/* The opened list is drawn by the browser: give its options explicit colors. */
+.timeline .trace-settings #trace-mode option,select option{background:#16263b;color:#e9f1ff}
+/* Clear the method calls: a small × beside the field while it has text. */
+.call-form .call-clear{width:28px;min-width:28px;height:28px;padding:0;margin-left:-4px;
+  display:inline-flex;align-items:center;justify-content:center;border:1px solid #0000;border-radius:7px;
+  background:#0000;color:#9fb6d6}
+.call-form .call-clear[hidden]{display:none}
+.call-form .call-clear:hover{background:#ffffff12;color:#eef4ff;filter:none}
+.call-form .call-clear .ui-icon{width:15px;height:15px}
+/* Tree nodes are 60px circles: a slightly smaller value, centred labels. */
+.node.tree-node .value{font-size:20px}
+.node.tree-node .node-id{font-size:10px}
+.node.tree-node .avl-info{font-size:10.5px;font-weight:600}
+.node.tree-node.stacked .value{font-size:19px}
+
+/* Color themes: swatches next to the light/dark switch (themes.css colors
+   each swatch through its --swatch-* variables). */
+.palette-picker{position:relative;display:inline-flex}
+/* The only theme control in the top bar: as tall as Restart and the picker. */
+.topright .palette-toggle{width:32px;height:32px;min-width:32px;padding:0;flex:none;border-radius:8px;
+  display:inline-flex;align-items:center;justify-content:center}
+.palette-swatch-dot{width:16px;height:16px;border-radius:50%;box-shadow:0 0 0 1.5px #ffffff40;
+  background:conic-gradient(var(--swatch-accent) 0 40%,var(--swatch-highlight) 0 55%,var(--swatch-node) 0 78%,var(--swatch-panel) 0)}
+.palette-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:40;width:max-content;
+  display:flex;flex-direction:column;gap:12px;padding:12px 12px 10px;border-radius:12px;
+  background:#111c2d;border:1px solid #2c4262;box-shadow:0 18px 44px #000000a0}
+.palette-menu[hidden]{display:none}
+.palette-group{display:grid;grid-template-columns:repeat(4,86px);gap:6px 8px}
+.palette-heading{grid-column:1/-1;font-size:10px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:#8ea6c6}
+.palette-swatch{display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:4px;
+  border:1px solid #0000;border-radius:10px;background:#0000;color:#c9d9ee;cursor:pointer;font-size:11px}
+.palette-swatch:hover{background:#ffffff0d;border-color:#ffffff1a;filter:none}
+.palette-swatch.selected{border-color:#f7bf61;background:#f7bf6114}
+.palette-swatch:focus-visible{outline:2px solid #ffd080;outline-offset:1px}
+.palette-sample{height:40px;border-radius:7px;box-shadow:inset 0 0 0 1px #ffffff1f;
+  background:
+    radial-gradient(circle at 30% 50%,var(--swatch-node) 0 8px,var(--swatch-accent) 8.5px 10px,#0000 10.5px),
+    radial-gradient(circle at 74% 34%,var(--swatch-highlight) 0 4.5px,#0000 5px),
+    linear-gradient(var(--swatch-accent),var(--swatch-accent)) right 9px bottom 9px/22px 4px no-repeat,
+    var(--swatch-panel)}
+.palette-name{text-align:center;line-height:1.25;min-height:2.5em;display:flex;align-items:center;justify-content:center}
+
+/* Save/Revert: with nothing to save they are calm, not faded copies of the
+   active buttons. With a draft, Save is the filled accent button. */
+.source-actions button:disabled,.source-actions #source-save:disabled{
+  opacity:1;background:#152335;border-color:#22344c;color:#6f86a6;box-shadow:none;cursor:default}
+.source-actions button:disabled .ui-icon{opacity:.75}
+.history-line .history-icon{width:14px;height:14px;color:#8ea6c6;margin-right:-4px}
+/* A failed test can be recreated in the sandbox: the prominent action there. */
+.validation-show.validation-recreate{background:#2c5490;border-color:#5d8fd6;color:#f3f8ff}
+.validation-show.validation-recreate:hover:not(:disabled){background:#33609f;border-color:#82b2ff}
+.validation-show:disabled{opacity:.55;cursor:not-allowed}
+/* The test bar: one thin segment per test group, colored by its result. */
+.validation-bar{display:flex;gap:3px;height:7px;margin:2px 0 4px}
+.validation-bar[hidden]{display:none}
+.validation-segment{flex:1;border-radius:999px;background:#24364f;transition:background-color .25s}
+.validation-segment-pass{background:#6ccc9a}
+.validation-segment-fail{background:#e0656d}
+.validation-segment-running{background:#4f78ad;animation:validation-pulse 1s ease-in-out infinite alternate}
+@keyframes validation-pulse{from{opacity:.45}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.validation-segment-running{animation:none}}
+/* "N started" is a second line under the class summary in every layout. */
+.progress-summary-cell{white-space:normal}
+.progress-summary-started{display:block;margin:4px 0 0}

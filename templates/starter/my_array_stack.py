@@ -30,7 +30,7 @@ class MyArrayStack:
         return False
 
 
-# Quick reference · FixedMemory
+# Quick reference: FixedMemory
 #   len(memory)         Physical capacity (8)
 #   memory[i]           Read a cell: an int or None
 #   memory[i] = value   Write an int (None clears a cell)

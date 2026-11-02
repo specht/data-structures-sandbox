@@ -37,13 +37,13 @@ const run=source=>vm.runInContext(source,context);
 run(`var sent=[];socket={readyState:1,send(data){sent.push(JSON.parse(data));}}`);
 run(`receiveCatalog(${JSON.stringify({type:'catalog',default:{student:'liu.kashiwabara',structure:'tree',variant:'recursive'},
   students:[{id:'liu.kashiwabara',structures:['tree','stack'],implementations:[
-    {structure:'tree',variant:'',label:'Tree (binary search) · Dart',name:'Tree (binary search)',language:'Dart'},
-    {structure:'tree',variant:'recursive',label:'Tree (binary search) · recursive · Dart',name:'Tree (binary search) · recursive',language:'Dart'},
-    {structure:'stack',variant:'',label:'Stack (fixed array) · Dart',name:'Stack (fixed array)',language:'Dart'}]}]})})`);
+    {structure:'tree',variant:'',label:'Tree (binary search), Dart',name:'Tree (binary search)',language:'Dart'},
+    {structure:'tree',variant:'recursive',label:'Tree (binary search), recursive, Dart',name:'Tree (binary search), recursive',language:'Dart'},
+    {structure:'stack',variant:'',label:'Stack (fixed array), Dart',name:'Stack (fixed array)',language:'Dart'}]}]})})`);
 const picker=run('implementationPicker');
 const json=value=>JSON.parse(JSON.stringify(value));
 assert.deepEqual(json(picker.items.map(item=>`${item.kind}:${item.variant}`)),['tree:','tree:recursive','stack:']);
-assert.equal(picker.items[1].name,'Tree (binary search) · recursive');
+assert.equal(picker.items[1].name,'Tree (binary search), recursive');
 assert.equal(run('structure'),'tree');
 assert.equal(run('variant'),'recursive');
 const select=run('sent').at(-1);
@@ -51,7 +51,7 @@ assert.deepEqual({action:select.action,student:select.student,structure:select.s
   {action:'select',student:'liu.kashiwabara',structure:'tree',variant:'recursive'});
 // The button shows the selection; one language in the class needs no tags.
 const text=node=>(node.children??[]).map(child=>child.textContent||text(child)).join('|');
-assert.match(text(picker.button),/Tree \(binary search\) · recursive\|liu\.kashiwabara/);
+assert.match(text(picker.button),/Tree \(binary search\), recursive\|liu\.kashiwabara/);
 assert.doesNotMatch(text(picker.button),/Dart/);
 
 // Switching to the starter's file of the same structure.

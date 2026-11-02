@@ -126,9 +126,9 @@ assert.match(body.children[0].children[2].className,/progress-loaded-cell/);
 const summary=controls.get('progress-foot').children[0];
 assert.equal(summary.children[0].textContent,'Class');
 assert.equal(summary.children[1].children[0].children[0].textContent,'1/2');
-assert.equal(summary.children[1].children[1].textContent,'· 2 started');
-assert.match(summary.children[2].title,/1 of 2 students pass all checks · 2 started/);
-assert.equal(summary.children[3].children[1].textContent,'· 0 started');
+assert.equal(summary.children[1].children[1].textContent,'2 started');
+assert.match(summary.children[2].title,/1 of 2 students pass all checks, 2 started/);
+assert.equal(summary.children[3].children[1].textContent,'0 started');
 // One implementation per structure: nothing more to see.
 assert.equal(aliceStack.children.length,2);
 

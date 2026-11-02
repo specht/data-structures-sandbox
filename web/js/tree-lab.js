@@ -6,13 +6,20 @@ const treeLabUI = {
   values: document.getElementById('tree-visit-values'),
 };
 let treeVisitValues=[];
+// Node id → its positions in the visit order (1-based), drawn as badges.
+const treeVisitOrder=new Map();
 function resetTreeVisitDisplay(){
   treeVisitValues=[];
+  treeVisitOrder.clear();
   treeLabUI.visits.hidden=true;
   treeLabUI.values.textContent='';
 }
-function recordTreeVisit(value){
+function recordTreeVisit(value,id=null){
   treeVisitValues.push(value);
+  if(id!=null){
+    if(!treeVisitOrder.has(id))treeVisitOrder.set(id,[]);
+    treeVisitOrder.get(id).push(treeVisitValues.length);
+  }
   treeLabUI.visits.hidden=false;
   treeLabUI.values.textContent=treeVisitValues.join(' → ');
 }

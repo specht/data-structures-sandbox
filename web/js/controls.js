@@ -59,3 +59,13 @@ function chooseImplementation(item){
   if(window.sandboxEditor)window.sandboxEditor.beforeSelection(apply);
   else apply();
 }
+// A resized window or panel keeps the automatic framing at a sensible zoom.
+if(typeof ResizeObserver==='function'&&ui.scene){
+  let lastSize='';
+  new ResizeObserver(()=>{
+    const r=ui.scene.getBoundingClientRect(),size=`${Math.round(r.width)}x${Math.round(r.height)}`;
+    if(size===lastSize||!r.width||!r.height)return;
+    lastSize=size;
+    if(cameraMode==='auto'&&rawSteps?.length)fitScene();
+  }).observe(ui.scene);
+}

@@ -120,12 +120,12 @@ run('override=null;renderAll();');
   const [frontTipY,rearTipY]=[point(frontArrow)[1],point(rearArrow)[1]];
   assert.equal(frontTipY,232);assert.equal(rearTipY,303);
   run(`applySnapshot({cells:[1,2,3,4,5,6,7,8],front:2,rear:2,size:8});`);
-  assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 8 / 8 · FULL');
+  assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 8 / 8, FULL');
   assert.equal(arrayView.children.find(c=>c.classList.contains('ref-arrow')&&c.classList.contains('queue-front'))!=null,true);
   assert.equal(arrayView.children.find(c=>c.classList.contains('ref-arrow')&&c.classList.contains('queue-rear'))!=null,true,
     'Full front == rear must retain TWO separate marker arrows');
   run(`applySnapshot({cells:Array(8).fill(null),front:2,rear:2,size:0});`);
-  assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 0 / 8 · EMPTY');
+  assert.equal(arrayView.querySelector('.queue-size').textContent,'size = 0 / 8, EMPTY');
   assert.equal(arrayView.querySelectorAll('.queue-order').length,0);
   // Seeking backward and forward restores every marker and every physical slot.
   run(`clearView();structure='array_queue';

@@ -46,8 +46,30 @@ function validationRows(){
       const detail=document.createElement('span');
       detail.className='validation-group-label';
       detail.textContent=`${record.state==='pass'?'Passed':'Failed'}: ${record.name}`+
-        (record.message?` — ${record.message}`:'');
+        (record.message?` (${record.message})`:'');
       item.append(symbol,detail);
+      // Recreate the test's exact situation in the sandbox. The calls become
+      // the call history, so after every save the test runs there again.
+      const {calls,blocked}=scenarioCalls(record);
+      if(calls||blocked){
+        const failed=record.state==='fail';
+        const show=document.createElement('button');
+        show.type='button';show.className=`validation-show${failed?' validation-recreate':''}`;
+        show.textContent=failed?'Recreate this test':'Show in visualizer';
+        show.disabled=!calls;
+        show.title=!calls?`${blocked} is not in your file yet: insert the method stubs first`:
+          failed?'Run exactly these calls from empty in the sandbox, up to the failing one. '+
+            'They become your call history, so every save runs the test there again.':
+          'Run these calls from empty in the sandbox';
+        show.addEventListener('click',()=>{
+          if(!calls)return;
+          validationUI.dialog.close();
+          rebuildSuspended=false;
+          runCalls(calls,{reset:true,label:`${failed?'Recreating':'Showing'} “${record.name}” from empty…`,
+            done:failed?'This is the test situation: it runs again after every save.':null});
+        });
+        item.append(show);
+      }
       if(Array.isArray(record.steps)&&record.steps.length){
         const format=value=>value===undefined?'not available':JSON.stringify(value);
         const history=document.createElement('details');
@@ -55,7 +77,7 @@ function validationRows(){
         // Keep the results scannable: students expand a group when needed.
         history.open=false;
         const summary=document.createElement('summary');
-        summary.textContent=`Start empty · ${record.steps.length} step${record.steps.length===1?'':'s'} · ${record.state==='fail'?'view failure':'view history'}`;
+        summary.textContent=`Starts empty, ${record.steps.length} step${record.steps.length===1?'':'s'}: ${record.state==='fail'?'view the failure':'view the history'}`;
         const calls=document.createElement('ol');
         for(const step of record.steps){
           const entry=document.createElement('li');
@@ -79,13 +101,13 @@ function validationRows(){
           if('expectedReturn' in step&&!step.notExecuted){
             const returned=document.createElement('p');
             returned.textContent=step.returnIsVoid&&step.actualReturn===null
-              ? 'Completed · void method (no return value)'
-              : `Returned ${format(step.actualReturn)} · expected ${format(step.expectedReturn)}`;
+              ? 'Completed (void method, no return value)'
+              : `Returned ${format(step.actualReturn)}, expected ${format(step.expectedReturn)}`;
             entry.append(returned);
           }
           if('expectedContents' in step){
             const contents=document.createElement('p');
-            contents.textContent=`${step.contentsComparedAsUnordered?'Values (sorted for comparison)':'Contents'} ${format(step.actualContents)} · expected ${format(step.expectedContents)}`;
+            contents.textContent=`${step.contentsComparedAsUnordered?'Values (sorted for comparison)':'Contents'} ${format(step.actualContents)}, expected ${format(step.expectedContents)}`;
             entry.append(contents);
           }
           if(Array.isArray(step.checks)&&step.checks.length){
@@ -112,11 +134,42 @@ function validationRows(){
         history.append(summary,calls);
         item.append(history);
       }
-    }else item.textContent=record.state==='running'?`${record.name} — running…`:record.name;
+    }else item.textContent=record.state==='running'?`${record.name}: running…`:record.name;
     validationUI.results.append(item);
     return item;
   });
   validationUI.results.hidden=!validationItems.length;
+  paintValidationBar();
+}
+/**
+ * A group's calls as they ran (up to a failure): {calls}, or {blocked: name}
+ * when a call needs a method the file does not have yet.
+ */
+function scenarioCalls(record){
+  const labels=(record.steps??[]).map(step=>step.call).filter(call=>typeof call==='string');
+  if(!labels.length||typeof parseCalls!=='function')return {calls:null,blocked:null};
+  try{return {calls:parseCalls(labels.join('; ')),blocked:null};}
+  catch(_){
+    const missing=labels.map(label=>/^\s*([A-Za-z_]\w*)/.exec(label)?.[1])
+      .find(name=>name&&!discovered.has(name));
+    return {calls:null,blocked:missing??null};
+  }
+}
+/**
+ * One segment per test group, colored by its result as soon as it is known
+ * (green passed, red failed, pulsing while it runs), so the bar never shows
+ * success before the results do.
+ */
+function paintValidationBar(){
+  const bar=validationUI.progress;
+  bar.replaceChildren(...validationResults.map(record=>{
+    const segment=document.createElement('span');
+    segment.className=`validation-segment validation-segment-${record.state??'pending'}`;
+    return segment;
+  }));
+  const passed=validationResults.filter(r=>r.state==='pass').length;
+  const failed=validationResults.filter(r=>r.state==='fail').length;
+  bar.setAttribute('aria-label',`${passed} passed, ${failed} failed, ${validationResults.length} test groups`);
 }
 function restoreValidation(revision){
   validationRevision=revision??null;
@@ -129,8 +182,6 @@ function restoreValidation(revision){
     validationResults=cached.results;
     validationCompleted=true;
     validationUI.progress.hidden=false;
-    validationUI.progress.max=Math.max(1,cached.total);
-    validationUI.progress.value=cached.total;
     validationUI.status.textContent=`${cached.passed} / ${cached.total} test groups passed (cached)`;
     validationBadge(cached.passed,cached.total);
     validationRows();
@@ -145,7 +196,7 @@ function startValidation(){
   validationUI.button.classList.add('validation-running-button');
   validationUI.summary.hidden=true;
   validationUI.progress.hidden=false;
-  validationUI.progress.removeAttribute('value');
+  paintValidationBar();
   validationUI.status.textContent='Starting tests…';
   try{localStorage.removeItem(validationCacheKey());}catch(_){}
   socket.send(JSON.stringify({action:'validate'}));
@@ -157,8 +208,6 @@ function validationMessage(data){
       validationResults=(data.tests??[]).map(name=>({name,state:'pending'}));
       validationUI.rerun.disabled=true;
       validationUI.progress.hidden=false;
-      validationUI.progress.max=Math.max(1,validationResults.length);
-      validationUI.progress.value=0;
       validationUI.status.textContent=`Testing 0 / ${validationResults.length}…`;
       validationRows();return;
     case 'validationRunning':
@@ -169,8 +218,7 @@ function validationMessage(data){
         name:data.name,state:data.passed?'pass':'fail',message:data.message??null,
         steps:Array.isArray(data.steps)?data.steps:[],
       };
-      validationUI.progress.value=data.completed;
-      validationUI.status.textContent=`${data.completed} / ${data.total} groups · ${data.passedCount} passed`;
+      validationUI.status.textContent=`${data.completed} / ${data.total} groups, ${data.passedCount} passed`;
       validationRows();return;
     case 'validationDone':
       validationRunning=false;validationCompleted=true;

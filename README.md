@@ -79,6 +79,9 @@ für Git ein zweites.
 Der Knopf mit Sonne bzw. Mond oben rechts wechselt zwischen dunklem und hellem
 Design. Die App merkt sich die Wahl in der Datei `.settings.yaml` im
 App-Ordner; Git ignoriert sie, sie landet also in keinem Repository.
+Der runde Knopf daneben öffnet die Farbthemen: je vier für das dunkle und das
+helle Design. Dein Farbthema merkt sich dein Browser, getrennt für dunkel und
+hell.
 
 ## 4. Deine Datenstruktur anlegen
 
@@ -118,7 +121,7 @@ Eintrag:
 ## 5. Bearbeiten, ausprobieren, testen
 
 Wähle oben rechts deine Datei: Die Auswahl listet alle Implementierungen der
-Klasse, etwa „Tree (AVL) · alice“. Tippe zum Filtern einfach los, zum Beispiel
+Klasse, etwa „Tree (AVL), alice“. Tippe zum Filtern einfach los, zum Beispiel
 deinen Namen, „avl“ oder „python“. Schreibt die Klasse in mehreren Sprachen,
 steht bei jeder Datei ihre Sprache (Dart, Python, JavaScript, Java). Bearbeite den Code direkt im Editor und speichere
 mit **Ctrl+S**; die App übersetzt neu und setzt die Datenstruktur zurück. Rufe dann Methoden auf,
@@ -127,16 +130,21 @@ Fehlermeldungen und Ausgaben (`print`, `console.log`,
 `System.out.println`) erscheinen unter der Darstellung.
 
 Mehrere Aufrufe trennst du mit `;`, zum Beispiel
-`insert(1); insert(2); insert(3)` (bis zu 20 auf einmal); **Enter** führt sie
-aus. Die Eingabe merkt sich die App für jede Datenstruktur. Schalte
-**Repeat** ein, damit diese Aufrufe jedes Mal mit einer leeren Datenstruktur
-beginnen und nach jedem Speichern von selbst erneut laufen. So musst du dein
-Testszenario nicht immer wieder eintippen. Solange Repeat an ist, heißt der
-Knopf **Run from empty**: Jeder Run verwirft die bisherige Datenstruktur. Nach
-dem Neuladen der Seite ist Repeat wieder aus.
+`insert(1); insert(2); insert(3)`; **Enter** führt sie aus. Die Eingabe merkt
+sich die App für jede Datenstruktur. Shift+Klick auf einen Vorschlag fügt den
+Aufruf in die Eingabe ein, statt ihn auszuführen.
+
+Unter den Vorschlägen steht die **History**: alle Aufrufe, seit die
+Datenstruktur leer war. Nach dem Speichern, einem **Restart** oder dem
+Neuladen der Seite baut die App die Datenstruktur damit von selbst wieder auf
+(**Rebuild after save**, abschaltbar). Ein Klick auf einen früheren Aufruf
+baut sie nur bis dorthin auf; **Replay** zeigt den Aufbau Schritt für Schritt,
+**Edit as text** übernimmt die Aufrufe in die Eingabe. **Reset** leert die
+Datenstruktur und beginnt eine neue History.
 
 **Run tests** prüft deine Implementierung mit einem Referenzmodell, einschließlich
-der Speicherstruktur. **Class progress** zeigt den Stand der ganzen Klasse.
+der Speicherstruktur; **Show in visualizer** spielt eine Testgruppe in der
+Darstellung nach, bis zum fehlgeschlagenen Aufruf. **Class progress** zeigt den Stand der ganzen Klasse.
 Was die Methoden tun sollen, steht in den Kommentaren der Vorlage, in
 [docs/contracts.md](docs/contracts.md) und [docs/storage-api.md](docs/storage-api.md).
 

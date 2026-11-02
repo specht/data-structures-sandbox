@@ -28,7 +28,7 @@ class MyArrayHeap:
         return False
 
 
-# Quick reference · HeapMemory
+# Quick reference: HeapMemory
 #   len(memory)           Number of stored values
 #   memory[i]             Read the int at index i
 #   memory[i] = value     Replace an existing value

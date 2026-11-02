@@ -37,7 +37,7 @@ class MyHashTable:
         return 0.0
 
 
-# Quick reference · HashBuckets / ListNode
+# Quick reference: HashBuckets / ListNode
 #   len(buckets)            Number of buckets
 #   buckets.index_for(key)  Validated bucket index (uses _hash)
 #   buckets[i]              Read or write a bucket's first node (or None)

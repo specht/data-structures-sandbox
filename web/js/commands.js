@@ -3,7 +3,6 @@
 // Method signatures are supplied by the Dart AST-based generator; no method
 // names or argument counts are hardcoded in the browser.
 let discovered = new Map();
-let sequenceMode=false;
 function selectedDescriptor(){return discovered.get(ui.method.value)??null;}
 function renderArguments(){
   const descriptor=selectedDescriptor();if(!descriptor)return;
@@ -11,13 +10,13 @@ function renderArguments(){
   ui.singleArg.style.display=params.length===1?'flex':'none';
   ui.multiArgs.replaceChildren();
   if(params.length===1){
-    const p=params[0];ui.argLabel.textContent=`${p.name} · ${p.type}`;
+    const p=params[0];ui.argLabel.textContent=`${p.name} (${p.type})`;
     ui.values.value=p.type==='int'?'25':p.type==='double'?'2.5':p.type==='bool'?'true':'example';
     ui.values.placeholder=p.type==='int'?'25 or 10, 20, 30':p.name;
   } else {
     params.forEach((p,i)=>{
       const wrapper=document.createElement('span');wrapper.className='argument-field';
-      const label=document.createElement('label');label.textContent=`${p.name} · ${p.type}`;
+      const label=document.createElement('label');label.textContent=`${p.name} (${p.type})`;
       const input=document.createElement('input');input.dataset.argument=String(i);
       input.setAttribute('aria-label',`${p.name} (${p.type})`);
       input.value=p.type==='int'?'0':p.type==='double'?'0.0':p.type==='bool'?'false':'';
@@ -49,13 +48,14 @@ function updateMethodCatalog(catalog){
   ui.method.value=discovered.has(selected)?selected:(catalog[0]?.name??'');
   // New structure/student may not have the previously displayed method.
   // Preserve a custom call only if the chosen implementation exposes it.
-  if(!typedNames.length||typedNames.some(name=>!name||!discovered.has(name))){
-    const preferred=catalog.find(m=>['push','enqueue','insert','addVertex','contains'].includes(m.name))??catalog[0];
-    const example=preferred?.params?.map(p=>p.type==='String'?'"hello"':
-      p.type==='bool'?'true':p.type==='double'?'1.5':'25')??[];
-    ui.callInput.value=preferred?`${preferred.name}(${example.join(', ')})`:'';
-    ui.callInput.placeholder=preferred?`Enter a ${(globalThis.selectedLanguage?.()??{label:'Dart',print:'print(...)'}).label} method call`:'No callable methods available';
-  }
+  // The field holds only what the student typed: an example call is a
+  // placeholder, never text that has to be deleted first.
+  const preferred=catalog.find(m=>['push','enqueue','insert','addVertex','contains'].includes(m.name))??catalog[0];
+  const example=preferred?.params?.map(p=>p.type==='String'?'"hello"':
+    p.type==='bool'?'true':p.type==='double'?'1.5':'25')??[];
+  ui.callInput.placeholder=preferred?`e.g. ${preferred.name}(${example.join(', ')}), or several calls separated by ;`:
+    'No callable methods available';
+  if(typedNames.some(name=>!name||!discovered.has(name)))ui.callInput.value='';
   updateCommandComposer();
   ui.invoke.disabled=!catalog.length;renderArguments();
   renderSuggestions();
@@ -101,9 +101,8 @@ function autoFrameLinked(steps){
   const top=Math.min(0,156-70-(maxRefs-1)*30-42),bottom=510;
   const ratio=treeSceneRatio();
   const required=Math.max(SCENE_WIDTH,right-left,(bottom-top)*ratio);
-  const w=Math.max(viewport.w,required),h=w/ratio;
-  viewport={x:(left+right-w)/2,y:(top+bottom-h)/2,w,h};
-  paintViewport();
+  const w=required,h=w/ratio;
+  autoViewport({x:(left+right-w)/2,y:(top+bottom-h)/2,w,h});
 }
 function acceptTrace(data){
   if(!data.source?.lines||!Array.isArray(data.steps)||data.steps[0]?.kind!=='snapshot')throw Error('Invalid trace from the worker.');
@@ -126,13 +125,14 @@ function acceptTrace(data){
   autoFrameHash(rawSteps);
   playbackToken++;
   renderSource(source);restore(0);
-  if(playbackMode==='result')jumpTo(frames.length);
+  // A rebuild from the history shows its result, whatever the playback mode.
+  if(playbackMode==='result'||showsResultOnly())jumpTo(frames.length);
   else if(playbackMode==='play'&&focusAfterCommand)void playTrace(playbackToken);
   savedValues=[...data.values];savedCapacity=data.capacity??8;savedSessionId=data.sessionId??null;renderSuggestions();
   if(focusAfterCommand){focusAfterCommand=false;if(commandTakesFocus)ui.next.focus({preventScroll:true});}
   ui.connection.textContent='Connected';ui.cmdStatus.classList.remove('error');
   showCompiling(false);
-  ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready · ${structure} · [${data.values.join(', ')}]. Use ← / →.`:
+  ui.cmdStatus.textContent=frames.length?`${frames.length} steps ready, contents [${data.values.join(', ')}]. Use ← / → to step.`:
     'Ready. Choose an operation above.';
   const calls=data.calls;
   if(calls?.stoppedEarly){
@@ -142,7 +142,7 @@ function acceptTrace(data){
     ui.cmdStatus.classList.add('error');
   }else if(calls&&(calls.planned>1||calls.fromEmpty)){
     ui.cmdStatus.textContent=`Ran ${calls.planned} call${calls.planned===1?'':'s'}${calls.fromEmpty?' from empty':''}`+
-      ` · ${frames.length} steps · [${data.values.join(', ')}]. Use ← / →.`;
+      `: ${frames.length} steps, contents [${data.values.join(', ')}]. Use ← / → to step.`;
     // Repeat is the only way a Run from the text field discards the previous
     // contents; say so loudly instead of letting them vanish.
     if(calls.fromEmpty&&previousValues?.length){
@@ -175,13 +175,16 @@ function acceptExecutionError(data){
     if(line!==null)window.sandboxEditor?.highlight(line);
   }
   ui.connection.textContent='Runner stopped';
-  ui.cmdStatus.textContent='Execution stopped · details are in the Console.';
+  ui.retry.classList.add('attention');
+  ui.cmdStatus.textContent='Execution stopped. The details are in the Console.';
   ui.cmdStatus.classList.remove('error');
 }
-// focus:false keeps the keyboard focus where it is (Repeat after Ctrl+S in
-// the code editor must not move it to the step controls).
-function send(payload,{focus=true}={}){
+// focus:false keeps the keyboard focus where it is (a rebuild after Ctrl+S in
+// the code editor must not move it to the step controls). sequence: a further
+// part of runCalls() (history.js), which must not cancel the sequence.
+function send(payload,{focus=true,sequence=false}={}){
   if(!socket||socket.readyState!==WebSocket.OPEN){ui.cmdStatus.textContent='The sandbox server is not connected.';return;}
+  noteRequest(payload,{sequence});
   // Even if the user is halfway through an animation, allow another command.
   animationGeneration++;animating=false;playbackToken++;
   if(frames.length)restore(stepIndex);

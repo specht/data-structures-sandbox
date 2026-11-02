@@ -83,14 +83,14 @@ String implementationFile(StructureSpec spec, String variant) {
   return null;
 }
 
-/// 'Tree (AVL)' or 'Tree (AVL) · recursive': the structure and the file's
+/// 'Tree (AVL)' or 'Tree (AVL), recursive': the structure and the file's
 /// variant name, without the language.
 String implementationName(String kind, String variant) {
   final name = splitVariant(variant).name;
-  return [specFor(kind).label, if (name.isNotEmpty) name].join(' · ');
+  return [specFor(kind).label, if (name.isNotEmpty) name].join(', ');
 }
 
-/// 'Tree (AVL) · Dart', 'Tree (AVL) · recursive · Dart', 'Tree (AVL) · Python',
-/// 'Tree (AVL) · recursive · Java': every label names its language.
+/// 'Tree (AVL), Dart', 'Tree (AVL), recursive, Dart', 'Tree (AVL), Python',
+/// 'Tree (AVL), recursive, Java': every label names its language.
 String implementationLabel(String kind, String variant) =>
-    '${implementationName(kind, variant)} · ${languageNameOf(variant)}';
+    '${implementationName(kind, variant)}, ${languageNameOf(variant)}';

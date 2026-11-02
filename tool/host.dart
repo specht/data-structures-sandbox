@@ -473,7 +473,7 @@ Future<void> runProgressSweep(List<ProgressJob> jobs) async {
     final job=jobs[index];
     broadcastProgressStatus(
       'Checking ${index+1} / ${jobs.length}: '
-      '${job.student} · ${implementationLabel(job.kind,job.variant)}',
+      '${job.student}, ${implementationLabel(job.kind,job.variant)}',
       current:job,
     );
 
@@ -967,7 +967,7 @@ class Client {
           Map<String,dynamic>.from(result['error'] as Map):<String,dynamic>{
             'kind':'runtime','message':result['message']?.toString()??'Student code failed.'};
         send({...result,'type':'executionError','error':details,
-          'message':'${details['message']} · Runner stopped; use Retry to start a fresh instance.'});
+          'message':'${details['message']}. The runner stopped; Restart rebuilds your structure without the failing call.'});
       }else{
         if(result['type']=='trace'){
           if(message['action']=='reset') _clearHistory();
@@ -987,7 +987,7 @@ class Client {
         if(e.line!=null)'line':e.line,
         if(e.traceIndex!=null)'traceIndex':e.traceIndex,
       },'console':e.console,
-        'message':'${e.message} Runner stopped; use Retry to start a fresh instance.'});
+        'message':'${e.message} Runner stopped; Restart rebuilds your structure without the failing call.'});
     }catch(e){
       stderr.writeln('[sandbox] Student execution failed ($student/$kind):\n$e');
       runner.kill();if(identical(worker,runner))worker=null;
@@ -1025,7 +1025,7 @@ Future<void> main(List<String> args) async {
     exit(69);
   }
   final url='http://127.0.0.1:${server.port}/';
-  stdout.writeln('Data Structure Sandbox · $url · Students: ${Directory(repoPath).absolute.path}');
+  stdout.writeln('Data Structure Sandbox at $url, students in ${Directory(repoPath).absolute.path}');
   if(openBrowser)unawaited(_openBrowser(url));
   var fingerprint=jsonEncode(catalog());
   Timer.periodic(const Duration(milliseconds:700),(_){
@@ -1066,6 +1066,7 @@ Future<void> _handleRequest(HttpRequest request) async {
       '/' || '/index.html'=>'web/index.html',
       '/style.css'=>'web/style.css',
       '/light.css'=>'web/light.css',
+      '/themes.css'=>'web/themes.css', // Color themes (tool/themes.mjs).
       // The browser scripts, loaded in order by index.html.
       final script when RegExp(r'^/js/[a-z0-9-]+\.js$').hasMatch(script)=>'web$script',
       '/vendor/codemirror.js'=>'web/vendor/codemirror.js',

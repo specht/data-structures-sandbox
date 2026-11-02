@@ -240,6 +240,15 @@ class BrowserSession {
       Object? result;
       Object? executionError;
       StackTrace? executionStack;
+      // Computed from the reference BEFORE the call, to explain a failed check.
+      Object? expectedReturn;
+      if (adapter.standardMethods.contains(name)) {
+        try {
+          expectedReturn = adapter.expectedReturn(name, args);
+        } catch (_) {
+          // Not every call has a reference return (e.g. unusual signatures).
+        }
+      }
       adapter.beforeCall(name);
       try {
         result = invokeRecorded(r, name, args);
@@ -265,6 +274,8 @@ class BrowserSession {
         return {
           ...envelope(r.steps.cast<Map<String, Object?>>()),
           'type': 'executionError', 'error': failure,
+          // The browser's call history keeps the calls before the failing one.
+          'calls': {'planned': commands.length, 'completed': completed - 1, 'stoppedEarly': true},
         };
       }
       final canVerify = adapter.standardMethods.contains(name) &&
@@ -289,12 +300,20 @@ class BrowserSession {
       final returnsVoid = descriptor(name)['returns'] == 'void' &&
           descriptor(name)['callback'] != true;
       final label = '$name(${args.join(', ')})';
+      String shown(List<int> values) =>
+          '[${values.map((value) => value == invalidMarker ? 'cycle' : '$value').join(', ')}]';
+      final reasons = [
+        if (!checked) 'expected ${expectedReturn is List<int> ? shown(expectedReturn) : expectedReturn}',
+        if (actual.join(',') != expected.join(','))
+          'contents ${shown(actual)}, expected ${shown(expected)}',
+        ...problems,
+      ];
       final verdict = !ok
-          ? 'CHECK FAILED${problems.map((problem) => ' ($problem)').join()}'
+          ? 'CHECK FAILED: ${reasons.join('; ')}'
           : canVerify
               ? 'checked'
               : 'not automatically verified';
-      final message = '$label ${returnsVoid ? 'completed' : '⇒ $result'} · $verdict';
+      final message = '$label ${returnsVoid ? 'completed' : '⇒ $result'}, $verdict';
       r.end(result, ok, returnedVoid: returnsVoid, message: message);
       if (!ok) {
         stoppedEarly = completed < commands.length;

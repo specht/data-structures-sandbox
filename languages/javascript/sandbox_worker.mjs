@@ -1206,7 +1206,7 @@ class Session {
       if (!ok) verdict = `CHECK FAILED${problems.map(problem => ` (${problem})`).join('')}`;
       else if (canVerify) verdict = 'checked';
       else verdict = 'not automatically verified';
-      const text = `${label} ${returnsVoid ? 'completed' : `⇒ ${showTyped(result, descriptor.returns)}`} · ${verdict}`;
+      const text = `${label} ${returnsVoid ? 'completed' : `⇒ ${showTyped(result, descriptor.returns)}`}, ${verdict}`;
       recorder.end(result, ok, returnsVoid, text);
       if (!ok) {
         stoppedEarly = completed < commands.length;

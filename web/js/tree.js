@@ -11,8 +11,11 @@ function treeLayout(snapshot){
   // units), then move siblings apart ONLY as much as required. This is a tidy
   // tree layout: circles at the same depth never collide, even beyond the
   // fixed scene width. Keep the root centred and retain stable node IDs.
-  const MIN_SIBLING_GAP=94; // 72px circle + 22px breathing room.
-  const BASE_CHILD_OFFSET=72;
+  // A child sits half the minimum gap beside its parent, so two leaf
+  // siblings are exactly as far apart as the neighbouring cousins: the
+  // bottom row of a complete tree is evenly spaced, not grouped in pairs.
+  const MIN_SIBLING_GAP=104; // 60px circle + 44px breathing room.
+  const BASE_CHILD_OFFSET=MIN_SIBLING_GAP/2;
   const profiles=new Map();
   const pending=[{id:snapshot.root,finished:false}];
   const discovered=new Set();
@@ -71,8 +74,10 @@ function treeLayout(snapshot){
   for(const item of snapshot.nodes){
     if(targets.has(item.id))continue;
     const previous=nodes.get(item.id),pending=!previous?.wasReachable;
+    // A not yet linked node stays where it appeared (below the node being
+    // examined); a node that left the tree sinks to the bottom.
     targets.set(item.id,{x:previous?.x??centre-TREE_RADIUS+orphan*90,
-      y:pending?90:530,opacity:pending?1:.32,detached:!pending});orphan++;
+      y:pending?previous?.y??90:530,opacity:pending?1:.32,detached:!pending});orphan++;
   }
   // Intentionally no automatic viewBox changes: zooming every recorded
   // pointer write makes an otherwise smooth rotation appear to jump. Students
@@ -82,10 +87,23 @@ function treeLayout(snapshot){
 // Tree edges connect the node centres, clipped to their circular outlines.
 // A relaxed tree always has straight edges; a modest Bezier bend is used ONLY
 // during pointer changes and node settling, then fades back to a line.
-const TREE_RADIUS=36;
+const TREE_RADIUS=30;
 let treeEdgeMotion=0;
+// Nodes that move in the current settle: only their edges bend. Edges of
+// nodes that stay put must stay perfectly still (no bowing "twitch").
+let treeMovingNodes=new Set();
+/** Ids of nodes whose position or opacity differs between two maps. */
+function movingNodeIds(starts,targets){
+  const moving=new Set();
+  for(const [id,target] of targets){
+    const start=starts.get(id);
+    if(!start||Math.abs(start.x-target.x)>.5||Math.abs(start.y-target.y)>.5||
+      Math.abs((start.opacity??1)-(target.opacity??1))>.01)moving.add(id);
+  }
+  return moving;
+}
 function treeCentre(node){return {x:node.x+TREE_RADIUS,y:node.y+TREE_RADIUS};}
-function drawTreeEdge(group,fromCentre,toCentre,targetRadius=TREE_RADIUS,side='left'){
+function drawTreeEdge(group,fromCentre,toCentre,targetRadius=TREE_RADIUS,side='left',motion=treeEdgeMotion){
   const dx=toCentre.x-fromCentre.x,dy=toCentre.y-fromCentre.y;
   const length=Math.hypot(dx,dy);
   if(length<.001){group.setAttribute('visibility','hidden');return;}
@@ -99,13 +117,13 @@ function drawTreeEdge(group,fromCentre,toCentre,targetRadius=TREE_RADIUS,side='l
   const base={x:tip.x-ux*headLength,y:tip.y-uy*headLength};
   const left={x:base.x-uy*5.2,y:base.y+ux*5.2};
   const right={x:base.x+uy*5.2,y:base.y-ux*5.2};
-  const bend=Math.min(28,span*.17)*treeEdgeMotion*(side==='left'?-1:1);
+  const bend=Math.min(28,span*.17)*motion*(side==='left'?-1:1);
   const c1={x:start.x+(base.x-start.x)*.36-uy*bend,
             y:start.y+(base.y-start.y)*.36+ux*bend};
   // Keep the endpoint tangent collinear with the centre-to-centre vector so
   // the filled triangular tip lands precisely on the target's circular rim.
   const c2={x:base.x-ux*Math.min(20,span*.2),y:base.y-uy*Math.min(20,span*.2)};
-  const shaft=treeEdgeMotion<.001
+  const shaft=motion<.001
     ?`M ${fmt(start.x)} ${fmt(start.y)} L ${fmt(base.x)} ${fmt(base.y)}`
     :`M ${fmt(start.x)} ${fmt(start.y)} C ${fmt(c1.x)} ${fmt(c1.y)}, ${fmt(c2.x)} ${fmt(c2.y)}, ${fmt(base.x)} ${fmt(base.y)}`;
   group.querySelector('.arrow-shaft').setAttribute('d',shaft);
@@ -131,8 +149,12 @@ function renderTreeEdges(){
         (node[field]!=null&&nodes.has(node[field])?treeCentre(nodes.get(node[field])):null);
       if(!to)continue;
       active.add(key);
-      let edge=links.get(key);if(!edge){edge=makeArrow('edge');ui.edges.append(edge);links.set(key,edge);}
-      drawTreeEdge(edge,source,to,event?0:TREE_RADIUS,field);
+      let edge=links.get(key);if(!edge){edge=makeArrow('edge');edge.setAttribute('data-edge',key);ui.edges.append(edge);links.set(key,edge);}
+      // Bend only the pointer being changed and edges of nodes that move.
+      const moves=event||treeMovingNodes.has(node.id)||treeMovingNodes.has(node[field]);
+      // A moving pointer ends exactly at its point (radius -1), which is
+      // where the resting edge will end: no 1px snap when it arrives.
+      drawTreeEdge(edge,source,to,event?-1:TREE_RADIUS,field,moves?treeEdgeMotion:0);
       edge.setAttribute('opacity',Math.min(1,node.opacity*(nodes.get(node[field])?.opacity??1)).toFixed(3));
       edge.classList.toggle('hot',hotLink===name);
     }
@@ -144,7 +166,8 @@ function retireNodes(ids){
   renderAll();
 }
 async function animateRetire(ids,snapshot){
-  references={}; // The method has returned: local variables are out of scope.
+  // The method has returned: local variables are out of scope.
+  await settleReferenceLabels({});
   ui.phase.textContent='UNREACHABLE';ui.status.textContent='No remaining references: detached objects fade from the diagram.';
   const beginning=ids.map(id=>({id,node:nodes.get(id),y:nodes.get(id)?.y??0,opacity:nodes.get(id)?.opacity??0}));
   await tween(520,t=>{
