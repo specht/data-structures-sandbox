@@ -114,7 +114,8 @@ Future<void>? progressSweep;
 String progressStatusMessage='Open class progress to check current implementations.';
 String? progressStatusStudent,progressStatusStructure;
 // 3: BST/AVL traversals joined the Dart test suite.
-const progressCacheVersion=3;
+// 4: BST/AVL removal where the successor is the right child itself.
+const progressCacheVersion=4;
 
 String _progressKey(String student,String kind,[String variant=''])=>
     variant.isEmpty?'$student/$kind':'$student/$kind:$variant';

@@ -104,6 +104,8 @@ def cases(kind):
             ("Remove leaf and root", [c("insert", 8), c("insert", 3), c("insert", 12), c("remove", 3), c("contains", 3), c("remove", 8), c("contains", 12)]),
             ("Remove a node with two children", [c("insert", 8), c("insert", 4), c("insert", 12), c("insert", 2), c("insert", 6), c("insert", 10),
                                                  c("insert", 14), c("remove", 8), c("contains", 8), c("contains", 14)]),
+            ("Remove a node whose successor is its right child", [c("insert", 8), c("insert", 4), c("insert", 12), c("insert", 14), c("remove", 8), c("contains", 8),
+                                                                  c("contains", 12), c("contains", 14), c("remove", 12), c("contains", 14)]),
             ("Negative keys and repeated removal", [c("insert", 0), c("insert", -4), c("insert", 4), c("remove", -4), c("remove", -4), c("contains", 0),
                                                     c("remove", 0), c("remove", 4)]),
         ]
